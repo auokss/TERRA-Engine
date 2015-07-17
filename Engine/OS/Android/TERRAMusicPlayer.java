@@ -42,7 +42,7 @@ public class TERRAMusicPlayer {
 			player.prepare();	
 			
 		} catch (IOException e) {
-			System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TERRAAudioPlayer exception in "+fileName+": "+e.getClass().getName());
+			System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TERRAPlayer exception in "+fileName+": "+e.getMessage());
 			player = null;
 		}	
 		
