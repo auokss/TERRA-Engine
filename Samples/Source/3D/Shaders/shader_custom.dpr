@@ -70,15 +70,8 @@ Var
 
   Fnt:Font;
 
-  Graph:ShaderGroup;
-
 { Game }
 Procedure Demo.OnCreate;
-Var
-  OutPos, OutColor:ShaderOutputNode;
-  Compiler:GLSLShaderCompiler;
-  ShaderCode:TERRAString;
-  Dest:Stream;
 Begin
   FileManager.Instance.AddPath('Assets');
 
@@ -97,24 +90,6 @@ Begin
   Solid.SetScale(VectorConstant(20.0));
 
   Sun := DirectionalLight.Create(VectorCreate(-0.25, 0.75, 0.0));
-
-  Graph := ShaderGroup.Create();
-  OutColor := ShaderOutputNode.Create(shaderOutput_Diffuse);
-  OutColor.Input := ShaderVec4Constant.Create(VectorCreate4D(1.0, 0.0, 0.0, 1.0));
-
-  Graph.AddNode(OutColor);
-
-  Compiler := GLSLShaderCompiler.Create();
-
-  If Graph.GenerateCode(OutColor, Compiler, ShaderCode) Then
-  Begin
-    Dest := FileStream.Create('shader_out.txt');
-    Dest.WriteLine(ShaderCode);
-    ReleaseObject(Dest);
-  End;
-
-  ReleaseObject(Compiler);
-  ReleaseObject(Graph);
 
   _Scene := MyScene.Create;
   GraphicsManager.Instance.Scene := _Scene;

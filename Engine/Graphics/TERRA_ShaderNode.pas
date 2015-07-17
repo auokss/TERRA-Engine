@@ -50,9 +50,12 @@ Type
 			_NodeCount:Integer;
 
 		Public
+      XVertexCode:TERRAString;
+      XFragmentCode:TERRAString;
+
       Procedure AddNode(Node:ShaderNode);
 
-      Function GenerateCode(Target:ShaderNode; Compiler:ShaderCompiler; Out Code:TERRAString):Boolean;
+      Function GenerateCode(Target:ShaderNode; Compiler:ShaderCompiler; Out VertexShader, FragmentShader:TERRAString):Boolean;
 
       Function GetSubNodeAt(Index:Integer):ShaderNode; Override;
       Function GetSubNodeCount():Integer; Override;
@@ -177,7 +180,7 @@ Type
       _Output:ShaderOutputType;
 
       Function Compile(Target:ShaderCompiler):Boolean; Override;
-      
+
 		Public
       Constructor Create(Kind:ShaderOutputType);
 
@@ -219,6 +222,15 @@ Type
 
       Property FunctionType:ShaderFunctionType Read _Func Write _Func;
 	End;
+
+  ShaderBinaryOptionNode = Class(ShaderBinaryNode)
+    Protected
+      _Option:Cardinal;
+
+      Function Compile(Target:ShaderCompiler):Boolean; Override;
+
+    Public
+  End;
 
 	ShaderTernaryNode = Class(ShaderNode)
 		Protected
@@ -602,14 +614,20 @@ Begin
   _Nodes[Pred(_NodeCount)] := Node;
 End;
 
-Function ShaderGroup.GenerateCode(Target: ShaderNode; Compiler:ShaderCompiler; Out Code:TERRAString): Boolean;
+Function ShaderGroup.GenerateCode(Target:ShaderNode; Compiler:ShaderCompiler; Out VertexShader, FragmentShader:TERRAString):Boolean;
 Begin
+  If Self.XVertexCode<>'' Then
+  Begin
+     VertexShader := XVertexCode;
+     FragmentShader := XFragmentCode;
+     Result := True;
+    Exit;
+  End;
+
   Result := Target.Compile(Compiler);
 
   If Result Then
-    Code := Compiler.GenerateCode()
-  Else
-    Code := '';
+    Result := Compiler.GenerateCode(VertexShader, FragmentShader);
 End;
 
 Function ShaderGroup.GetSubNodeAt(Index: Integer): ShaderNode;
@@ -765,6 +783,25 @@ Begin
     _Block := Target.GenerateTernaryFunctionCall(_A._Block, _B._Block, _C._Block, _Func);
     Result := Assigned(_Block);
   End;
+End;
+
+{ ShaderBinaryOptionNode }
+
+Function ShaderBinaryOptionNode.Compile(Target: ShaderCompiler): Boolean;
+Var
+  Choice:ShaderNode;
+Begin
+  If (Self._Option <>0) Then
+    Choice := _A
+  Else
+    Choice := _B;
+
+  Result := Choice.Compile(Target);
+  If Not Result Then
+    Exit;
+
+  _Block := Choice._Block;
+  Result := Assigned(_Block);
 End;
 
 End.

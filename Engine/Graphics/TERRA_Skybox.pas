@@ -68,7 +68,7 @@ Type
 
 Implementation
 Uses TERRA_GraphicsManager, TERRA_ResourceManager, TERRA_Log, TERRA_OS, TERRA_Camera,
-  TERRA_Image, TERRA_BoundingBox, TERRA_Viewport;
+  TERRA_Image, TERRA_BoundingBox, TERRA_Viewport, TERRA_ShaderNode, TERRA_ShaderCompiler;
 
 Var
   _SkyboxShader:ShaderInterface = Nil;
@@ -105,13 +105,14 @@ Begin
   Result := S;
 End;*)
 
-Function GetShader_Skybox(OutputMode:Integer):TERRAString;
+Function GetShader_Skybox(OutputMode:Integer):ShaderGroup;
 Var
   S:TERRAString;
 Procedure Line(S2:TERRAString); Begin S := S + S2 + crLf; End;
 Begin
+  Result := ShaderGroup.Create();
+
   S := '';
-  Line('vertex {');
   Line('varying highp vec3 normal;');
   Line('  uniform mat4 projectionMatrix;');
   Line('  uniform mat4 rotationMatrix;');
@@ -122,8 +123,9 @@ Begin
   Line('  gl_Position = projectionMatrix * terra_position;');
   Line('  highp vec4 n = reflectionMatrix * vec4(terra_normal, 1.0);');
   Line('  normal = (rotationMatrix * n).xyz;}');
-  Line('}');
-  Line('fragment {');
+  Result.XVertexCode := S;
+
+  S := '';
   Line('varying highp vec3 normal;');
   Line('uniform samplerCube skyTexture;');
   Line('uniform lowp vec4 skyColor;');
@@ -140,8 +142,7 @@ Begin
     //Line('  gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);}');
   End;
 
-  Line('}');
-  Result := S;
+  Result.XFragmentCode := S;
 End;
 
 { Skybox }

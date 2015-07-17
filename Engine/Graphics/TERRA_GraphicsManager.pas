@@ -331,7 +331,7 @@ Implementation
 
 Uses TERRA_Error, TERRA_OS, TERRA_Log, TERRA_UI, TERRA_ResourceManager, TERRA_InputManager,
   TERRA_Frustum, TERRA_Lights, TERRA_SpriteManager, TERRA_Mesh,
-  TERRA_Decals, TERRA_Billboards, TERRA_ParticleRenderer, TERRA_DebugDraw;
+  TERRA_Decals, TERRA_Billboards, TERRA_ParticleRenderer, TERRA_DebugDraw, TERRA_ShaderNode, TERRA_ShaderCompiler;
 
 Var
   _GraphicsManager_Instance:ApplicationObject = Nil;
@@ -343,7 +343,7 @@ Begin
 End;
 
 
-Function GetShader_SimpleColor():TERRAString;
+Function GetShader_SimpleColor():ShaderGroup;
 Var
   S:TERRAString;
 Procedure Line(S2:TERRAString); Begin S := S + S2 + crLf; End;
@@ -363,10 +363,10 @@ Begin
 	Line('	void main()	{');
 	Line('	gl_FragColor = out_color;}');
   Line('}');
-  Result := S;
+  Result := Nil;
 End;
 
-Function GetShader_SimpleTexture():TERRAString;
+Function GetShader_SimpleTexture():ShaderGroup;
 Var
   S:TERRAString;
 Procedure Line(S2:TERRAString); Begin S := S + S2 + crLf; End;
@@ -393,10 +393,10 @@ Begin
 	Line('	gl_FragColor = color  * out_color;}');
 //	Line('	gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);}');
   Line('}');
-  Result := S;
+  Result := Nil;
 End;
 
-Function GetShader_ColoredTexture():TERRAString;
+Function GetShader_ColoredTexture():ShaderGroup;
 Var
   S:TERRAString;
 Procedure Line(S2:TERRAString); Begin S := S + S2 + crLf; End;
@@ -427,10 +427,10 @@ Begin
 	Line('	gl_FragColor = color  * myColor;}');
 //	Line('	gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);}');
   Line('}');
-  Result := S;
+  Result := Nil;
 End;
 
-Function GetShader_StencilVolumeShader():TERRAString;
+Function GetShader_StencilVolumeShader():ShaderGroup;
 Var
   S:TERRAString;
 Procedure Line(S2:TERRAString); Begin S := S + S2 + crLf; End;
@@ -448,10 +448,10 @@ Begin
 	Line('	void main()	{');
 	Line('	gl_FragColor = vec4(1.0, 1.0, 0.0, 0.5);}');
   Line('}');
-  Result := S;
+  Result := Nil;
 End;
 
-Function GetShader_FullscreenColor():TERRAString;
+Function GetShader_FullscreenColor():ShaderGroup;
 Var
   S:TERRAString;
 Procedure Line(S2:TERRAString); Begin S := S + S2 + crLf; End;
@@ -468,16 +468,17 @@ Begin
 	Line('  void main()	{');
   Line('    gl_FragColor = color;}');
   Line('}  ');
-  Result := S;
+  Result := Nil;
 End;
 
-Function GetShader_FullscreenQuad():TERRAString;
+Function GetShader_FullscreenQuad():ShaderGroup;
 Var
   S:TERRAString;
 Procedure Line(S2:TERRAString); Begin S := S + S2 + crLf; End;
 Begin
+  Result := ShaderGroup.Create();
   S := '';
-  Line('vertex {');
+
 	Line('  varying mediump vec2 texCoord;');
   Line('  attribute highp vec4 terra_position;');
   Line('  attribute mediump vec3 terra_UV0;');
@@ -485,8 +486,9 @@ Begin
 	Line('void main()	{');
   Line('  gl_Position =  projectionMatrix * terra_position;');
   Line('  texCoord = terra_UV0.xy;}');
-  Line('}');
-  Line('fragment {');
+  Result.XVertexCode := S;
+
+  S := '';
 	Line('  varying mediump vec2 texCoord;');
 	Line('  uniform sampler2D texture;');
 	Line('  void main()	{');
@@ -496,8 +498,7 @@ Begin
   {$ELSE}
   Line('    gl_FragColor = c;}');
   {$ENDIF}
-  Line('}  ');
-  Result := S;
+  Result.XFragmentCode := S;
 End;
 
 

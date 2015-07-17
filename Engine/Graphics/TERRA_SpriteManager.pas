@@ -28,7 +28,7 @@ Interface
 Uses {$IFDEF USEDEBUGUNIT}TERRA_Debug,{$ENDIF}
   TERRA_String, TERRA_Utils, TERRA_Vector3D, TERRA_Vector2D, TERRA_Color, TERRA_GraphicsManager, TERRA_Texture,
   TERRA_Application, TERRA_Matrix3x3, TERRA_Matrix4x4, TERRA_ClipRect,
-  TERRA_Renderer, TERRA_InputManager, TERRA_VertexFormat;
+  TERRA_Renderer, TERRA_InputManager, TERRA_VertexFormat, TERRA_ShaderNode;
 
 Const
   vertexFormatSaturation = vertexFormatUV1;
@@ -253,13 +253,14 @@ Begin
   Result := S;
 End;
 
-Function GetShader_Sprite(DoColorGrading:Boolean):TERRAString;
+Function GetShader_Sprite(DoColorGrading:Boolean):ShaderGroup;
 Var
   S:TERRAString;
 Procedure Line(S2:TERRAString); Begin S := S + S2 + crLf; End;
 Begin
+  Result := ShaderGroup.Create();
+
   S := '';
-  Line('vertex {');
 	Line('  varying mediump vec2 texCoord;');
 	Line('  varying lowp vec4 color;');
 	Line('  varying lowp float saturation;');
@@ -273,8 +274,10 @@ Begin
   Line('  texCoord = terra_UV0.xy;');
   Line('  saturation = terra_saturation;');
   Line('  color = terra_color;}');
-  Line('}');
-  Line('fragment {');
+
+  Result.XVertexCode := S;
+
+  S := '';
 	Line('  varying mediump vec2 texCoord;');
 	Line('  varying lowp vec4 color;');
 	Line('  varying lowp float saturation;');
@@ -300,17 +303,18 @@ Begin
  // Line('    c.rgb *= 0.0;');
 //  Line('    c.rgb += vec3(1.0, 0.0, 0.0);');
   Line('    gl_FragColor = c;}');
-  Line('}  ');
-  Result := S;
+
+  Result.XFragmentCode := S;
 End;
 
-Function GetShader_Font():TERRAString;
+Function GetShader_Font():ShaderGroup;
 Var
   S:TERRAString;
 Procedure Line(S2:TERRAString); Begin S := S + S2 + crLf; End;
 Begin
+  Result := ShaderGroup.Create();
+
   S := '';
-  Line('vertex {');
 	Line('  varying mediump vec2 texCoord;');
 	Line('  varying lowp vec4 color;');
 	Line('  varying lowp float saturation;');
@@ -324,8 +328,9 @@ Begin
   Line('  texCoord = terra_UV0.xy;');
   Line('  saturation = terra_saturation;');
   Line('  color = terra_color;}');
-  Line('}');
-  Line('fragment {');
+  Result.XVertexCode := S;
+
+  S := '';
 	Line('  varying mediump vec2 texCoord;');
 	Line('  varying lowp vec4 color;');
 	Line('  varying lowp float saturation;');
@@ -368,8 +373,9 @@ Begin
   Line('    gl_FragColor = vec4(baseColor.r, baseColor.g, baseColor.b, alpha * color.a);}');
   {$ENDIF}
 //  Line('    gl_FragColor = vec4(baseColor.r, baseColor.g, 1.0, 1.0);}');
-  Line('}  ');
-  Result := S;
+
+
+  Result.XFragmentCode := S;
 End;
 
 Procedure ClipVertex(V:SpriteVertex; Clip:ClipRect; Width, Height, USize, VSize:Single{; Landscape:Boolean});

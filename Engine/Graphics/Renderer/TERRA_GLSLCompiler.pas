@@ -12,7 +12,8 @@ Type
 
     Public
       Constructor Create(N:Single);
-      Function Emit():TERRAString; Override;
+      Function EmitCode():TERRAString; Override;
+      Function EmitType():TERRAString; Override;
   End;
 
   GLSLVec2ConstantBlock = Class(ShaderBlock)
@@ -21,7 +22,8 @@ Type
 
     Public
       Constructor Create(Const V:Vector2D);
-      Function Emit():TERRAString; Override;
+      Function EmitCode():TERRAString; Override;
+      Function EmitType():TERRAString; Override;
   End;
 
   GLSLVec3ConstantBlock = Class(ShaderBlock)
@@ -30,7 +32,8 @@ Type
 
     Public
       Constructor Create(Const V:Vector3D);
-      Function Emit():TERRAString; Override;
+      Function EmitCode():TERRAString; Override;
+      Function EmitType():TERRAString; Override;
   End;
 
   GLSLVec4ConstantBlock = Class(ShaderBlock)
@@ -39,7 +42,8 @@ Type
 
     Public
       Constructor Create(Const V:Vector4D);
-      Function Emit():TERRAString; Override;
+      Function EmitCode():TERRAString; Override;
+      Function EmitType():TERRAString; Override;
   End;
 
   GLSLOutputBlock = Class(ShaderBlock)
@@ -50,7 +54,8 @@ Type
     Public
       Constructor Create(Arg:ShaderBlock; OutType:ShaderOutputType);
 
-      Function Emit():TERRAString; Override;
+      Function EmitCode():TERRAString; Override;
+
       Function Acessor():TERRAString; Override;
   End;
 
@@ -62,7 +67,9 @@ Type
 
     Public
       Constructor Create(Const Name:TERRAString; Const AttrKind:VertexFormatAttribute; AttrType:ShaderNodeType);
-      Function Emit():TERRAString; Override;
+
+      Function EmitCode():TERRAString; Override;
+      Function EmitType():TERRAString; Override;
   End;
 
   GLSLFunctionBlock = Class(ShaderBlock)
@@ -80,7 +87,8 @@ Type
 
     Public
       Constructor Create(Arg:ShaderBlock; Func:ShaderFunctionType);
-      Function Emit():TERRAString; Override;
+      Function EmitCode():TERRAString; Override;
+      Function EmitType():TERRAString; Override;
   End;
 
   GLSLBinaryFunctionBlock = Class(GLSLFunctionBlock)
@@ -90,7 +98,8 @@ Type
 
     Public
       Constructor Create(Arg1, Arg2:ShaderBlock; Func:ShaderFunctionType);
-      Function Emit():TERRAString; Override;
+      Function EmitCode():TERRAString; Override;
+      Function EmitType():TERRAString; Override;
   End;
 
   GLSLTernaryFunctionBlock = Class(GLSLFunctionBlock)
@@ -101,7 +110,8 @@ Type
 
     Public
       Constructor Create(Arg1, Arg2, Arg3:ShaderBlock; Func:ShaderFunctionType);
-      Function Emit():TERRAString; Override;
+      Function EmitCode():TERRAString; Override;
+      Function EmitType():TERRAString; Override;
   End;
 
   GLSLSwizzleBlock = Class(ShaderBlock)
@@ -111,17 +121,19 @@ Type
 
     Public
       Constructor Create(Arg:ShaderBlock; Mask:Cardinal);
-      Function Emit():TERRAString; Override;
+      Function EmitCode():TERRAString; Override;
+      Function EmitType():TERRAString; Override;
   End;
 
   GLSLTextureSamplerBlock = Class(ShaderBlock)
     Protected
       _SamplerArg:ShaderBlock;
       _TexCoordArg:ShaderBlock;
-      
+
     Public
       Constructor Create(SamplerArg, TexCoordArg:ShaderBlock);
-      Function Emit():TERRAString; Override;
+      Function EmitCode():TERRAString; Override;
+      Function EmitType():TERRAString; Override;
   End;
 
   GLSLShaderCompiler = Class(ShaderCompiler)
@@ -142,7 +154,7 @@ Type
       Function CreateTernaryFunctionCall(Arg1, Arg2, Arg3:ShaderBlock; Func:ShaderFunctionType):ShaderBlock; Override;
 
     Public
-      Function GenerateCode():TERRAString; Override;
+      Function GenerateCode(Out VertexShader, FragmentShader:TERRAString):Boolean; Override;
 
   End;
 
@@ -150,29 +162,40 @@ Implementation
 
 
 { GLSLShaderCompiler }
-Function GLSLShaderCompiler.GenerateCode(): TERRAString;
+Function GLSLShaderCompiler.GenerateCode(Out VertexShader, FragmentShader:TERRAString):Boolean;
 Var
   I:Integer;
   S:TERRAString;
   Current:ShaderBlock;
 Begin
- // 'void main(){ gl_Position = gl_Vertex;}';
-  Result := '';
+  VertexShader := '';
+  Self.AddLine(VertexShader, 'attribute highp vec4 terra_position;');
+	Self.AddLine(VertexShader, 'uniform mat4 cameraMatrix;');
+	Self.AddLine(VertexShader, 'uniform mat4 modelMatrix;');
+	Self.AddLine(VertexShader, 'uniform mat4 modelMatrixInverse;');
+  Self.AddLine(VertexShader, 'uniform mat4 projectionMatrix;');
 
-  Self.AddLine(Result, 'void main(){');
+  Self.AddLine(VertexShader, 'void main(){');
+  Self.AddLine(VertexShader, ' gl_Position = projectionMatrix * cameraMatrix * modelMatrix * terra_position;');
+  Self.AddLine(VertexShader, '}');
+
+
+  FragmentShader := '';
+
+  Self.AddLine(FragmentShader, 'void main(){');
 
   //Self.AddLine(Result, 'gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);');
 
   Current := Self._FirstBlock;
   While Assigned(Current) Do
   Begin
-    S := Current.Acessor() + ' = ' + Current.Emit() + ';';
-    Self.AddLine(Result, S);
+    S := Current.EmitType() + ' ' +Current.Acessor() + ' = ' + Current.EmitCode() + ';';
+    Self.AddLine(FragmentShader, S);
 
     Current := Current.Next;
   End;
 
-  Self.AddLine(Result, '}');
+  Self.AddLine(FragmentShader, '}');
 End;
 
 Function GLSLShaderCompiler.CreateFloatConstant(Const N: Single): ShaderBlock;
@@ -241,9 +264,14 @@ Begin
   Self._Value := N;
 End;
 
-Function GLSLFloatConstantBlock.Emit: TERRAString;
+Function GLSLFloatConstantBlock.EmitCode: TERRAString;
 Begin
   Result := FloatToString(_Value);
+End;
+
+Function GLSLFloatConstantBlock.EmitType: TERRAString;
+Begin
+  Result := 'float';
 End;
 
 { GLSLVec2ConstantBlock }
@@ -253,9 +281,14 @@ Begin
   Self._Value := V;
 End;
 
-Function GLSLVec2ConstantBlock.Emit: TERRAString;
+Function GLSLVec2ConstantBlock.EmitCode: TERRAString;
 Begin
   Result := 'vec2('+FloatToString(_Value.X)+', '+ FloatToString(_Value.Y)+ ')';
+End;
+
+Function GLSLVec2ConstantBlock.EmitType: TERRAString;
+Begin
+  Result := 'vec2';
 End;
 
 { GLSLVec3ConstantBlock }
@@ -265,9 +298,14 @@ Begin
   Self._Value := V;
 End;
 
-Function GLSLVec3ConstantBlock.Emit: TERRAString;
+Function GLSLVec3ConstantBlock.EmitCode: TERRAString;
 Begin
   Result := 'vec3('+FloatToString(_Value.X)+', '+ FloatToString(_Value.Y)+ ', '+FloatToString(_Value.Z)+')';
+End;
+
+Function GLSLVec3ConstantBlock.EmitType: TERRAString;
+Begin
+  Result := 'vec3';
 End;
 
 { GLSLVec4ConstantBlock }
@@ -277,9 +315,14 @@ Begin
   Self._Value := V;
 End;
 
-Function GLSLVec4ConstantBlock.Emit: TERRAString;
+Function GLSLVec4ConstantBlock.EmitCode: TERRAString;
 Begin
   Result := 'vec4('+FloatToString(_Value.X)+', '+ FloatToString(_Value.Y)+ ', '+FloatToString(_Value.Z)+ ', '+FloatToString(_Value.W)+')';
+End;
+
+Function GLSLVec4ConstantBlock.EmitType: TERRAString;
+Begin
+  Result := 'vec4';
 End;
 
 { GLSLAttributeBlock }
@@ -290,9 +333,25 @@ Begin
   Self._Type := AttrType;
 End;
 
-Function GLSLAttributeBlock.Emit: TERRAString;
+Function GLSLAttributeBlock.EmitCode: TERRAString;
 Begin
   Result := _Name;
+End;
+
+Function GLSLAttributeBlock.EmitType: TERRAString;
+Begin
+  Case _Type Of
+		shaderNode_Float: Result := 'float';
+		shaderNode_Vector2D: Result := 'vec2';
+		shaderNode_Vector3D: Result := 'vec3';
+		shaderNode_Vector4D: Result := 'vec4';
+		shaderNode_Matrix3x3: Result := 'mat3';
+		shaderNode_Matrix4x4: Result := 'mat4';
+		shaderNode_Texture2D: Result := 'sampler2D';
+		shaderNode_CubeMap: Result := 'samplerCubemap';
+  Else
+    Result := 'ERROR';
+  End;
 End;
 
 { GLSLOutputBlock }
@@ -307,7 +366,7 @@ Begin
   Self._OutType := OutType;
 End;
 
-Function GLSLOutputBlock.Emit: TERRAString;
+Function GLSLOutputBlock.EmitCode: TERRAString;
 Begin
   Result := _Arg.Acessor();
 End;
@@ -362,11 +421,15 @@ Begin
   Self._Arg := Arg;
 End;
 
-Function GLSLUnaryFunctionBlock.Emit: TERRAString;
+Function GLSLUnaryFunctionBlock.EmitCode: TERRAString;
 Begin
   Result := Self.GetFunctionName() + '(' + _Arg.Acessor() + ')';
 End;
 
+Function GLSLUnaryFunctionBlock.EmitType: TERRAString;
+Begin
+  Result := Self._Arg.EmitType();
+End;
 
 { GLSLBinaryFunctionBlock }
 Constructor GLSLBinaryFunctionBlock.Create(Arg1, Arg2: ShaderBlock; Func: ShaderFunctionType);
@@ -376,7 +439,7 @@ Begin
   Self._Arg2 := Arg2;
 End;
 
-Function GLSLBinaryFunctionBlock.Emit: TERRAString;
+Function GLSLBinaryFunctionBlock.EmitCode: TERRAString;
 Var
   C:TERRAChar;
 Begin
@@ -391,6 +454,11 @@ Begin
   End;
 End;
 
+Function GLSLBinaryFunctionBlock.EmitType: TERRAString;
+Begin
+  Result := _Arg1.EmitType();
+End;
+
 { GLSLTernaryFunctionBlock }
 Constructor GLSLTernaryFunctionBlock.Create(Arg1, Arg2, Arg3: ShaderBlock; Func: ShaderFunctionType);
 Begin
@@ -400,9 +468,14 @@ Begin
   Self._Arg3 := Arg3;
 End;
 
-Function GLSLTernaryFunctionBlock.Emit: TERRAString;
+Function GLSLTernaryFunctionBlock.EmitCode: TERRAString;
 Begin
   Result := Self.GetFunctionName() +'('+ _Arg1.Acessor() + ', '+ _Arg2.Acessor()+ ', '+ _Arg3.Acessor() +')';
+End;
+
+Function GLSLTernaryFunctionBlock.EmitType:TERRAString;
+Begin
+  Result := _Arg1.EmitType();
 End;
 
 { GLSLSwizzleBlock }
@@ -412,7 +485,7 @@ Begin
   Self._Arg := Arg;
 End;
 
-Function GLSLSwizzleBlock.Emit: TERRAString;
+Function GLSLSwizzleBlock.EmitCode:TERRAString;
 Begin
   Result := '';
 
@@ -431,6 +504,35 @@ Begin
   Result := _Arg.Acessor() + '.' + Result;
 End;
 
+Function GLSLSwizzleBlock.EmitType:TERRAString;
+Var
+  Count:Integer;
+Begin
+  Count := 0;
+
+  If ((_Mask And vectorComponentX)<>0) Then
+    Inc(Count);
+
+  If ((_Mask And vectorComponentY)<>0) Then
+    Inc(Count);
+
+  If ((_Mask And vectorComponentZ)<>0) Then
+    Inc(Count);
+
+  If ((_Mask And vectorComponentW)<>0) Then
+    Inc(Count);
+
+
+  Case Count Of
+  1:  Result := 'float';
+  2:  Result := 'vec2';
+  3:  Result := 'vec3';
+  4:  Result := 'vec4';
+  Else
+    Result := 'ERROR!';
+  End;
+End;
+
 { GLSLTextureSamplerBlock }
 Constructor GLSLTextureSamplerBlock.Create(SamplerArg, TexCoordArg: ShaderBlock);
 Begin
@@ -438,9 +540,14 @@ Begin
   Self._TexCoordArg := TexCoordArg;
 End;
 
-Function GLSLTextureSamplerBlock.Emit: TERRAString;
+Function GLSLTextureSamplerBlock.EmitCode: TERRAString;
 Begin
   Result := 'texture2D('+ _SamplerArg.Acessor() + ', '+ _TexCoordArg.Acessor() +')';
+End;
+
+Function GLSLTextureSamplerBlock.EmitType: TERRAString;
+Begin
+  Result := 'sampler2D';
 End;
 
 End.

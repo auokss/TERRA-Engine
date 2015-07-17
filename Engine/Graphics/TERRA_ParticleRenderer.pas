@@ -29,7 +29,7 @@ Uses {$IFDEF USEDEBUGUNIT}TERRA_Debug,{$ENDIF}
   TERRA_String, TERRA_Utils, TERRA_GraphicsManager, TERRA_Texture, TERRA_Application, TERRA_Resource,
   TERRA_Vector3D, TERRA_Vector2D, TERRA_Color, TERRA_Stream, TERRA_Plane, TERRA_Matrix4x4,
   TERRA_Math, TERRA_TextureAtlas, TERRA_BoundingBox,
-  TERRA_UI, TERRA_Image, TERRA_Renderer, TERRA_FileManager, TERRA_VertexFormat;
+  TERRA_UI, TERRA_Image, TERRA_Renderer, TERRA_FileManager, TERRA_VertexFormat, TERRA_ShaderNode, TERRA_ShaderCompiler;
 
 Const
   vertexOfs  = vertexUV1;
@@ -340,7 +340,7 @@ Uses TERRA_Error, TERRA_OS, TERRA_Log, TERRA_Camera, TERRA_Mesh,
 Var
   _ParticleManager_Instance:ApplicationObject = Nil;
 
-Function GetShader_Particles():TERRAString;
+Function GetShader_Particles():ShaderGroup; //TERRAString;
 Var
   S:TERRAString;
 Procedure Line(S2:TERRAString); Begin S := S + S2 + crLf; End;
@@ -385,7 +385,7 @@ Begin
   Line('    color *= sunColor;');
   Line('		gl_FragColor = color;}');
   Line('}');
-  Result := S;
+  Result := Nil;
 End;
 
 

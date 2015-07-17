@@ -651,7 +651,7 @@ Begin
     Line('}');
 
     _Shader := GraphicsManager.Instance.Renderer.CreateShader();
-    _Shader.Generate(Self.GetShaderName(), S);
+    _Shader.Generate(Self.GetShaderName(), Nil);
     _NeedsUpdate := False;
   End;
 

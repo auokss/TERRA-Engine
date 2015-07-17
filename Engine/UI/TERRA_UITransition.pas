@@ -29,7 +29,7 @@ Interface
 Uses {$IFDEF USEDEBUGUNIT}TERRA_Debug,{$ENDIF}
   TERRA_String, TERRA_Utils, TERRA_Math, TERRA_Vector2D, TERRA_Vector3D, TERRA_Texture, TERRA_Resource,
   {$IFDEF POSTPROCESSING}TERRA_ScreenFX, {$ENDIF}
-  TERRA_Image, TERRA_Color, TERRA_Matrix4x4, TERRA_Matrix3x3, TERRA_VertexFormat;
+  TERRA_Image, TERRA_Color, TERRA_Matrix4x4, TERRA_Matrix3x3, TERRA_VertexFormat, TERRA_ShaderNode;
 
 Const
   FadeVertexFormat = [vertexFormatPosition, vertexFormatUV0];
@@ -111,12 +111,12 @@ Var
   _FadeShader:ShaderInterface;
   _SlideShader:ShaderInterface;
 
-Function GetShader_UIFade:TERRAString;
+Function GetShader_UIFade:ShaderGroup;
 Var
   S:TERRAString;
 Procedure Line(S2:TERRAString); Begin S := S + S2 + crLf; End;
 Begin
-  S := '';
+(*  S := '';
   Line('vertex {');
   Line('  attribute vec4 terra_position;');
   Line('  attribute vec4 terra_UV0;');
@@ -136,10 +136,12 @@ Begin
   Line('    highp float p; if (t<alpha) p = 0.0; else p = 1.0;');
   Line('    gl_FragColor = vec4(fadeColor.rgb, p);}');
   Line('}');
-  Result := S;
+  Result := S;*)
+
+  Result := Nil;
 End;
 
-Function GetShader_UISlide:TERRAString;
+Function GetShader_UISlide:ShaderGroup; //TERRAString;
 Var
   S:TERRAString;
 Procedure Line(S2:TERRAString); Begin S := S + S2 + crLf; End;
@@ -161,7 +163,7 @@ Begin
   Line('    highp vec4 p = texture2D(texture, texCoord.xy);');
   Line('    gl_FragColor = p;}');
   Line('}');
-  Result := S;
+  Result := Nil;
 End;
 
 { UITransition }

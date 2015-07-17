@@ -102,7 +102,8 @@ Type
       _Inlined:Boolean;
 
     Public
-      Function Emit():TERRAString; Virtual;
+      Function EmitCode():TERRAString; Virtual;
+      Function EmitType():TERRAString; Virtual;
 
       Function Acessor():TERRAString; Virtual;
 
@@ -160,7 +161,7 @@ Type
       Function GenerateBinaryFunctionCall(Arg1, Arg2:ShaderBlock; Func:ShaderFunctionType):ShaderBlock;
       Function GenerateTernaryFunctionCall(Arg1, Arg2, Arg3:ShaderBlock; Func:ShaderFunctionType):ShaderBlock;
 
-      Function GenerateCode():TERRAString; Virtual;
+      Function GenerateCode(Out VertexShader, FragmentShader:TERRAString):Boolean; Virtual;
   End;
 
 Implementation
@@ -169,20 +170,25 @@ Implementation
 Function ShaderBlock.Acessor: TERRAString;
 Begin
   If _Inlined Then
-    Result := Self.Emit()
+    Result := Self.EmitCode()
   Else
     Result := 'temp'+IntToString(Self._Index);
 End;
 
-Function ShaderBlock.Emit: TERRAString;
+Function ShaderBlock.EmitCode:TERRAString;
+Begin
+  Result := '';
+End;
+
+Function ShaderBlock.EmitType:TERRAString;
 Begin
   Result := '';
 End;
 
 { ShaderCompiler }
-Function ShaderCompiler.GenerateCode: TERRAString;
+Function ShaderCompiler.GenerateCode(Out VertexShader, FragmentShader:TERRAString):Boolean;
 Begin
-  Result := '';
+  Result := False;
 End;
 
 Function ShaderCompiler.GenerateAttribute(Const Name:TERRAString; Const AttrKind:VertexFormatAttribute; AttrType:ShaderNodeType):ShaderBlock;

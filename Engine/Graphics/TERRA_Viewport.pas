@@ -163,7 +163,7 @@ Type
   End;
 
 Implementation
-Uses TERRA_Error, TERRA_GraphicsManager, TERRA_Application, TERRA_Log, TERRA_OS, TERRA_Vector4D;
+Uses TERRA_Error, TERRA_GraphicsManager, TERRA_Application, TERRA_Log, TERRA_OS, TERRA_Vector4D, TERRA_ShaderNode, TERRA_ShaderCompiler;
 
 {$IFDEF POSTPROCESSING}
 Var
@@ -172,7 +172,7 @@ Var
   _DistanceFieldShader:ShaderInterface;
 {$ENDIF}
 
-Function GetShader_Blur():TERRAString;
+Function GetShader_Blur():ShaderGroup;
 Var
   S:TERRAString;
 Procedure Line(S2:TERRAString); Begin S := S + S2 + crLf; End;
@@ -228,7 +228,7 @@ Begin
   Line('color.a = alpha;');
   Line('gl_FragColor = color;');
   Line('}}');
-  Result := S;
+  Result := Nil;
 End;
 
 
@@ -256,7 +256,7 @@ End;
 
 	//Line('	return p * 0.3 + 0.7;	}');*)
 
-Function GetShader_Edge():TERRAString;
+Function GetShader_Edge():ShaderGroup;
 Var
   S:TERRAString;
 Procedure Line(S2:TERRAString); Begin S := S + S2 + crLf; End;
@@ -333,7 +333,7 @@ Begin
 
   //Line('gl_FragColor = texture2D(texture, texCoord);');
   Line('}}');
-  Result := S;
+  Result := Nil;
 End;
 
 Function GetShader_DistanceField():TERRAString;

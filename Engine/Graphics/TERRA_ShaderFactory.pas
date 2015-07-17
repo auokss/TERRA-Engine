@@ -35,7 +35,7 @@ Unit TERRA_ShaderFactory;
 
 Interface
 Uses TERRA_String, TERRA_Utils, TERRA_Renderer, TERRA_Application,
-  TERRA_Lights, TERRA_BoundingBox, TERRA_Vector4D, TERRA_Color;
+  TERRA_Lights, TERRA_BoundingBox, TERRA_Vector4D, TERRA_Color, TERRA_ShaderNode, TERRA_ShaderCompiler;
 
 Const
   NormalMapUniformName = 'normalMap';
@@ -1543,6 +1543,10 @@ Var
   S:ShaderEntry;
   Location:TERRAString;
   SS, Name:TERRAString;
+
+  Graph:ShaderGroup;
+  OutColor:ShaderOutputNode;
+  
 //  BlendMode:ColorCombineMode;
 Begin
 {  If GraphicsManager.Instance.Renderer.ActiveBlendMode Then
@@ -1713,9 +1717,17 @@ Begin
   Log(logDebug, 'ShaderFactory', 'Got shader code, compiling');
   {$ENDIF}
 
+  Graph := ShaderGroup.Create();
+  OutColor := ShaderOutputNode.Create(shaderOutput_Diffuse);
+  OutColor.Input := ShaderVec4Constant.Create(VectorCreate4D(1.0, 0.0, 0.0, 1.0));
+  Graph.AddNode(OutColor);
+
   S.Shader := GraphicsManager.Instance.Renderer.CreateShader();
-  S.Shader.Generate(Name, SS);
+  S.Shader.Generate(Name, Graph {SS});
   Result := S.Shader;
+
+  ReleaseObject(Graph);
+  
   _Emitter.Bind(FxFlags, OutFlags, FogFlags, Lights);
 End;
 
