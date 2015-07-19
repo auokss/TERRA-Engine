@@ -4,7 +4,7 @@ Unit TERRA_Noise;
 
 Interface
 
-Uses TERRA_Utils, TERRA_Image, TERRA_Vector3D;
+Uses TERRA_Utils, TERRA_Object, TERRA_Image, TERRA_Vector3D;
 
 Const
   GradientTableSize = 256;

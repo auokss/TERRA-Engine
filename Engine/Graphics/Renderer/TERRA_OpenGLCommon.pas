@@ -9,7 +9,7 @@ Unit TERRA_OpenGLCommon;
 
 Interface
 Uses
-  TERRA_String, TERRA_Utils, TERRA_Renderer, TERRA_VertexFormat,
+  TERRA_String, TERRA_Utils, TERRA_Object, TERRA_Renderer, TERRA_VertexFormat,
   {$IFDEF MOBILE}TERRA_OpenGLES{$ELSE}TERRA_OpenGL{$ENDIF},
   TERRA_Color, TERRA_Image, TERRA_Vector2D, TERRA_Vector3D, TERRA_Vector4D,
   TERRA_Matrix3x3, TERRA_Matrix4x4, TERRA_Stream,

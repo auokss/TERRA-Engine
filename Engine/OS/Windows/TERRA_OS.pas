@@ -10,7 +10,7 @@ Unit TERRA_OS;
 {-$DEFINE TRUE_FULLSCREEN}
 
 Interface
-Uses TERRA_String, TERRA_Utils, TERRA_Application, TERRA_InputManager, TERRA_Multimedia,
+Uses TERRA_String, TERRA_Object, TERRA_Utils, TERRA_Application, TERRA_InputManager, TERRA_Multimedia,
   Windows, Messages;
 
 Const

@@ -163,7 +163,7 @@ Function IntToString(Const N:Integer):TERRAString;
 Function CardinalToString(Const N:Cardinal):TERRAString;Overload;
 Function Int64ToString(Const N:Int64):TERRAString;
 Function UInt64ToString(Const N:UInt64):TERRAString;
-Function FloatToString(N:Single; DecimalPlaces:Integer = 4):TERRAString;
+Function FloatToString(N:Single):TERRAString;
 Function BoolToString(Const N:Boolean):TERRAString;Overload;
 Function VersionToString(Const N:TERRAVersion):TERRAString;Overload;
 //Function TicksToString(Const N:Cardinal):TERRAString;Overload;
@@ -209,18 +209,6 @@ Function MinutesToTicks(Minutes:Single):Cardinal;
 Procedure DebugBreak(Condition:Boolean = True);
 
 Procedure RemoveHint(X:Integer);
-
-Procedure ReleaseObject(var Obj);
-
-Type
-  TERRAObject = Class
-    Protected
-
-      Procedure Release; Virtual;
-
-    Public
-      Destructor Destroy; Override;
-  End;
 
 Implementation
 Uses TERRA_Log, TERRA_Error;
@@ -704,10 +692,12 @@ Begin
   Result.Second := (Ticks Div 1000) Mod 60;
 End;
 
-Function FloatToString(N:Single; DecimalPlaces:Integer):TERRAString;
+Function FloatToString(N:Single):TERRAString;
 Var
   X:Single;
   A,B, I:Integer;
+
+  Current, DecimalPlaces:Integer;
 Begin
   If (N<0) Then
     Result := '-'
@@ -720,16 +710,19 @@ Begin
 
   Result := Result + IntToString(A) +'.';
 
-  B := 0;
-  For I:=1 To DecimalPlaces Do
-  Begin
-    X := X*10;
-    B := Trunc(X);
-    If B = 0 Then
-      Result := Result + '0';
-  End;
+  DecimalPlaces := 0;
+  I := 10;
+  Repeat
+    Current := Trunc(X * I) Mod 10;
+    I := I * 10;
+    Inc(DecimalPlaces);
+  Until (DecimalPlaces>=7) Or (Current=0);
 
-  Result := Result + IntToString(B);
+  B := 1;
+  For I:=1 To DecimalPlaces Do
+    B := B * 10;
+
+  Result := Result + IntToString(Trunc(B * X));
 End;
 
 {Function TicksToString(Const N:Cardinal):TERRAString;
@@ -1172,69 +1165,6 @@ Begin
 End;
 {$ENDIF}
 
-
-Procedure TERRAObject.Release;
-Begin
-{  S := Self.ClassName;
-  Log(logWarning, 'App', 'Destroying instance of '+S);}
-End;
-
-Destructor TERRAObject.Destroy();
-Begin
-  {$IFDEF WINDOWS}
- // DebugBreak();
-//  RaiseError('Destructors are not allowed in class: '+Self.ClassName);
-  {$ENDIF}
-
-  Inherited;
-End;
-
-Procedure ReleaseObject(Var Obj);
-Var
-  Temp:TObject;
-Begin
-  Temp := TERRAObject(Obj);
-  If Temp = Nil Then
-    Exit;
-
-  If (Temp Is TERRAObject) Then
-  Begin
-    TERRAObject(Temp).Release();
-    TERRAObject(Temp).Destroy();
-  End Else
-    Log(logWarning, 'App', Temp.ClassName +' is not a TERRA-Object!');
-
-  Pointer(Obj) := Nil;
-End;
-
-(*Procedure ReleaseObject(Obj:Pointer);
-Var
-  Temp:TERRAObject;
-  S:TERRAString;
-Begin
-  If (Obj = Nil) Then
-    Exit;
-
-  Temp := TERRAObject(Obj^);
-  If (Temp = Nil) Then
-    Exit;
-
-  If (Temp Is TERRAObject) Then
-  Begin
-    {$IFDEF DEBUG_CORE}
-    {$IFNDEF OSX}
-    Log(logDebug, 'App', 'Destroying '+ Temp.ClassName);
-    {$ENDIF}
-    {$ENDIF}
-    Temp.Release();
-  End Else
-  Begin
-    S := Temp.ClassName;
-    Log(logWarning, 'App', S + ' is not a valid TERRA object.');
-  End;
-
-  Cardinal(Obj^) := 0;
-End;*)
 
 Function MinutesToTicks(Minutes:Single):Cardinal;
 Begin

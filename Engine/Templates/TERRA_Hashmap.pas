@@ -27,17 +27,9 @@ Unit TERRA_Hashmap;
 {$I terra.inc}
 
 Interface
-Uses TERRA_String, TERRA_Utils, TERRA_Collections;
+Uses TERRA_Object, TERRA_String, TERRA_Utils, TERRA_Collections;
 
 Type
-  HashMapObject = Class(CollectionObject)
-    Protected
-      _Key:TERRAString;
-
-    Public
-      Property Key:TERRAString Read _Key;
-  End;
-
   HashMap = Class(Collection)
     Protected
       _Table:Array Of List;
@@ -47,12 +39,11 @@ Type
       Constructor Create(TableSize:Word = 1024);
 
       // Returns true if insertion was sucessful
-      Function Add(Item:HashMapObject):Boolean;Virtual;
+      Function Add(Item:CollectionObject):Boolean;Virtual;
       // Returns true if deletion was sucessful
-      Function Delete(Item:HashMapObject):Boolean; Virtual;
+      Function Remove(Item:CollectionObject):Boolean; Override;
 
-      Function ContainsReference(Item:CollectionObject):Boolean; Override;
-      Function ContainsDuplicate(Item:CollectionObject):Boolean; Override;
+      Function Contains(Item:CollectionObject):Boolean; Override;
 
       Function GetItemByIndex(Index:Integer):CollectionObject; Override;
 
@@ -63,8 +54,6 @@ Type
       Function Filter(Visitor:CollectionVisitor; UserData:Pointer = Nil):List;
 
       Procedure Clear(); Override;
-
-      Procedure Reindex(Item:HashMapObject);
 
       Function GetIterator:Iterator; Override;
 
@@ -167,7 +156,7 @@ Begin
   End;
 End;
 
-Function HashMap.Add(Item:HashMapObject):Boolean;
+Function HashMap.Add(Item:CollectionObject):Boolean;
 Var
   Key:HashKey;
 Begin
@@ -177,7 +166,7 @@ Begin
     Exit;
 
   {$IFDEF DEBUG}Log(logDebug, 'HashMap', 'Obtaining an hash for this item...');{$ENDIF}
-  Key := Murmur2(Item.Key);
+  Key := Murmur2(Item.Name);
   {$IFDEF DEBUG}Log(logDebug, 'HashMap', 'Got hash index: '+HexStr(Key));{$ENDIF}
 
   Key := Key Mod _TableSize;
@@ -195,7 +184,7 @@ Begin
   {$IFDEF DEBUG}Log(logDebug, 'HashMap', 'Insertion was ok!');{$ENDIF}
 End;
 
-Function HashMap.Delete(Item:HashMapObject):Boolean;
+Function HashMap.Remove(Item:CollectionObject):Boolean;
 Var
   Key:HashKey;
 Begin
@@ -205,7 +194,7 @@ Begin
     Exit;
 
   {$IFDEF DEBUG}Log(logDebug, 'HashMap', 'Obtaining an hash for this item...');{$ENDIF}
-  Key := Murmur2(Item.Key);
+  Key := Murmur2(Item.Name);
   {$IFDEF DEBUG}Log(logDebug, 'HashMap', 'Got hash index: '+HexStr(Key));{$ENDIF}
 
   Key := Key Mod _TableSize;
@@ -214,12 +203,12 @@ Begin
     Exit;
 
   {$IFDEF DEBUG}Log(logDebug, 'HashMap', 'Removing item from table...');{$ENDIF}
-  Result := (_Table[Key].Delete(Item));
+  Result := (_Table[Key].Remove(Item));
   If Result Then
     Dec(_ItemCount);
 End;
 
-Function HashMap.ContainsReference(Item:CollectionObject):Boolean;
+Function HashMap.Contains(Item:CollectionObject):Boolean;
 Var
   Key:HashKey;
 Begin
@@ -229,7 +218,7 @@ Begin
     Exit;
 
   {$IFDEF DEBUG}Log(logDebug, 'HashMap', 'Obtaining an hash for this item...');{$ENDIF}
-  Key := Murmur2(HashMapObject(Item).Key);
+  Key := Murmur2(Item.Name);
   {$IFDEF DEBUG}Log(logDebug, 'HashMap', 'Got hash index: '+HexStr(Key));{$ENDIF}
 
   Key := Key Mod _TableSize;
@@ -238,29 +227,7 @@ Begin
     Exit;
 
   {$IFDEF DEBUG}Log(logDebug, 'HashMap', 'Searching item in table...');{$ENDIF}
-  Result := (_Table[Key].ContainsReference(Item));
-End;
-
-Function HashMap.ContainsDuplicate(Item:CollectionObject):Boolean;
-Var
-  Key:HashKey;
-Begin
-  Result := False;
-
-  If (Item = Nil) Then
-    Exit;
-
-  {$IFDEF DEBUG}Log(logDebug, 'HashMap', 'Obtaining an hash for this item...');{$ENDIF}
-  Key := Murmur2(HashMapObject(Item).Key);
-  {$IFDEF DEBUG}Log(logDebug, 'HashMap', 'Got hash index: '+HexStr(Key));{$ENDIF}
-
-  Key := Key Mod _TableSize;
-
-  If Not Assigned(_Table[Key]) Then
-    Exit;
-
-  {$IFDEF DEBUG}Log(logDebug, 'HashMap', 'Searching item in table...');{$ENDIF}
-  Result := (_Table[Key].ContainsDuplicate(Item));
+  Result := (_Table[Key].Contains(Item));
 End;
 
 Procedure HashMap.Clear();
@@ -279,7 +246,7 @@ Function HashMap.GetItemByKey(const Key: TERRAString): CollectionObject;
 Var
   K:HashKey;
   Index:Integer;
-  P:HashMapObject;
+  P:CollectionObject;
 Begin
   K := Murmur2(Key);
   Index := K Mod _TableSize;
@@ -290,14 +257,14 @@ Begin
 
   If Assigned(_Table[Index]) Then
   Begin
-    P := HashMapObject(_Table[Index].First);
+    P := _Table[Index].First;
     While Assigned(P) Do
-    If (StringEquals(Key, P.Key)) Then
+    If (StringEquals(Key, P.Name)) Then
     Begin
       Result := P;
       Break;
     End Else
-      P := HashMapObject(P.Next);
+      P := P.Next;
   End;
 
   Self.Unlock();
@@ -309,11 +276,6 @@ Var
 Begin
   MyIterator := HashMapIterator.Create(Self);
   Result := MyIterator;
-End;
-
-Procedure HashMap.Reindex(Item: HashMapObject);
-Begin
-  DebugBreak;
 End;
 
 { HashMapIterator }

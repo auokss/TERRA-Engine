@@ -3,7 +3,7 @@ Unit TERRA_FontRenderer;
 {$I terra.inc}
 
 Interface
-Uses TERRA_String, TERRA_Utils, TERRA_Color, TERRA_Vector2D, TERRA_Matrix3x3, TERRA_Matrix4x4,
+Uses TERRA_Object, TERRA_String, TERRA_Utils, TERRA_Color, TERRA_Vector2D, TERRA_Matrix3x3, TERRA_Matrix4x4,
   TERRA_Resource, TERRA_Texture, TERRA_Font, TERRA_SpriteManager, TERRA_ClipRect, TERRA_Image;
 
 Type
@@ -22,7 +22,7 @@ Type
       _Next:TERRAChar;
       _Started:Boolean;
 
-      _Font:Font;
+      _Font:TERRAFont;
       _FontOffset:Single;
 
       _StartPosition:Vector2D;
@@ -62,7 +62,7 @@ Type
       Procedure DoEffects();
 
       Procedure DrawSprite(Const TextureName:TERRAString);
-      Function ResolveTexture(Const TextureName:TERRAString):Texture; Virtual;
+      Function ResolveTexture(Const TextureName:TERRAString):TERRATexture; Virtual;
       Procedure TransformSprite(S:Sprite); Virtual;
 
       Procedure UpdateGradient(Width, Height:Single);
@@ -76,7 +76,7 @@ Type
       Function SetGradient(Const A,B:Color; GradientMode:FontGradient):FontRenderer;
       Function SetOutline(Const OutlineColor:Color):FontRenderer;
 
-      Function  SetFont(Const TargetFont:Font):FontRenderer;
+      Function  SetFont(Const TargetFont:TERRAFont):FontRenderer;
 
       Function SetTransform(Const Transform:Matrix3x3):FontRenderer;
       Function  SetDropShadow(Const DropShadowColor:Color):FontRenderer;
@@ -108,7 +108,7 @@ Type
 
       Property Italics:Boolean Read _Italics;
 
-      Property Font:TERRA_Font.Font Read _Font;
+      Property Font:TERRAFont Read _Font;
   End;
 
 Implementation
@@ -634,7 +634,7 @@ Begin
   Result := Self;
 End;
 
-Function FontRenderer.SetFont(const TargetFont: Font):FontRenderer;
+Function FontRenderer.SetFont(const TargetFont:TERRAFont):FontRenderer;
 Var
   Glyph:FontGlyph;
 Begin
@@ -664,7 +664,7 @@ End;
 
 Procedure FontRenderer.DrawSprite(const TextureName:TERRAString);
 Var
-  Tex:Texture;
+  Tex:TERRATexture;
   S:Sprite;
 Begin
   If (TextureName = '') Then
@@ -701,7 +701,7 @@ Begin
     _MaxY := Tex.Height;
 End;
 
-Function FontRenderer.ResolveTexture(Const TextureName: TERRAString): Texture;
+Function FontRenderer.ResolveTexture(Const TextureName: TERRAString): TERRATexture;
 Begin
   Result := TextureManager.Instance.GetTexture(TextureName);
 End;

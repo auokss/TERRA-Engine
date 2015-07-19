@@ -27,9 +27,9 @@ Unit TERRA_UITransition;
 
 Interface
 Uses {$IFDEF USEDEBUGUNIT}TERRA_Debug,{$ENDIF}
-  TERRA_String, TERRA_Utils, TERRA_Math, TERRA_Vector2D, TERRA_Vector3D, TERRA_Texture, TERRA_Resource,
+  TERRA_Object, TERRA_String, TERRA_Utils, TERRA_Math, TERRA_Vector2D, TERRA_Vector3D, TERRA_Texture,
   {$IFDEF POSTPROCESSING}TERRA_ScreenFX, {$ENDIF}
-  TERRA_Image, TERRA_Color, TERRA_Matrix4x4, TERRA_Matrix3x3, TERRA_VertexFormat, TERRA_ShaderNode;
+  TERRA_Image, TERRA_Color, TERRA_Matrix4x4, TERRA_Matrix3x3, TERRA_VertexFormat, TERRA_Viewport, TERRA_ShaderNode, TERRA_Tween;
 
 Const
   FadeVertexFormat = [vertexFormatPosition, vertexFormatUV0];
@@ -53,7 +53,7 @@ Type
       _CallOnStart:Boolean;
       _Callback:FadeCallback;
       _Arg:Pointer;
-      _EaseType:Integer;
+      _EaseType:TweenEaseType;
       _FinishValue:Single;
       _Transform:Matrix3x3;
 
@@ -74,14 +74,14 @@ Type
       Property FinishValue:Single Read _FinishValue Write _FinishValue;
       Property Duration:Integer Read _Duration;
       Property ID:Cardinal Read _ID;
-      Property EaseType:Integer Read _EaseType Write _EaseType;
+      Property EaseType:TweenEaseType Read _EaseType Write _EaseType;
 
       Property Transform:Matrix3x3 Read _Transform Write _Transform;
   End;
 
   UIFade = Class(UITransition)
     Protected
-      _FadeTexture:Texture;
+      _FadeTexture:TERRATexture;
       _FadeOut:Boolean;
 
       Procedure Render(Alpha:Single); Override;
@@ -89,23 +89,24 @@ Type
     Public
       Color:TERRA_Color.Color;
 
-      Constructor Create(FadeTexture:Texture; Duration, Delay:Cardinal; Invert:Boolean);
+      Constructor Create(FadeTexture:TERRATexture; Duration, Delay:Cardinal; Invert:Boolean);
   End;
 
   UISlide = Class(UITransition)
     Protected
+      _View:TERRAViewport;
       _Direction:Vector2D;
-      _Texture:Texture;
+      _Texture:TERRATexture;
 
       Procedure Render(Alpha:Single); Override;
 
     Public
-      Constructor Create(Direction:Vector2D; Duration, Delay:Cardinal);
+      Constructor Create(TargetView:TERRAViewport; Direction:Vector2D; Duration, Delay:Cardinal);
       Procedure Release; Override;
   End;
 
 Implementation
-Uses TERRA_OS, TERRA_ResourceManager, TERRA_GraphicsManager, TERRA_Renderer, TERRA_Tween, TERRA_UI;
+Uses TERRA_Error, TERRA_OS, TERRA_ResourceManager, TERRA_GraphicsManager, TERRA_Renderer, TERRA_Resource, TERRA_UI;
 
 Var
   _FadeShader:ShaderInterface;
@@ -116,7 +117,7 @@ Var
   S:TERRAString;
 Procedure Line(S2:TERRAString); Begin S := S + S2 + crLf; End;
 Begin
-(*  S := '';
+  S := '';
   Line('vertex {');
   Line('  attribute vec4 terra_position;');
   Line('  attribute vec4 terra_UV0;');
@@ -136,12 +137,10 @@ Begin
   Line('    highp float p; if (t<alpha) p = 0.0; else p = 1.0;');
   Line('    gl_FragColor = vec4(fadeColor.rgb, p);}');
   Line('}');
-  Result := S;*)
-
   Result := Nil;
 End;
 
-Function GetShader_UISlide:ShaderGroup; //TERRAString;
+Function GetShader_UISlide:ShaderGroup;
 Var
   S:TERRAString;
 Procedure Line(S2:TERRAString); Begin S := S + S2 + crLf; End;
@@ -265,7 +264,7 @@ Begin
 End;
 
 { UIFade }
-Constructor UIFade.Create(FadeTexture:Texture; Duration, Delay:Cardinal; Invert:Boolean);
+Constructor UIFade.Create(FadeTexture:TERRATexture; Duration, Delay:Cardinal; Invert:Boolean);
 Begin
   If Not Assigned(FadeTexture) Then
     Exit;
@@ -319,7 +318,9 @@ Begin
   Graphics.Renderer.BindShader(_Shader);
   //ShaderManager.Instance.Bind(_Shader);
 
-  M := Graphics.ProjectionMatrix;
+  // FIXME
+  RaiseError('needs fix');
+  //M := Graphics.ProjectionMatrix;
   Graphics.Renderer.SetModelMatrix(Matrix4x4Identity);
   Graphics.Renderer.SetProjectionMatrix(M);
   _Shader.SetIntegerUniform('texture', 0);
@@ -396,10 +397,11 @@ Begin
 End;
 
 { UISlide }
-Constructor UISlide.Create(Direction: Vector2D; Duration,Delay: Cardinal);
+Constructor UISlide.Create(TargetView:TERRAViewport; Direction:Vector2D; Duration,Delay: Cardinal);
 Var
   Src:Image;
 Begin
+  _View := TargetView;
   _Direction := Direction;
   _Duration := Duration;
   _Delay := Delay;
@@ -408,8 +410,8 @@ Begin
   _ID := Random(36242);
 
   {$IFDEF POSTPROCESSING}
-  Src := GraphicsManager.Instance.ActiveViewport.GetRenderTarget(captureTargetColor).GetImage();
-  _Texture := Texture.Create(rtDynamic, 'ui_slide');
+  Src := _View.GetRenderTarget(captureTargetColor).GetImage();
+  _Texture := TERRATexture.Create(rtDynamic, 'ui_slide');
   _Texture.InitFromSize(Src.Width, Src.Height, ColorWhite);
   _Texture.UpdateRect(Src);
   ReleaseObject(Src);
@@ -420,7 +422,7 @@ Begin
   If Not Assigned(_SlideShader) Then
   Begin
     _SlideShader := GraphicsManager.Instance.Renderer.CreateShader();
-    _SlideShader.Generate('ui_slide', GetShader_UISlide()); 
+    _SlideShader.Generate('ui_slide', GetShader_UISlide());
   End;
 End;
 
@@ -451,7 +453,9 @@ Begin
   Graphics.Renderer.BindShader(_Shader);
   //ShaderManager.Instance.Bind(_Shader);
   Graphics.Renderer.SetModelMatrix(Matrix4x4Identity);
-  Graphics.Renderer.SetProjectionMatrix(Graphics.ProjectionMatrix);
+
+  RaiseError('needs fix');
+  //FIXME Graphics.Renderer.SetProjectionMatrix(Graphics.ProjectionMatrix);
   _Shader.SetIntegerUniform('texture', 0);
 
   Graphics.Renderer.SetBlendMode(blendNone);

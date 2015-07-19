@@ -18,14 +18,14 @@ Type
 
   // A scene is used to render objects
   MyScene = Class(Scene)
-      Procedure RenderSprites(V:Viewport); Override;
+      Procedure RenderSprites(V:TERRAViewport); Override;
   End;
 
 Const
   Limit = 500;
 
 Var
-  Tex:Texture = Nil;
+  Tex:TERRATexture = Nil;
 
   Pos:Array[0..Pred(Limit)]Of Vector3D;
   Dir:Array[0..Pred(Limit)]Of Vector2D;
@@ -46,7 +46,7 @@ Begin
   // Load a Tex
   Tex := TextureManager.Instance.GetTexture('ghost');
 
-  GraphicsManager.Instance.ActiveViewport.BackgroundColor := ColorBlue;
+  GraphicsManager.Instance.DeviceViewport.BackgroundColor := ColorBlue;
 
   W := UIManager.Instance.Width;
   H := UIManager.Instance.Height;

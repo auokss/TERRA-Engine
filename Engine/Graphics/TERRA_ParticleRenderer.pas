@@ -26,10 +26,10 @@ Unit TERRA_ParticleRenderer;
 
 Interface
 Uses {$IFDEF USEDEBUGUNIT}TERRA_Debug,{$ENDIF}
-  TERRA_String, TERRA_Utils, TERRA_GraphicsManager, TERRA_Texture, TERRA_Application, TERRA_Resource,
-  TERRA_Vector3D, TERRA_Vector2D, TERRA_Color, TERRA_Stream, TERRA_Plane, TERRA_Matrix4x4,
-  TERRA_Math, TERRA_TextureAtlas, TERRA_BoundingBox,
-  TERRA_UI, TERRA_Image, TERRA_Renderer, TERRA_FileManager, TERRA_VertexFormat, TERRA_ShaderNode, TERRA_ShaderCompiler;
+  TERRA_String, TERRA_Utils, TERRA_Object, TERRA_GraphicsManager, TERRA_Texture, TERRA_Application,
+  TERRA_Resource, TERRA_Vector3D, TERRA_Vector2D, TERRA_Color, TERRA_Stream, TERRA_Plane, TERRA_Matrix4x4,
+  TERRA_Math, TERRA_TextureAtlas, TERRA_BoundingBox, TERRA_ShaderNode,
+  TERRA_UI, TERRA_Image, TERRA_Renderer, TERRA_FileManager, TERRA_VertexFormat, TERRA_Renderable, TERRA_Viewport;
 
 Const
   vertexOfs  = vertexUV1;
@@ -266,14 +266,13 @@ Type
       Constructor Create(Emitter:ParticleEmitter{; Pos:Vector3D});
       Procedure Release; Override;
 
-      Procedure Update; Override;
+      Procedure Update(View:TERRAViewport); Override;
 
-      Function IsOpaque():Boolean; Override;
-      Function IsTranslucent():Boolean; Override;
+      Function GetRenderBucket:Cardinal; Override;
 
       Procedure Reset;
 
-      Procedure Render(TranslucentPass:Boolean); Override;
+      Procedure Render(View:TERRAViewport; Const Bucket:Cardinal); Override;
       Function GetBoundingBox:BoundingBox; Override;
 
       Property ActiveCount:Integer Read _ActiveCount;
@@ -288,13 +287,13 @@ Type
       _Instance:ParticleManager;
       _TextureAtlas:TextureAtlas;
 
-      _NormalTexture:Texture;
+      _NormalTexture:TERRATexture;
       _NormalImage:Image;
 
-      _GlowTexture:Texture;
+      _GlowTexture:TERRATexture;
       _GlowImage:Image;
 
-      _RefractionTexture:Texture;
+      _RefractionTexture:TERRATexture;
       _RefractionImage:Image;
 
       _Types:Array Of ParticleType;
@@ -318,7 +317,7 @@ Type
       //Procedure Update; Override;
 
       Procedure Clear;
-      Procedure Render;
+      Procedure Render(View:TERRAViewport);
 
       Function GetParticleType(Name:TERRAString):ParticleType;
 
@@ -326,7 +325,7 @@ Type
       //Procedure Spawn(Name:TERRAString; Position:Vector3D);
       Procedure Spawn(Emitter:ParticleEmitter);
 
-      Function GetTexture(Target:ParticleCollection):Texture;
+      Function GetTexture(Target:ParticleCollection):TERRATexture;
 
       Property Shader:ShaderInterface Read GetShader;
   End;
@@ -340,7 +339,7 @@ Uses TERRA_Error, TERRA_OS, TERRA_Log, TERRA_Camera, TERRA_Mesh,
 Var
   _ParticleManager_Instance:ApplicationObject = Nil;
 
-Function GetShader_Particles():ShaderGroup; //TERRAString;
+Function GetShader_Particles():ShaderGroup;
 Var
   S:TERRAString;
 Procedure Line(S2:TERRAString); Begin S := S + S2 + crLf; End;
@@ -607,7 +606,7 @@ Begin
   ReleaseObject(It);
 End;
 
-Procedure ParticleCollection.Render(TranslucentPass:Boolean);
+Procedure ParticleCollection.Render(View:TERRAViewport; Const Bucket:Cardinal);
 Var
   I, RenderCount:Integer;
 //  Ratio:Single;
@@ -615,9 +614,6 @@ Var
   Landscape:Boolean;
   Graphics:GraphicsManager;
 Begin
-  If (Not TranslucentPass) Then
-    Exit;
-
   Graphics := GraphicsManager.Instance;
 
   {If (_Init) Then
@@ -632,8 +628,8 @@ Begin
     Up.Scale(-1.0);
   End Else}
   Begin
-    Right := Graphics.ActiveViewport.Camera.Right;
-    Up := Graphics.ActiveViewport.Camera.Up;
+    Right := View.Camera.Right;
+    Up := View.Camera.Up;
   End;
 
   //Ratio := Graphics.ActiveViewport.Height / Graphics.ActiveViewport.Width;
@@ -641,7 +637,7 @@ Begin
 
   Graphics.Renderer.BindShader(_Shader);
 
-  Graphics.ActiveViewport.Camera.SetupUniforms;
+  View.Camera.SetupUniforms;
 
   _Shader.SetColorUniform('sunColor', ColorWhite);
   _Shader.SetVec3Uniform('cameraUp', Up);
@@ -698,16 +694,10 @@ Begin
   Result := _Box;
 End;
 
-Function ParticleCollection.IsOpaque: Boolean;
+Function ParticleCollection.GetRenderBucket:Cardinal;
 Begin
-  Result := False;
+  Result := renderBucket_Translucent;
 End;
-
-Function ParticleCollection.IsTranslucent: Boolean;
-Begin
-  Result := True;
-End;
-
 
 {Procedure ParticleCollection.SetCustomEmitter(Emitter: ParticleCustomEmitter; GenFlags:Cardinal; UserData: Pointer);
 Begin
@@ -913,7 +903,7 @@ Begin
   Result := _Shader;
 End;
 
-Function ParticleManager.GetTexture(Target:ParticleCollection): Texture;
+Function ParticleManager.GetTexture(Target:ParticleCollection): TERRATexture;
 Var
   I:Integer;
   Source:Image;
@@ -974,7 +964,7 @@ Begin
 
     If (_NormalTexture = Nil) Then
     Begin
-      _NormalTexture := Texture.Create(rtDynamic, 'particles_normal');
+      _NormalTexture := TERRATexture.Create(rtDynamic, 'particles_normal');
       _NormalTexture.InitFromSize(_TextureAtlas.Width, _TextureAtlas.Height, ColorCreate(0, 0, 255));
       _NormalTexture.Update;
     End;
@@ -982,7 +972,7 @@ Begin
 
     If (_GlowTexture = Nil) Then
     Begin
-      _GlowTexture := Texture.Create(rtDynamic, 'particles_glow');
+      _GlowTexture := TERRATexture.Create(rtDynamic, 'particles_glow');
       _GlowTexture.InitFromSize(_TextureAtlas.Width, _TextureAtlas.Height, ColorNull);
       _GlowTexture.Update;
     End;
@@ -990,7 +980,7 @@ Begin
 
     If (_RefractionTexture = Nil) Then
     Begin
-      _RefractionTexture := Texture.Create(rtDynamic, 'particles_refraction');
+      _RefractionTexture := TERRATexture.Create(rtDynamic, 'particles_refraction');
       _RefractionTexture.InitFromSize(_TextureAtlas.Width, _TextureAtlas.Height, ColorNull);
       _RefractionTexture.Update();
     End;
@@ -1046,7 +1036,7 @@ Begin
     _ParticleCollections[I].Update;}
 End;*)
 
-Procedure ParticleManager.Render;
+Procedure ParticleManager.Render(View:TERRAViewport);
 Var
   I:Integer;
 Begin
@@ -1060,7 +1050,7 @@ Begin
       Dec(_ParticleCollectionCount);
     End Else
     Begin
-      GraphicsManager.Instance.AddRenderable(_ParticleCollections[I]);
+      GraphicsManager.Instance.AddRenderable(View, _ParticleCollections[I]);
       Inc(I);
     End;
   End;

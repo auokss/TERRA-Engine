@@ -51,7 +51,7 @@ Type
     Protected
       _Caption:TERRAString;
       _TextRect:Vector2D;
-      _PreviousFont:Font;
+      _PreviousFont:TERRAFont;
       _OriginalValue:TERRAString;
 
       Function GetLocalizationKey: TERRAString;

@@ -29,7 +29,7 @@ Unit TERRA_ShadowVolumes;
 
 Interface
 Uses {$IFDEF USEDEBUGUNIT}TERRA_Debug,{$ENDIF}
-  TERRA_Utils, TERRA_Vector3D, TERRA_BoundingBox, TERRA_Math, TERRA_Stream, TERRA_VertexFormat;
+  TERRA_Object, TERRA_Utils, TERRA_Vector3D, TERRA_BoundingBox, TERRA_Math, TERRA_Stream, TERRA_VertexFormat;
 
 Const
   MinShadowAngle = 0.5;
@@ -139,7 +139,7 @@ Var
 
   T:Triangle;
   Group:MeshGroup;
-  MyMesh:Mesh;
+  MyMesh:TERRAMesh;
 Begin
   MyMesh := MeshPtr;
   Result := True;

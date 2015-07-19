@@ -2,7 +2,7 @@ Unit TERRA_Localization;
 {$I terra.inc}
 
 Interface
-Uses TERRA_String, TERRA_Application, TERRA_Utils, TERRA_Stream, TERRA_FileUtils,
+Uses TERRA_Object, TERRA_String, TERRA_Application, TERRA_Utils, TERRA_Stream, TERRA_FileUtils,
   TERRA_Collections, TERRA_Hashmap;
 
 Const
@@ -25,7 +25,7 @@ Const
   MaxPinyinSuggestions = 64;
 
 Type
-  StringEntry = Class(HashMapObject)
+  StringEntry = Class(CollectionObject)
     Protected
       _Value:TERRAString;
       _Group:Integer;
@@ -675,7 +675,7 @@ End;
 { StringEntry }
 Constructor StringEntry.Create(const Key, Value: TERRAString; Group: Integer);
 Begin
-  Self._Key := Key;
+  Self._ObjectName := Key;
   Self._Value := Value;
   Self._Group := Group;
 End;

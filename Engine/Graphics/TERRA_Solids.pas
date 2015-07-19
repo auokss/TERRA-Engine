@@ -28,7 +28,7 @@ Unit TERRA_Solids;
 //http://www.geometrictools.com/Documentation/PlatonicSolids.pdf
 
 Interface
-Uses TERRA_Utils, TERRA_Math, TERRA_GraphicsManager, TERRA_Resource, TERRA_BoundingBox, TERRA_Vector3D,
+Uses TERRA_Utils, TERRA_Object, TERRA_Math, TERRA_GraphicsManager, TERRA_Resource, TERRA_BoundingBox, TERRA_Vector3D,
   TERRA_Vector2D, TERRA_Vector4D, TERRA_Matrix4x4, TERRA_Color, TERRA_Mesh, TERRA_MeshFilter, TERRA_Texture,
   TERRA_VertexFormat;
 
@@ -52,7 +52,7 @@ Type
     TextureCoords:Vector2D;
 	End;
 
-  SolidMesh = Class(Renderable)
+  SolidMesh = Class(TERRAObject)
     Protected
       _VertexList:Array Of InternalSolidVertex;
       _VertexCount:Integer;
@@ -73,15 +73,14 @@ Type
       Procedure Transform(MyMatrix:Matrix4x4);
       Procedure Weld(Radius:Single);
 
-      Function GetBoundingBox:BoundingBox; Override;
-      Procedure Render(Translucent:Boolean); Override;
-
       Procedure Invert;
 
       Function GetVertex(Index:Integer):InternalSolidVertex;
       Function GetIndex(Index:Integer):Integer;
       Property VertexCount:Integer Read _VertexCount;
       Property IndexCount:Integer Read _IndexCount;
+
+      Property Box:BoundingBox Read _Box;
   End;
 
   TetrahedronMesh = Class(SolidMesh)
@@ -124,7 +123,7 @@ Type
       Constructor Create(Stacks, Slices:Cardinal; Inverted:Boolean; Capped:Boolean = True);
   End;
 
-  Function CreateMeshFromSolid(S:SolidMesh; Tex:Texture = Nil):Mesh;
+  Function CreateMeshFromSolid(S:SolidMesh; Tex:TERRATexture = Nil):TERRAMesh;
 
 Implementation
 Uses TERRA_Error;
@@ -153,11 +152,6 @@ Begin
     _Box.Add(_VertexList[I].Position);
 End;
 
-Function SolidMesh.GetBoundingBox:BoundingBox;
-Begin
-  Result := _Box;
-End;
-
 Procedure SolidMesh.AddTriangle(A,B,C:Word);
 Var
   N:Integer;
@@ -172,32 +166,6 @@ Begin
   _IndexList[N+0] := A;
   _IndexList[N+1] := B;
   _IndexList[N+2] := C
-End;
-
-Procedure SolidMesh.Render(Translucent:Boolean);
-Var
-  I:Integer;
-Begin
-  If (_IndexCount<=0) Or (Translucent) Then
-    Exit;
-
-  GraphicsManager.Instance.EnableColorShader(ColorWhite, Matrix4x4Identity);
-
-  (*
-  glDisable(GL_CULL_FACE);
-  glBegin(GL_TRIANGLES);
-  I := 0;
-  While (I < _IndexCount) Do
-  Begin
-    glNormal3fv(@_VertexList[_IndexList[I]].Normal);
-    glMultiTexCoord3fv(GL_TEXTURE0, @_VertexList[_IndexList[I]].TextureCoords);
-
-    glVertex3fv(@_VertexList[_IndexList[I]].Position);
-    Inc(I);
-  End;
-  glEnd;
-  glEnable(GL_CULL_FACE);
-  BIBI *)
 End;
 
 Function SolidMesh.DuplicateVertex(Index:Integer):Integer;
@@ -784,14 +752,14 @@ Begin
   End;
 End;
 
-Function CreateMeshFromSolid(S:SolidMesh; Tex:Texture):Mesh;
+Function CreateMeshFromSolid(S:SolidMesh; Tex:TERRATexture):TERRAMesh;
 Var
   Group:MeshGroup;
   I:Integer;
   It:VertexIterator;
   Dest:SolidVertex;
 Begin
-  Result := Mesh.Create(rtDynamic, S.ClassName);
+  Result := TERRAMesh.Create(rtDynamic, S.ClassName);
   Group := Result.AddGroup([vertexFormatPosition, vertexFormatColor, vertexFormatNormal, vertexFormatTangent, vertexFormatUV0], '');
   Group.Flags := 0;
 //  Group.AmbientColor := ColorWhite;

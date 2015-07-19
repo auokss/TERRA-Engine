@@ -3,7 +3,8 @@
 
 uses
   TERRA_MemoryManager,
-  TERRA_Application,
+  TERRA_DemoApplication,
+  TERRA_Object,
   TERRA_Utils,
   TERRA_String,
   TERRA_ResourceManager,
@@ -26,7 +27,6 @@ uses
   TERRA_Scene,
   TERRA_Mesh,
   TERRA_Skybox,
-  TERRA_Widgets,
   TERRA_Color,
   TERRA_Matrix4x4,
   TERRA_ShaderNode,
@@ -36,46 +36,24 @@ uses
   TERRA_InputManager;
 
 Type
-  MyScene = Class(Scene)
-      Sky:Skybox;
-      Main:Viewport;
-
-      Constructor Create;
-      Procedure Release; Override;
-
-      Procedure RenderSprites(V:Viewport); Override;
-      Procedure RenderViewport(V:Viewport); Override;
-      Procedure RenderSky(V:Viewport); Override;
-  End;
-
-  Demo = Class(Application)
-    Protected
-      _Scene:MyScene;
-
+  MyDemo = Class(DemoApplication)
     Public
-
 			Procedure OnCreate; Override;
 			Procedure OnDestroy; Override;
-			Procedure OnIdle; Override;
+      Procedure OnRender(V:TERRAViewport); Override;
   End;
 
 
 Var
   Solid:MeshInstance;
 
-  DiffuseTex:Texture;
-  GlowTex:Texture;
-
-  Sun:DirectionalLight;
-
-  Fnt:Font;
+  DiffuseTex:TERRATexture;
+  GlowTex:TERRATexture;
 
 { Game }
-Procedure Demo.OnCreate;
+Procedure MyDemo.OnCreate;
 Begin
-  FileManager.Instance.AddPath('Assets');
-
-  Fnt := FontManager.Instance.DefaultFont;
+  Inherited;
 
   GraphicsManager.Instance.Renderer.Settings.NormalMapping.SetValue(True);
   GraphicsManager.Instance.Renderer.Settings.PostProcessing.SetValue(True);
@@ -88,67 +66,27 @@ Begin
   Solid.SetGlowMap(0, GlowTex);
   Solid.SetPosition(VectorCreate(0, -30, -80));
   Solid.SetScale(VectorConstant(20.0));
-
-  Sun := DirectionalLight.Create(VectorCreate(-0.25, 0.75, 0.0));
-
-  _Scene := MyScene.Create;
-  GraphicsManager.Instance.Scene := _Scene;
 End;
 
-Procedure Demo.OnDestroy;
+Procedure MyDemo.OnDestroy;
 Begin
-  ReleaseObject(_Scene);
-  ReleaseObject(Sun);
+  Inherited;
   ReleaseObject(Solid);
 End;
 
-Procedure Demo.OnIdle;
+Procedure MyDemo.OnRender(V: TERRAViewport);
 Begin
-  If InputManager.Instance.Keys.WasPressed(keyEscape) Then
-    Application.Instance.Terminate();
-
-  GraphicsManager.Instance.TestDebugKeys();
-
-  _Scene.Main.Camera.FreeCam;
-End;
-
-
-{ MyScene }
-Constructor MyScene.Create;
-Begin
-  Sky := Skybox.Create('sky');
-
-  Main := GraphicsManager.Instance.CreateMainViewport('main', GraphicsManager.Instance.Width, GraphicsManager.Instance.Height);
-End;
-
-Procedure MyScene.Release;
-Begin
-//  ReleaseObject(Main);
-  ReleaseObject(Sky);
-End;
-
-Procedure MyScene.RenderSprites;
-Begin
-End;
-
-Procedure MyScene.RenderViewport(V:Viewport);
-Begin
-  LightManager.Instance.AddLight(Sun);
-  GraphicsManager.Instance.AddRenderable(Solid);
-End;
-
-Procedure MyScene.RenderSky;
-Begin
-  Sky.Render;
+  GraphicsManager.Instance.AddRenderable(V, Solid);
 End;
 
 {$IFDEF IPHONE}
 Procedure StartGame; cdecl; export;
 {$ENDIF}
 Begin
-  Demo.Create();
+  MyDemo.Create();
 {$IFDEF IPHONE}
 End;
 {$ENDIF}
+
 End.
 

@@ -3,7 +3,7 @@ Unit TERRA_ShaderCompiler;
 {$I terra.inc}
 
 Interface
-Uses TERRA_String, TERRA_Utils, TERRA_VertexFormat, TERRA_Vector2D, TERRA_Vector3D, TERRA_Vector4D, TERRA_Matrix3x3, TERRA_Matrix4x4;
+Uses TERRA_String, TERRA_Object, TERRA_Utils, TERRA_VertexFormat, TERRA_Vector2D, TERRA_Vector3D, TERRA_Vector4D, TERRA_Matrix3x3, TERRA_Matrix4x4;
 
 Type
 	ShaderType = (

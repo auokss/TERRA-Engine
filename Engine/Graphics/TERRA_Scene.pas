@@ -25,71 +25,55 @@ Unit TERRA_Scene;
 {$I terra.inc}
 
 Interface
-Uses TERRA_Utils, TERRA_Matrix4x4, TERRA_Vector3D, TERRA_Viewport;
+Uses TERRA_Object, TERRA_Utils, TERRA_Matrix4x4, TERRA_Vector3D, TERRA_Viewport;
 
 {$HINTS OFF}
 
 Type
-  Scene = Class(TERRAObject)
+  TERRAScene = Class(TERRAObject)
     Public
-      Procedure IncludeShadowCasters(V:Viewport; Var MinZ,MaxZ:Single; Const ShadowMatrix4x4:Matrix4x4); Virtual;
-      Procedure RenderShadowCasters(V:Viewport); Virtual;
+      Procedure IncludeShadowCasters(V:TERRAViewport; Var MinZ,MaxZ:Single; Const ShadowMatrix4x4:Matrix4x4); Virtual;
+      Procedure RenderShadowCasters(V:TERRAViewport); Virtual;
       {Procedure RenderReflections(V:Viewport); Virtual;
       Procedure RenderReflectiveSurfaces(V:Viewport); Virtual;}
-      Procedure RenderViewport(V:Viewport); Virtual;
-      Procedure RenderSky(V:Viewport); Virtual;
-      Procedure RenderSkyEmission(V:Viewport); Virtual;
-      Procedure RenderSprites(V:Viewport); Virtual;
-      Procedure OnMouseDown(X,Y, Button:Integer); Virtual;
+      Procedure RenderViewport(V:TERRAViewport); Virtual;
+
+      Procedure RenderSprites(V:TERRAViewport); Virtual;
   End;
 
 Implementation
 
 { Scene }
 
-Procedure Scene.IncludeShadowCasters(V:Viewport; Var MinZ, MaxZ: Single; Const ShadowMatrix4x4:Matrix4x4);
+Procedure TERRAScene.IncludeShadowCasters(V:TERRAViewport; Var MinZ, MaxZ: Single; Const ShadowMatrix4x4:Matrix4x4);
 Begin
 
 End;
 
-Procedure Scene.OnMouseDown(X, Y, Button: Integer);
-Begin
-
-End;
-
-Procedure Scene.RenderSprites(V:Viewport);
+Procedure TERRAScene.RenderSprites(V:TERRAViewport);
 Begin
   // do nothing
 End;
 
-Procedure Scene.RenderViewport(V:Viewport);
+Procedure TERRAScene.RenderViewport(V:TERRAViewport);
 Begin
 
 End;
 
-{Procedure Scene.RenderReflections;
+{Procedure TERRAScene.RenderReflections;
 Begin
 
 End;
 
-procedure Scene.RenderReflectiveSurfaces;
+procedure TERRAScene.RenderReflectiveSurfaces;
 begin
 
 end;}
 
-Procedure Scene.RenderShadowCasters;
+Procedure TERRAScene.RenderShadowCasters;
 Begin
 
 End;
 
-Procedure Scene.RenderSky;
-Begin
-
-End;
-
-Procedure Scene.RenderSkyEmission;
-Begin
-
-End;
 
 End.

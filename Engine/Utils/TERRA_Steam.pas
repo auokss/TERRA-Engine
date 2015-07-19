@@ -2,7 +2,7 @@ Unit TERRA_Steam;
 {$I terra.inc}
 
 Interface
-Uses TERRA_String, TERRA_Utils, TERRA_Math, TERRA_Application, SteamAPI, SteamCallback;
+Uses TERRA_String, TERRA_Object, TERRA_Utils, TERRA_Math, TERRA_Application, SteamAPI, SteamCallback;
 
 Type
   SteamAchievement = Class(TERRAObject)

@@ -37,7 +37,7 @@ Unit TERRA_MemoryStream;
 
 Interface
 
-Uses {$IFDEF USEDEBUGUNIT}TERRA_Debug,{$ENDIF}TERRA_String, TERRA_Utils, TERRA_Stream;
+Uses {$IFDEF USEDEBUGUNIT}TERRA_Debug,{$ENDIF}TERRA_String, TERRA_Utils, TERRA_Object, TERRA_Stream;
 
 Type
   MemoryStream = Class(Stream)

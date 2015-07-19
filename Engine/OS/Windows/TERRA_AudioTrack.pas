@@ -2,7 +2,7 @@ Unit TERRA_AudioTrack;
 {$I terra.inc}
 Interface
 
-Uses Windows, TERRA_String, TERRA_Utils, TERRA_FileUtils, TERRA_Application, TERRA_MusicTrack, TERRA_Multimedia;
+Uses Windows, TERRA_Object, TERRA_String, TERRA_Utils, TERRA_FileUtils, TERRA_Application, TERRA_MusicTrack, TERRA_Multimedia;
 
 Type
   AudioMusicTrack = Class(MusicTrack)

@@ -25,7 +25,7 @@ Unit TERRA_ScreenFX;
 {$I terra.inc}
 
 Interface
-Uses TERRA_String, TERRA_Utils, TERRA_OS, TERRA_Vector2D, TERRA_Vector3D, TERRA_Vector4D, TERRA_Matrix4x4, TERRA_Color,
+Uses TERRA_String, TERRA_Object, TERRA_Utils, TERRA_OS, TERRA_Vector2D, TERRA_Vector3D, TERRA_Vector4D, TERRA_Matrix4x4, TERRA_Color,
   TERRA_Resource, TERRA_Texture, TERRA_Renderer, TERRA_Noise;
 
 Const
@@ -69,7 +69,7 @@ Type
     Name:TERRAString;
     Kind:UniformType;
     Value:Vector4D;
-    Tex:Texture;
+    Tex:TERRATexture;
     Initialized:Boolean;
   End;
 
@@ -98,14 +98,14 @@ Type
       Function AddUniform(Const Name:TERRAString; Kind:UniformType):Integer;
 
     Public
-      Procedure SetTexture(Index:Integer; Value:Texture);
+      Procedure SetTexture(Index:Integer; Value:TERRATexture);
       Procedure SetColor(Index:Integer; Const Value:Color);
       Procedure SetFloat(Index:Integer; Const Value:Single);
       Procedure SetVec2(Index:Integer; Const Value:Vector2D);
       Procedure SetVec3(Index:Integer; Const Value:Vector3D);
       Procedure SetVec4(Index:Integer; Const Value:Vector4D);
 
-      Procedure GetTexture(Index:Integer; Out Value:Texture);
+      Procedure GetTexture(Index:Integer; Out Value:TERRATexture);
       Procedure GetColor(Index:Integer; Out Value:Color);
       Procedure GetFloat(Index:Integer; Out Value:Single);
       Procedure GetVec2(Index:Integer; Out Value:Vector2D);
@@ -202,14 +202,14 @@ Type
 
     Public
 
-      Constructor Create(Palette:Texture);
+      Constructor Create(Palette:TERRATexture);
       Procedure GenerateCode(); Override;
   End;
 
   VibranceFX = Class(ScreenFX)
     Protected
       _Strength:Integer;
-      _Ramp:Texture;
+      _Ramp:TERRATexture;
 
       Function RequiresFunction(FXFunction:ScreenFXFunctionType):Boolean; Override;
 
@@ -287,7 +287,7 @@ Type
 
     Public
 
-      Constructor Create(Pattern, Palette:Texture);
+      Constructor Create(Pattern, Palette:TERRATexture);
 
       Procedure GenerateCode(); Override;
       Procedure GenerateFunctions(); Override;
@@ -320,7 +320,7 @@ Type
       Function GetStrength():Single;
 
     Public
-      Constructor Create(CausticsTex:Texture; Strength:Single = 0.02);
+      Constructor Create(CausticsTex:TERRATexture; Strength:Single = 0.02);
 
       Procedure GenerateCode(); Override;
 
@@ -328,7 +328,7 @@ Type
   End;
 
 Implementation
-Uses TERRA_Log, TERRA_Error, TERRA_Math, TERRA_Image, TERRA_GraphicsManager, TERRA_ColorGrading, TERRA_Viewport;
+Uses TERRA_Log, TERRA_Error, TERRA_Math, TERRA_Image, TERRA_GraphicsManager, TERRA_ColorGrading, TERRA_Viewport, TERRA_ShaderNode;
 
 { ScreenFXChain }
 Constructor ScreenFXChain.Create;
@@ -416,6 +416,7 @@ Function ScreenFXChain.GetShader:ShaderInterface;
 Var
   S:TERRAString;
   I, J:Integer;
+  SG:ShaderGroup;
   Procedure Line(S2:TERRAString); Begin S := S + S2 + crLf; End;
 Begin
   If (_NeedsUpdate) Then
@@ -453,9 +454,9 @@ Begin
     Self._NeedTarget[Integer(captureTargetAlpha)] := True;
     {$ENDIF}
 
+    SG := ShaderGroup.Create();
     S := '';
-    Line('version { 110 }');
-    Line('vertex {');
+
     Line('  uniform mat4 projectionMatrix;');
     Line('	varying mediump vec4 texCoord;');
     Line('  attribute highp vec4 terra_position;');
@@ -487,9 +488,9 @@ Begin
     End;
 
     Line('  gl_Position = projectionMatrix * terra_position;}');
-    Line('}');
-    Line('fragment {');
+    SG.XVertexCode := S;
 
+    S := '';
     //Line('  uniform mat4 inverseProjectionMatrix;');
     Line('	varying mediump vec4 texCoord;');
 
@@ -645,14 +646,16 @@ Begin
     Begin
       Line('  output_color.rgb = pow(output_color.rgb, vec3(2.2));');
     End;
-    
+
     //Line('    gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);}');
     Line('    gl_FragColor = output_color;}');
-    Line('}');
+    SG.XFragmentCode := S;
 
     _Shader := GraphicsManager.Instance.Renderer.CreateShader();
-    _Shader.Generate(Self.GetShaderName(), Nil);
+    _Shader.Generate(Self.GetShaderName(), SG);
     _NeedsUpdate := False;
+
+    ReleaseObject(SG);
   End;
 
   Result := _Shader;
@@ -663,9 +666,9 @@ Var
   _SH:ShaderInterface;
   I:Integer;
   M:Matrix4x4;
-  Tex:Texture;
+  Tex:TERRATexture;
   Slot:Integer;
-  View:Viewport;
+  View:TERRAViewport;
 Begin
   _SH := Self.GetShader();
 
@@ -677,7 +680,7 @@ Begin
   }
 
   Slot := 0;
-  View := Viewport(Target);
+  View := TERRAViewport(Target);
 
   For I:=0 To Pred(TotalCaptureTargets) Do
   If (Self._NeedTarget[I]) Then
@@ -763,7 +766,7 @@ Begin
     Value := _Uniforms[Index].Value.X;
 End;
 
-Procedure ScreenFX.GetTexture(Index: Integer; out Value: Texture);
+Procedure ScreenFX.GetTexture(Index: Integer; out Value: TERRATexture);
 Begin
   If (Index<0) Or (Index>=_UniformCount) Then
     Value := Nil
@@ -813,7 +816,7 @@ Begin
   End;
 End;
 
-Procedure ScreenFX.SetTexture(Index: Integer; Value: Texture);
+Procedure ScreenFX.SetTexture(Index: Integer; Value: TERRATexture);
 Begin
   If (Index>=0) And (Index<_UniformCount) Then
   Begin
@@ -1061,7 +1064,7 @@ Begin
   Exp.Resize(256, 2);
   //Exp.Save('satramp.png');
 
-  _Ramp := Texture.Create(rtDynamic, 'vibranceramp');
+  _Ramp := TERRATexture.Create(rtDynamic, 'vibranceramp');
   _Ramp.InitFromImage(Exp);
 
   ReleaseObject(Exp);
@@ -1209,7 +1212,7 @@ Begin
 End;
 
 { UnderwaterFX }
-Constructor UnderwaterFX.Create(CausticsTex:Texture; Strength:Single);
+Constructor UnderwaterFX.Create(CausticsTex:TERRATexture; Strength:Single);
 Begin
   Self._FXType := FXOffset;
 
@@ -1237,7 +1240,7 @@ Begin
 End;
 
 { DitherFX }
-Constructor DitherFX.Create(Pattern, Palette: Texture);
+Constructor DitherFX.Create(Pattern, Palette: TERRATexture);
 Begin
   _Pattern := Self.AddUniform('dither_pattern', uniformTexture);
   _Palette := Self.AddUniform('dither_palette', uniformTexture);
@@ -1309,7 +1312,7 @@ Begin
 End;
 
 { ColorGradingFX }
-Constructor ColorGradingFX.Create(Palette: Texture);
+Constructor ColorGradingFX.Create(Palette: TERRATexture);
 Begin
   _Palette := Self.AddUniform(ColorTableUniformName, uniformPalette);
   Self.SetTexture(_Palette, Palette);

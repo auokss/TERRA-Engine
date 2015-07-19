@@ -3,18 +3,18 @@ Unit TERRA_VCLApplication;
 {$I terra.inc}
 Interface
 Uses Classes, Forms, ExtCtrls, Graphics, TERRA_String, TERRA_Utils, TERRA_Application,
-  TERRA_GraphicsManager, TERRA_Viewport, TERRA_Image, TERRA_Color, TERRA_OS, TERRA_Renderer;
+  TERRA_Object, TERRA_GraphicsManager, TERRA_Viewport, TERRA_Image, TERRA_Color, TERRA_OS, TERRA_Renderer;
 
 Type
   VCLCanvasViewport = Class(TERRAObject)
     Protected
-      _Source:Viewport;
+      _Source:TERRAViewport;
       _Target:TCanvas;
 
       Procedure Update();
 
     Public
-      Constructor Create(Source:Viewport; Target:TCanvas);
+      Constructor Create(Source:TERRAViewport; Target:TCanvas);
       Procedure Release; Override;
   End;
 
@@ -39,7 +39,7 @@ Type
 
       Public
         Constructor Create(Target:TComponent);
-        Procedure Release; Override;
+        Procedure OnDestroy; Override;
 
         Function GetWidth:Word; Override;
         Function GetHeight:Word; Override;
@@ -49,7 +49,21 @@ Type
         Procedure AddViewport(V:VCLCanvasViewport);
   End;
 
+Function TERRAColorUnpack(Const C:TERRA_Color.Color):TColor;
+Function TERRAColorPack(Const C:TColor):TERRA_Color.Color;
+
 Implementation
+
+Function TERRAColorUnpack(Const C:TERRA_Color.Color):TColor;
+Begin
+  Result := C.R + C.G Shl 8 + C.B Shl 16;
+End;
+
+Function TERRAColorPack(Const C:TColor):TERRA_Color.Color;
+Begin
+  Result := TERRA_Color.Color(ColorToRGB(C));
+  Result.A := 255;
+End;
 
 { VCLApplication }
 Constructor VCLApplication.Create(Target:TComponent);
@@ -72,12 +86,12 @@ Begin
   Inherited Create();
 End;
 
-Procedure VCLApplication.Release;
+Procedure VCLApplication.OnDestroy;
 Begin
+  Inherited;
+
   _Timer.Enabled := False;
   _Timer.Free();
-
-  Inherited;
 End;
 
 Procedure VCLApplication.TimerTick(Sender: TObject);
@@ -89,6 +103,9 @@ End;
 
 Procedure VCLApplication.UpdateSize;
 Begin
+  If Not Self.CanReceiveEvents Then
+    Exit;
+
   If (_CurrentWidth<>Self.GetWidth()) Or (_CurrentHeight<>Self.GetHeight()) Then
   Begin
     _CurrentWidth := GetWidth();
@@ -156,7 +173,7 @@ Begin
 End;
 
 { VCLCanvasViewport }
-Constructor VCLCanvasViewport.Create(Source:Viewport; Target: TCanvas);
+Constructor VCLCanvasViewport.Create(Source:TERRAViewport; Target: TCanvas);
 Begin
   Self._Source := Source;
   Self._Target := Target;
@@ -166,6 +183,7 @@ Procedure VCLCanvasViewport.Release;
 Begin
 
 End;
+
 
 // this is slow!!!! just experimental test
 Procedure VCLCanvasViewport.Update;
@@ -181,7 +199,7 @@ Begin
     For J:=0 To Pred(Temp.Height) Do
     Begin
       C := Temp.GetPixel(I, J);
-      _Target.Pixels[I,J] := C.R + C.G Shl 8 + C.B Shl 16;
+      _Target.Pixels[I,J] := TERRAColorUnpack(C);
     End;
   _Target.Unlock();
 

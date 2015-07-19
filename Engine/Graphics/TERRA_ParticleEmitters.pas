@@ -27,7 +27,7 @@ Unit TERRA_ParticleEmitters;
 {$I terra.inc}
 
 Interface
-Uses TERRA_String, TERRA_Utils, TERRA_Stream, TERRA_Vector3D, TERRA_Vector2D, TERRA_Color, TERRA_ParticleRenderer;
+Uses TERRA_String, TERRA_Object, TERRA_Utils, TERRA_Stream, TERRA_Vector3D, TERRA_Vector2D, TERRA_Color, TERRA_ParticleRenderer;
 
 Const
   particleEmitterSphere   = 0;

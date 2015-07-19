@@ -26,27 +26,12 @@ Unit TERRA_UI;
 
 Interface
 Uses {$IFDEF USEDEBUGUNIT}TERRA_Debug,{$ENDIF}
-  TERRA_String, TERRA_Font, TERRA_Collections, TERRA_Image, TERRA_Utils, TERRA_TextureAtlas, TERRA_Application,
+  TERRA_Object, TERRA_String, TERRA_Font, TERRA_Collections, TERRA_Image, TERRA_Utils, TERRA_TextureAtlas, TERRA_Application,
   TERRA_Vector3D, TERRA_Vector2D, TERRA_Matrix3x3, TERRA_Color, TERRA_Texture, TERRA_Math, TERRA_Tween,
-  TERRA_SpriteManager, TERRA_Vector4D, TERRA_GraphicsManager, TERRA_FontRenderer, TERRA_UITransition,
-  TERRA_ClipRect, TERRA_Hashmap;
+  TERRA_SpriteManager, TERRA_Vector4D, TERRA_GraphicsManager, TERRA_FontRenderer, TERRA_UITransition, TERRA_Viewport,
+  TERRA_UISkin, TERRA_UIDimension, TERRA_ClipRect, TERRA_EnumProperty, TERRA_Hashmap;
 
 Const
-  // widget tween
-  wtPositionX   = 1;
-  wtPositionY   = 2;
-  wtColorRed    = 3;
-  wtColorGreen  = 4;
-
-  wtColorBlue   = 5;
-  wtColorAlpha  = 6;
-  wtRotation    = 7;
-  wtScale       = 8;
-  wtSaturation  = 9;
-
-  // custom tweens
-  wtValue       = 100;
-
   waTopLeft     = 0;
   waTopCenter   = 1;
   waTopRight    = 2;
@@ -70,76 +55,79 @@ Const
   TextureAtlasHeight = 512;
 
 Type
-  UI = Class;
+  TERRAUI = Class;
 
-  UISkinLayout = Class(TERRAObject)
-    Protected
-      _Target:TextureAtlasItem;
-    Public
-      X:Array[0..2] Of Single;
-      Y:Array[0..2] Of Single;
+  UIDragMode = (
+    UIDrag_Move,
+    UIDrag_Left,
+    UIDrag_Right,
+    UIDrag_Top,
+    UIDrag_Bottom,
 
-      Constructor Create(Source:TextureAtlasItem);
-      Procedure Release; Override;
-
-      Function GCSX(I:Integer): Single;
-      Function GCSY(J:Integer): Single;
-
-      Function GetWidth(Width:Integer):Single;
-      Function GetHeight(Height:Integer):Single;
-  End;
-
-  UICursor = Class(TERRAObject)
-    Protected
-      _UI:UI;
-      _Name:TERRAString;
-      _Item:TextureAtlasItem;
-      _OfsX:Integer;
-      _OfsY:Integer;
-
-      Procedure Render;
-
-    Public
-      Constructor Create(Name:TERRAString; UI:UI; OfsX:Integer = 0; OfsY:Integer=0);
-      Procedure Release; Override;
-
-      Property UI:UI Read _UI;
-  End;
+    UIDrag_TopLeft,
+    UIDrag_TopRight,
+    UIDrag_BottomLeft,
+    UIDrag_BottomRight
+  );
 
   Widget = Class;
   WidgetClass = Class Of Widget;
-  WidgetEventHandler = Function (Source:Widget):Boolean; CDecl;
+  WidgetEventHandler = Procedure(Src:Widget) Of Object;
 
-	Widget = Class(HashMapObject)
+	Widget = Class(CollectionObject)
     Private
-      _UI:UI;
+      _UI:TERRAUI;
       _Next:Widget;
       _Tested:Boolean;
       _RenderFrameID:Cardinal;
 
+      _Width:DimensionProperty;
+      _Height:DimensionProperty;
+			_Position:Vector2DProperty;
+      _Layer:FloatProperty;
+      _Align:EnumProperty;
+      _Color:ColorProperty;
+      _Rotation:AngleProperty;
+      _Scale:FloatProperty;
+      _Saturation:FloatProperty;
+			_Visible:BooleanProperty;
+      _Skin:StringProperty;
+      _TabIndex:IntegerProperty;
+
+      _Deleted:Boolean;
+
+      _SkinComponent:UISkinComponent;
+
+      Procedure UpdateProperties();
+
+			Function GetAbsolutePosition:Vector2D;
+      Function GetRelativePosition:Vector2D;
+
+      Function GetHeight: UIDimension;
+      Function GetWidth: UIDimension;
+
+      Function GetTabIndex: Integer;
+      Procedure SetTabIndex(const Value: Integer);
+      Procedure SetParent(Target:Widget);
+
 		Protected
 			_Parent:Widget;
-			_Visible:Boolean;
-			_Position:Vector2D;
-      _Layer:Single;
-      _Picked:Boolean;
-      _ComponentList:Array Of TextureAtlasItem;
-      _ComponentCount:Integer;
-      _TweenList:Array Of Tween;
-      _TweenCount:Integer;
+
       _Tooltip:TERRAString;
-      _Align:Integer;
       _NeedsUpdate:Boolean;
       _NeedsHide:Boolean;
 
+      _MouseOver:Boolean;
+
       _Enabled:Boolean;
 
-      _TabIndex:Integer;
       _TabControl:Widget;
 
       _Dragging: Boolean;
+      _DragMode:UIDragMode;
       _DragX: Single;
       _DragY: Single;
+      _DragSize:Vector2D;
       _DragStart:Vector2D;
 
       _ChildrenList:Array Of Widget;
@@ -148,8 +136,11 @@ Type
       _FontRenderer:FontRenderer;
 
       _Transform:Matrix3x3;
+      _InverseTransform:Matrix3x3;
       _TransformChanged:Boolean;
-      _Corners:Array[0..3] Of Vector2D;
+
+      _Properties:UISkinProperty;
+      _LastState:Integer;
 
       _UsingHighLightProperties:Boolean;
       _SelectedWithKeyboard:Boolean;
@@ -165,12 +156,8 @@ Type
       _OriginalColor:Color;
       _OriginalPosition:Vector2D;
 
-      _Color:Color;
-      _Rotation:Single;
-      _Scale:Single;
-      _Saturation:Single;
-      _ColorTable:Texture;
-      _Font:Font;
+      _ColorTable:TERRATexture;
+      _Font:TERRAFont;
 
       _ClipRect:ClipRect;
 
@@ -183,6 +170,12 @@ Type
 
       _HighlightGroup:Integer;
 
+      _BasePropertiesIndex:Integer;
+      _CustomPropertiesIndex:Integer;
+
+      Procedure InitProperties();
+      Procedure ExpandProperties(Count:Integer);
+
       Procedure CopyValue(Other:CollectionObject); Override;
       Function Sort(Other:CollectionObject):Integer; Override;
 
@@ -191,24 +184,30 @@ Type
       Function GetLeftControl():Widget;
       Function GetRightControl():Widget;
 
+      Function GetAlign: Integer;
+      Procedure SetAlign(const Value: Integer);
+
+      Procedure SetAbsolutePosition(Pos:Vector2D);
+      Procedure SetRelativePosition(Const Pos:Vector2D);
+
       Procedure SetVisible(Value:Boolean);
-      Procedure SetPosition(Pos:Vector2D);
       Procedure SetLayer(Z:Single);
       Procedure SetColor(MyColor:Color);
       Procedure SetRotation(const Value: Single);
       Procedure SetSaturation(const Value: Single);
       Procedure SetScale(const Value: Single);
-      Procedure SetFont(const Value: TERRA_Font.Font);
+      Procedure SetFont(const Value:TERRAFont);
 
-      Function LoadComponent(Name:TERRAString):Integer;
+      Function GetRotation():Single;
+      Function GetScale():Single;
 
       Function GetTabControl():Widget;
 
-      Procedure PruneTweens;
-      Function CreateCustomTween(TweenType:Integer; TargetValue:Single):Tween; Virtual;
-
       Procedure UpdateHighlight(); Overload;
       Procedure UpdateHighlight(Condition:Boolean); Overload;
+
+      Procedure ClearProperties();
+      Procedure CopyProperties(ID:Integer; Selected:Boolean; Out CurrentState, DefaultState:Integer);
 
       Function IsSelected: Boolean;
 
@@ -216,9 +215,16 @@ Type
 			Function OnKeyUp(Key:Word):Boolean;Virtual;
 			Function OnKeyPress(Key:Word):Boolean;Virtual;
 
+      Function AllowsEvents(): Boolean;
+
+      Function AdjustWidth(NewWidth:Single):Single;
+      Function AdjustHeight(NewHeight:Single):Single;
+
+      Procedure PickAt(Const X, Y:Integer; Var CurrentPick:Widget; Var Max:Single; Ignore:Widget = Nil);
+
       Function HasMouseOver():Boolean; Virtual;
 
-      Procedure OnHit(); Virtual;
+      Procedure OnHit(Handler:WidgetEventHandler); Virtual;
       Procedure OnHighlight(Prev:Widget); Virtual;
       Procedure StartHighlight(); Virtual;
       Procedure StopHighlight(); Virtual;
@@ -228,14 +234,23 @@ Type
 
       Function GetFontRenderer: FontRenderer;
 
-      Function OutsideClipRect(X,Y:Integer):Boolean;
+      Function OutsideClipRect(X,Y:Single):Boolean;
 
       Function CanRender():Boolean;
-
 
       Procedure ResetClipRect();
 
       Procedure SetEnabled(Value:Boolean);
+
+      Procedure DrawText(Const Text:TERRAString; Const X,Y, Layer:Single; Const TextRect:Vector2D; Scale:Single; ID:Integer; Selected:Boolean; Const TextColor:Color);
+      Procedure DrawComponent(X, Y, Layer:Single; Const Width, Height:UIDimension; ID:Integer; Selected:Boolean; ScaleColor:Boolean = True);
+      Procedure DrawCroppedComponent(X, Y, Layer, U1, V1, U2, V2:Single; Const Width, Height:UIDimension; ID:Integer; Selected:Boolean; ScaleColor:Boolean = True);
+
+      Procedure SetObjectName(const Value: TERRAString); Override;
+
+      Procedure ApplyDragMode(Const PX, PY:Single; Mode:UIDragMode);
+
+      Property SkinComponent:UISkinComponent Read _SkinComponent;
 
 		Public
       Tag:Integer;
@@ -245,74 +260,81 @@ Type
       Draggable:Boolean;
 
       OnMouseClick:WidgetEventHandler;
-      OnExtendedClick:WidgetEventHandler;
       OnMouseRelease:WidgetEventHandler;
       OnMouseOver:WidgetEventHandler;
       OnMouseOut:WidgetEventHandler;
       OnBeginDrag:WidgetEventHandler;
       OnEndDrag:WidgetEventHandler;
 
-      Constructor Create(Const Name:TERRAString; Owner:UI; Parent:Widget);
+      Constructor Create(Const Name:TERRAString; Parent:Widget; Const ComponentName:TERRAString);
       Procedure Release; Override;
+
+      Procedure Delete();
+
+      Procedure LoadSkin(Const ComponentName:TERRAString);
+
+      Function GetPropertyByIndex(Index:Integer):TERRAObject; Override;
+      Function CreateProperty(Const KeyName, ObjectType:TERRAString):TERRAObject; Override;
 
       Procedure Render; Virtual;
 
-      Procedure UpdateRects; Virtual; Abstract;
+      Procedure UpdateRects; Virtual;
       Function UpdateTransform():Boolean; Virtual;
 
-			Function IsVisible:Boolean;
-			Function GetAbsolutePosition:Vector2D;
-			Function GetRelativePosition:Vector2D;
+			Function GetVisible:Boolean;
 			Function GetLayer:Single;
       Function GetColor:Color;
 			Function GetSaturation:Single;
-      Function GetColorTable:Texture;
+      Function GetColorTable:TERRATexture;
       Function GetHighlightGroup:Integer;
 
-      Procedure SetPositionRelative(Other:Widget; OfsX, OfsY:Single);
+      Procedure ClipChildren(Const Clip:ClipRect);
+
+      Function GetDimension(Const Dim:UIDimension; Const Target:UIDimensionTarget):Single;
+
+      Procedure ConvertGlobalToLocal(Var V:Vector2D);
+      Procedure ConvertLocalToGlobal(Var V:Vector2D);
+
+      Procedure SetPositionRelativeToOther(Other:Widget; OfsX, OfsY:Single);
 
       Procedure GetScrollOffset(Out OfsX, OfsY:Single);
 
-      Function AddTween(TweenType:Integer; TargetValue:Single; Time:Integer; Delay:Integer=0):Tween;
-      Function HasTweens:Boolean;
-
 			Procedure OnLanguageChange();Virtual;
 
-      Function OnRegion(X,Y:Integer): Boolean; Virtual;
+      Procedure NullEventHandler(Src:Widget);
+
+      Function OnRegion(X,Y:Single): Boolean; Virtual;
       Function OnCustomRegion(X,Y:Integer; X1,Y1,X2,Y2:Single):Boolean;
-      
+
       Procedure AddChild(W:Widget);
-      Function GetChild(Index:Integer):Widget; Overload;
-      Function GetChild(Const Name:TERRAString):Widget; Overload;
-      Function GetChild(ChildClass:WidgetClass; Index:Integer = 0):Widget; Overload;
+      Procedure RemoveChild(W:Widget);
+      Function GetChildByIndex(Index:Integer):Widget; Overload;
+      Function GetChildByName(Const Name:TERRAString):Widget; Overload;
+      Function GetChildByClass(ChildClass:WidgetClass; Index:Integer = 0):Widget; Overload;
 
       Function OnSelectRight():Boolean; Virtual;
       Function OnSelectLeft():Boolean; Virtual;
       Function OnSelectUp():Boolean; Virtual;
       Function OnSelectDown():Boolean; Virtual;
       Function OnSelectAction():Boolean; Virtual;
-      Function OnSelectAlternateAction():Boolean; Virtual;
 
       Function IsOutsideScreen():Boolean;
+
+      Procedure SetHeight(const Value: UIDimension);
+      Procedure SetWidth(const Value: UIDimension);
 
       Procedure SetChildrenVisibilityByTag(Tag:Integer; Visibility:Boolean);
 
       Procedure SetClipRect(Value:ClipRect);
       Procedure UpdateClipRect(Clip:ClipRect; LeftBorder:Single = 0.0; TopBorder:Single = 0.0; RightBorder:Single = 0.0; BottomBorder:Single = 0.0);
 
-      Procedure SetName(Const Value:TERRAString);
-
-      Procedure DrawComponent(Index:Integer; Const Offset:Vector3D; X1,Y1,X2,Y2:Single; Color:Color; ScaleColor:Boolean=True);
-      Procedure DrawWindow(Index:Integer; Const Offset:Vector3D; Width, Height:Integer; Layout:UISkinLayout; Color:Color);
-      Procedure DrawText(Const Text:TERRAString; Const Offset:Vector3D; C:Color; Scale:Single; UseFont:Font = Nil);
-
       Function IsHighlighted():Boolean;
       Function HasHighlightedChildren():Boolean;
 
-			Function OnMouseDown(X,Y:Integer; Button:Word):Boolean;Virtual;
-			Function OnMouseUp(X,Y:Integer; Button:Word):Boolean;Virtual;
-			Function OnMouseMove(X,Y:Integer):Boolean;Virtual;
-			Function OnMouseWheel(X,Y:Integer; Delta:Integer):Boolean;Virtual;
+			Procedure OnMouseDown(X,Y:Integer; Button:Word); Virtual;
+			Procedure OnMouseUp(X,Y:Integer; Button:Word); Virtual;
+			Procedure OnMouseMove(X,Y:Integer); Virtual;
+			Procedure OnMouseWheel(X,Y:Integer; Delta:Integer);Virtual;
 
       Function GetIndex():Integer;
 
@@ -320,43 +342,49 @@ Type
 
       Function GetSize:Vector2D; Virtual;
 
-      Function GetFont:TERRA_Font.Font;
+      Function GetFont:TERRAFont;
 
       Function GetClipRect():ClipRect;
 
+      Procedure BeginDrag(X,Y:Integer; Mode:UIDragMode = UIDrag_Move);
+      Procedure FinishDrag();
       Procedure CancelDrag();
 
-      Function Show(AnimationFlags:Integer; Delay:Integer=0; EaseType:Integer = -1; Duration:Integer=500):Tween;
-      Function Hide(AnimationFlags:Integer; Delay:Integer=0; EaseType:Integer = -1; Duration:Integer=500):Tween;
-      Function ToggleVisibility(AnimationFlags:Integer; Delay:Integer=0; EaseType:Integer = -1; Duration:Integer=500):Tween;
+      Function SupportDrag(Mode:UIDragMode):Boolean; Virtual; 
+
+      Function Show(AnimationFlags:Integer; EaseType:TweenEaseType = easeLinear; Delay:Cardinal = 0; Duration:Cardinal = 500; Callback:TweenCallback = Nil):Boolean;
+      Function Hide(AnimationFlags:Integer; EaseType:TweenEaseType = easeLinear; Delay:Cardinal = 0; Duration:Cardinal = 500; Callback:TweenCallback = Nil):Boolean;
+      Function ToggleVisibility(AnimationFlags:Integer; EaseType:TweenEaseType = easeLinear; Delay:Cardinal = 0; Duration:Cardinal = 500; Callback:TweenCallback = Nil):Boolean;
 
       //Procedure CenterOnScreen(CenterX:Boolean = True; CenterY:Boolean = True);
       //Procedure CenterOnParent(CenterX:Boolean = True; CenterY:Boolean = True);
       Procedure CenterOnPoint(X,Y:Single);
 
-			Property Visible:Boolean Read IsVisible Write SetVisible;
-			Property Position:Vector2D Read GetAbsolutePosition Write SetPosition;
+			Property Visible:Boolean Read GetVisible Write SetVisible;
+
+			Property AbsolutePosition:Vector2D Read GetAbsolutePosition Write SetAbsolutePosition;
+			Property RelativePosition:Vector2D Read GetRelativePosition Write SetRelativePosition;
+
       Property Pivot:Vector2D Read _Pivot Write _Pivot;
       Property Size:Vector2D Read GetSize;
 			Property Layer:Single Read GetLayer Write SetLayer;
-			Property Name:TERRAString Read _Key Write SetName;
 
-      Property TabIndex:Integer Read _TabIndex Write _TabIndex;
+      Property TabIndex:Integer Read GetTabIndex Write SetTabIndex;
       Property TabControl:Widget Read GetTabControl Write _TabControl;
 
       Property InheritColor:Boolean Read _InheritColor Write _InheritColor;
 
       Property Color:TERRA_Color.Color Read GetColor Write SetColor;
-      Property ColorTable:Texture Read GetColorTable Write _ColorTable;
+      Property ColorTable:TERRATexture Read GetColorTable Write _ColorTable;
       Property Saturation:Single Read GetSaturation Write SetSaturation;
-      Property Rotation:Single Read _Rotation Write SetRotation;
-      Property Scale:Single Read _Scale Write SetScale;
-      Property Font:TERRA_Font.Font Read GetFont Write SetFont;
+      Property Rotation:Single Read GetRotation Write SetRotation;
+      Property Scale:Single Read GetScale Write SetScale;
+      Property Font:TERRAFont Read GetFont Write SetFont;
 
       Property Scroll:Widget Read _Scroll Write _Scroll;
 
-      Property Parent:Widget Read _Parent Write _Parent;
-      Property Align:Integer Read _Align Write _Align;
+      Property Parent:Widget Read _Parent Write SetParent;
+      Property Align:Integer Read GetAlign Write SetAlign;
 
       Property ChildrenCount:Integer Read _ChildrenCount;
 
@@ -372,22 +400,17 @@ Type
 
       Property HighlightGroup:Integer Read GetHighlightGroup Write _HighlightGroup;
 
-      Property UI:UI Read _UI;
+      Property UI:TERRAUI Read _UI;
+      Property Next:Widget Read _Next;
       Property FontRenderer:FontRenderer Read GetFontRenderer Write _FontRenderer;
+
+      Property Width:UIDimension Read GetWidth Write SetWidth;
+      Property Height:UIDimension Read GetHeight Write SetHeight;
 	End;
 
-  UI = Class(TERRAObject)
+  TERRAUI = Class(Widget)
     Protected
-      _Visible:Boolean;
-
-      _CursorList:Array Of UICursor;
-      _CursorCount:Integer;
-      _CurrentCursor:UICursor;
-      _CursorPos:Vector2D;
-
       _VirtualKeyboard:Widget;
-
-      _FontRenderer:FontRenderer;
 
 		  _Focus:Widget;
       _Dragger:Widget;
@@ -396,30 +419,30 @@ Type
       _First:Widget;
       _Draw:Boolean;
 
-      _ColorTable:Texture;
-      _Color:Color;
-      _Saturation:Single;
-
       _Transition:UITransition;
       _Widgets:HashMap;
 
-      _DefaultFont:Font;
+      _DefaultFont:TERRAFont;
       _Language:TERRAString;
 
       _WndCallback1:WidgetEventHandler;
       _WndCallback2:WidgetEventHandler;
       _PrevHighlight:Widget;
 
+      _LastOver:Widget;
       _LastWidget:Widget;
 
-      _Transform:Matrix3x3;
       _InverseTransform:Matrix3x3;
       _ClipRect:ClipRect;
 
+      _Skin:UISkinComponent;
+
+      _HasDeletions:Boolean;
+
       Procedure UpdateLanguage();
 
-      Procedure SetColorTable(const Value:Texture);
-      Procedure SetDefaultFont(const Value: Font);
+      Procedure SetColorTable(const Value:TERRATexture);
+      Procedure SetDefaultFont(const Value:TERRAFont);
       Procedure SetHighlight(const Value: Widget);
       Procedure SetDragger(const Value: Widget);
 
@@ -430,9 +453,12 @@ Type
 
       Procedure OnOrientationChange;
 
-      Procedure SetVisible(const Value: Boolean);
-
       Function GetFontRenderer():FontRenderer;
+
+      Function GetModal():Widget;
+
+      Procedure InsertIntoTopWidgets(W:Widget);
+      Procedure RemoveFromTopWidgets(W:Widget);
 
     Public
       CloseButton:Widget;
@@ -442,15 +468,12 @@ Type
       Key_Right:Integer;
       Key_Left:Integer;
       Key_Action:Integer;
-      Key_Action2:Integer;
       Key_Cancel:Integer;
 
       System_Wnd:Widget;
       System_Text:Widget;
       System_Btn:Array[0..2] Of Widget;
       System_BG:Widget;
-
-      DefaultEaseType:Integer;
 
       Constructor Create;
       Procedure Release; Override;
@@ -459,18 +482,17 @@ Type
       Procedure DeleteWidget(MyWidget:Widget);
       Function GetWidget(Const Name:TERRAString):Widget;
 
-      Function AllowsEvents(W:Widget):Boolean;
+      Function GetPropertyByIndex(Index:Integer):TERRAObject; Override;
+      Function GetObjectType:TERRAString; Override; 
 
-      Function AddQuad(Const StartPos, EndPos:Vector2D; Const TexCoord1, TexCoord2:Vector2D; MyColor:Color; Z:Single; PageID:Integer;
-        Const Transform:Matrix3x3; Saturation:Single; ColorTable:Texture; Const Clip:ClipRect):QuadSprite;
+      Function AddQuad(Const Quad:UIQuad; Const Props:UISkinProperty; Z:Single; Const Transform:Matrix3x3):QuadSprite;
 
       Procedure Clear;
 
       Function SelectNearestWidget(Target:Widget):Widget;
       Procedure GetFirstHighLight(GroupID:Integer);
 
-      Procedure ConvertGlobalToLocal(Var X, Y:Integer);
-      Procedure ConvertLocalToGlobal(Var X, Y:Integer);
+      Function PickWidget(X,Y:Integer; Ignore:Widget = Nil):Widget;
 
 		  Function OnKeyDown(Key:Word):Widget;
 		  Function OnKeyUp(Key:Word):Widget;
@@ -485,6 +507,11 @@ Type
 
       Procedure AfterEffects;
 
+      Function LoadSkin(Const FileName:TERRAString):Boolean;
+
+      Function LoadImage(Name:TERRAString):TextureAtlasItem;
+      Function GetComponent(Const Name:TERRAString):UISkinComponent;
+
       Procedure SetTransform(Const M:Matrix3x3);
 
       Procedure SetFocus(W:Widget);
@@ -494,8 +521,6 @@ Type
 
       Procedure SetFontRenderer(const Value: FontRenderer);
 
-      Function LoadCursor(Const Name:TERRAString; OfsX:Integer = 0; OfsY:Integer = 0):UICursor;
-
       Procedure MessageBox(Msg:TERRAString; Callback: WidgetEventHandler = Nil);
       Procedure ChoiceBox(Msg, Option1, Option2:TERRAString; Callback1:WidgetEventHandler = Nil; Callback2: WidgetEventHandler = Nil);
       Procedure ClearChoiceBox();
@@ -504,9 +529,8 @@ Type
 
       Function OnRegion(X, Y:Integer):Boolean;
 
-      Property Color:TERRA_Color.Color Read _Color Write _Color;
-      Property ColorTable:Texture Read _ColorTable Write SetColorTable;
-      Property Saturation:Single Read _Saturation Write _Saturation;
+      Property ColorTable:TERRATexture Read _ColorTable Write SetColorTable;
+      Property Saturation:Single Read GetSaturation Write SetSaturation;
 
       Property Focus:Widget Read _Focus Write SetFocus;
       Property Dragger:Widget Read _Dragger Write SetDragger;
@@ -519,31 +543,35 @@ Type
 
       Property LastWidget:Widget Read _LastWidget;
 
-      Property DefaultFont:Font Read _DefaultFont Write SetDefaultFont;
-      Property Modal:Widget Read _Modal Write _Modal;
+      Property DefaultFont:TERRAFont Read _DefaultFont Write SetDefaultFont;
+      Property Modal:Widget Read GetModal Write _Modal;
       Property Highlight:Widget Read GetHighlight Write SetHighlight;
-
-      Property Visible:Boolean Read _Visible Write SetVisible;
 
       Property Transform:Matrix3x3 Read _Transform Write SetTransform;
 
       Property FontRenderer:FontRenderer Read GetFontRenderer Write SetFontRenderer;
 
       Property ClipRect:ClipRect Read _ClipRect Write _ClipRect;
+
+      Property First:Widget Read _First;
     End;
 
   UIManager = Class(ApplicationComponent)
     Protected
+      _Viewport:TERRAViewport;
       _TextureAtlas:TextureAtlas;
       _UpdateTextureAtlas:Boolean;
 
-      _UIList:Array Of UI;
+      _UIList:Array Of TERRAUI;
       _UICount:Integer;
 
       _Ratio:Single;
 
       _FontRenderer:FontRenderer;
 
+      _AlignEnums:EnumCollection;
+
+      Procedure OnAppResize; Override;
       Procedure OnLanguageChange; Override;
       Procedure OnOrientationChange; Override;
 
@@ -556,24 +584,29 @@ Type
 
       Function GetFontRenderer: FontRenderer;
 
+      Procedure RenderUIs;
+
     Public
       Procedure Init; Override;
+      Procedure Resume; Override;
 
       Procedure Release; Override;
 
       Class Function Instance:UIManager;
 
-      Procedure AddUI(UI:UI);
-      Procedure RemoveUI(UI:UI);
+      Procedure AddUI(UI:TERRAUI);
+      Procedure RemoveUI(UI:TERRAUI);
 
       Procedure TextureAtlasClear();
 
       Procedure Render;
       Procedure AfterEffects;
 
+      Function CreateProperty(Owner:TERRAObject; Const KeyName, ObjectType:TERRAString):TERRAObject; Override;
+      
       Procedure SetFontRenderer(const Value: FontRenderer);
 
-      Function GetUI(Index:Integer):UI;
+      Function GetUI(Index:Integer):TERRAUI;
 
       Property Width:Integer Read GetWidth;
       Property Height:Integer Read GetHeight;
@@ -585,13 +618,18 @@ Type
       Property Count:Integer Read _UICount;
 
       Property FontRenderer:FontRenderer Read GetFontRenderer Write SetFontRenderer;
+
+      Property Viewport:TERRAViewport Read _Viewport;
   End;
 
 Function GetSpriteZOnTop(W:Widget; Ofs:Single = 1.0):Single;
 
 Implementation
-Uses TERRA_Error, TERRA_OS, TERRA_Widgets, TERRA_Stream, TERRA_Renderer,
-  TERRA_Matrix4x4, TERRA_Log, TERRA_FileUtils, TERRA_FileManager, TERRA_InputManager, TERRA_UIVirtualKeyboard;
+Uses TERRA_Error, TERRA_OS, TERRA_Stream, TERRA_Renderer, TERRA_XML, TERRA_UITabs, TERRA_UIScrollBar,
+  TERRA_Matrix4x4, TERRA_Log, TERRA_FileUtils, TERRA_FileManager, TERRA_InputManager,
+  TERRA_UIVirtualKeyboard, TERRA_UIButton, TERRA_UISprite, TERRA_UILabel, TERRA_UIWindow,
+  TERRA_UICheckbox, TERRA_UIEditText, TERRA_UIIcon;
+
 
 Var
   _UIManager_Instance:ApplicationObject = Nil;
@@ -612,12 +650,135 @@ Var
   W:Widget;
 Begin
   W := Widget(Source);
-  W._Color := W._OriginalColor;
-  W._Position := W._OriginalPosition;
+  W.SetColor(W._OriginalColor);
+  W.SetRelativePosition(W._OriginalPosition);
   W.SetVisible(False);
 
   If (W.UI.Highlight = W) Or (W.HasHighlightedChildren()) Then
     W.UI.Highlight := Nil;
+End;
+
+
+{ Widget }
+Constructor Widget.Create(Const Name:TERRAString; Parent:Widget; Const ComponentName:TERRAString);
+Begin
+  _ObjectName := Name;
+
+  Self.InitProperties();
+
+  SetVisible(True);
+  _Enabled := True;
+
+  If (Assigned(Parent)) And (Parent Is TERRAUI) Then
+  Begin
+    _UI := TERRAUI(Parent);
+    _Parent := Nil;
+  End Else
+  Begin
+    _UI := Parent.UI;
+    _Parent := Parent;
+  End;
+
+  Self.LoadSkin(ComponentName);
+
+  _Pivot := VectorCreate2D(0.5, 0.5);
+  SetScale(1.0);
+  SetRotation(0.0);
+  SetSaturation(1.0);
+  SetColor(ColorWhite);
+  _ColorTable := Nil;
+
+  _ClipRect.Style := clipNothing;
+
+  //_DropShadowColor := ColorNull;
+  _DropShadowColor := ColorGrey(0, 255);
+
+  _Font := UI._DefaultFont;
+  _FontRenderer := UI.FontRenderer;
+
+  _InheritColor := True;
+  _TransformChanged := True;
+
+  UI.AddWidget(Self);
+End;
+
+
+Procedure Widget.Release();
+Begin
+  ReleaseObject(_Width);
+  ReleaseObject(_Height);
+  ReleaseObject(_Visible);
+  ReleaseObject(_Position);
+  ReleaseObject(_Color);
+  ReleaseObject(_Rotation);
+  ReleaseObject(_Layer);
+  ReleaseObject(_Scale);
+  ReleaseObject(_Saturation);
+  ReleaseObject(_Align);
+  ReleaseObject(_Skin);
+  ReleaseObject(_TabIndex);
+End;
+
+Procedure Widget.InitProperties;
+Begin
+  _Width := DimensionProperty.Create('width', UIPixels(0));
+  _Height := DimensionProperty.Create('height', UIPixels(0));
+  _Visible := BooleanProperty.Create('visible', True);
+  _Position := Vector2DProperty.Create('position', VectorCreate2D(0, 0));
+  _Layer := FloatProperty.Create('layer', 1.0);
+  _Color := ColorProperty.Create('color', ColorWhite);
+  _Rotation := AngleProperty.Create('rotation', 0.0);
+  _Scale := FloatProperty.Create('scale', 1.0);
+  _Saturation := FloatProperty.Create('saturation', 1.0);
+  _Skin := StringProperty.Create('skin', '');
+  _TabIndex := IntegerProperty.Create('tabindex', -1);
+  _Align := EnumProperty.Create('align', 0, UIManager.Instance._AlignEnums);
+
+  _BasePropertiesIndex := 0;
+  _CustomPropertiesIndex := 12;
+End;
+
+Function Widget.GetPropertyByIndex(Index:Integer):TERRAObject;
+Begin
+  If (Index>=_CustomPropertiesIndex) Then
+  Begin
+    Dec(Index, _CustomPropertiesIndex);
+    If (Index<_ChildrenCount) Then
+      Result := _ChildrenList[Index]
+    Else
+      Result := Nil;
+    Exit;
+  End;
+
+  Case Index Of
+  0: Result := _Visible;
+  1: Result := _Position;
+  2: Result := _Layer;
+  3: Result := _Align;
+  4: Result := _Width;
+  5: Result := _Height;
+  6: Result := _Color;
+  7: Result := _Rotation;
+  8: Result := _Scale;
+  9: Result := _Saturation;
+  10: Result := _Skin;
+  11: Result := _TabIndex;
+  Else
+    Result := Nil;
+  End;
+End;
+
+Procedure Widget.ExpandProperties(Count:Integer);
+Begin
+  _BasePropertiesIndex := _CustomPropertiesIndex;
+  Inc(_CustomPropertiesIndex, Count);
+End;
+
+
+Procedure Widget.LoadSkin(Const ComponentName:TERRAString);
+Begin
+  _Skin.Value := ComponentName;
+  _SkinComponent := _UI.GetComponent(ComponentName);
 End;
 
 Function Widget.HasHighlightedChildren():Boolean;
@@ -658,11 +819,11 @@ End;}
 
 Procedure Widget.CenterOnPoint(X,Y:Single);
 Begin
-  _Align := waTopLeft;
+  Self.Align := waTopLeft;
   Self.UpdateRects;
 
-  _Position.X := X - _Size.X * 0.5;
-  _Position.Y := Y - _Size.Y * 0.5;
+  _Position.X.Value := X - _Size.X * 0.5;
+  _Position.Y.Value := Y - _Size.Y * 0.5;
 End;
 
 {Procedure Widget.CenterOnParent(CenterX, CenterY: Boolean);
@@ -681,35 +842,27 @@ End;}
 
 Procedure Widget.StartHighlight;
 Begin
-  Self._Color := ColorBlack;
+  Self._Color.Value := ColorBlack;
 End;
 
 Procedure Widget.StopHighlight;
 Begin
-  Self._Color := ColorWhite;
+  Self._Color.Value := ColorWhite;
 End;
 
-Procedure Widget.OnHit();
+Procedure Widget.OnHit(Handler:WidgetEventHandler);
 Var
   N:Integer;
-  A,B:Single;
+  Target:TERRA_Color.Color;
+  Ease:TweenEaseType;
 Begin
-  A := Self.Color.R/255;
-  B := A * 0.5;
+  Target := ColorScale(Self.Color, 0.5);
   N := 150;
-  Self.AddTween(wtColorRed, B, N);
-  Self.AddTween(wtColorGreen, B, N);
-  Self.AddTween(wtColorBlue, B, N);
 
-  Self.AddTween(wtColorRed, A, N, N);
-  Self.AddTween(wtColorGreen, A, N, N);
-  Self.AddTween(wtColorBlue, A, N, N);
-End;
+  Ease := easeLinear;
 
-Function Widget.CreateCustomTween(TweenType: Integer; TargetValue: Single): Tween;
-Begin
-  RemoveHint(TweenType + Trunc(TargetValue));
-  Result := Nil;
+  Self._Color.AddTween(Ease, Target, N, 0);
+  Self._Color.AddTween(Ease, Self.Color, N, N, TweenCallback(Handler), Self);
 End;
 
 Procedure Widget.OnLanguageChange;
@@ -717,18 +870,10 @@ Begin
   // do nothing
 End;
 
-Procedure Widget.Release();
+Procedure Widget.UpdateRects();
 Begin
-  TweenManager.Instance.RemoveTween(Self);
-
-  If (UI.Dragger = Self) Then
-    UI.Dragger := Nil;
-
-  If (UI.Focus = Self) Then
-    UI.Focus := Nil;
-
-  If (UI.LastWidget = Self) Then
-    UI._LastWidget := Nil;
+  _Size.X := Self.GetDimension(Self.Width, uiDimensionWidth);
+  _Size.Y := Self.GetDimension(Self.Height, uiDimensionHeight);
 End;
 
 Function Widget.GetSize: Vector2D;
@@ -738,41 +883,6 @@ Begin
 
   Result.X := _Size.X;
   Result.Y := _Size.Y;
-End;
-
-
-{ Widget }
-Constructor Widget.Create(Const Name:TERRAString; Owner: UI; Parent:Widget);
-Begin
-  _Key := Name;
-   
-  _Visible := True;
-  _Enabled := True;
-  _UI := Owner;
-
-  _Parent := Parent;
-
-  _Pivot := VectorCreate2D(0.5, 0.5);
-  _Scale := 1.0;
-  _Rotation := 0.0;
-  _Saturation := 1.0;
-  _Color := ColorWhite;
-  _ColorTable := Nil;
-  _FontRenderer := Owner._FontRenderer;
-  _UI := Owner;
-
-  _ClipRect.Style := clipNothing;
-
-  //_DropShadowColor := ColorNull;
-  _DropShadowColor := ColorGrey(0, 255);
-
-  _Font := Owner._DefaultFont;
-  _FontRenderer := UI.FontRenderer;
-
-  _InheritColor := True;
-  _TransformChanged := True;
-
-  UI.AddWidget(Self);
 End;
 
 Procedure Widget.CopyValue(Other: CollectionObject);
@@ -793,9 +903,26 @@ Begin
   Result := Assigned(Self.OnMouseClick);
 End;
 
+Procedure Widget.ConvertGlobalToLocal(Var V:Vector2D);
+Begin
+  If (Self.Rotation<>0.0) Then
+    V := Self._InverseTransform.Transform(V);
+
+  V.Subtract(Self.AbsolutePosition);
+End;
+
+Procedure Widget.ConvertLocalToGlobal(Var V:Vector2D);
+Begin
+  V.Add(Self.AbsolutePosition);
+
+  If (Self.Rotation<>0.0) Then
+    V := Self._Transform.Transform(V);
+End;
+
+
 Function Widget.CanHighlight(GroupID:Integer): Boolean;
 Begin
-  Result := (Self.Visible) And (Self.Enabled) And (Self.IsSelectable()) And (Self.HighlightGroup = GroupID) And (Not Self.HasTweens());
+  Result := (Self.Visible) And (Self.Enabled) And (Self.IsSelectable()) And (Self.HighlightGroup = GroupID) And (Not Self.HasPropertyTweens());
 End;
 
 Function Widget.GetDownControl(): Widget;
@@ -809,7 +936,7 @@ Begin
   Result := Nil;
 
   Min := 99999;
-  Base := Self.Position;
+  Base := Self.AbsolutePosition;
   Base.Y := Base.Y + Self.Size.Y;
   GroupID := Self.HighlightGroup;
 
@@ -820,11 +947,11 @@ Begin
     If (W = Self) Or (Not W.CanHighlight(GroupID)) Then
       Continue;
 
-    Y := W.Position.Y;
+    Y := W.AbsolutePosition.Y;
     If (Y<Base.Y) Then
       Continue;
 
-    Dist := W.Position.Distance(Base);
+    Dist := W.AbsolutePosition.Distance(Base);
     If (Dist< Min) Then
     Begin
       Min := Dist;
@@ -845,7 +972,7 @@ Begin
   Result := Nil;
 
   Min := 99999;
-  Base := Self.Position;
+  Base := Self.AbsolutePosition;
   GroupID := Self.HighlightGroup;
 
   It := Self.UI.Widgets.GetIterator();
@@ -855,7 +982,7 @@ Begin
     If (W = Self) Or (Not W.CanHighlight(GroupID)) Then
       Continue;
 
-    P := W.Position;
+    P := W.AbsolutePosition;
     P.Y := P.Y + W.Size.Y;
     Dist := P.Distance(Base);
     If (Dist< Min) And (P.Y<Base.Y) Then
@@ -878,7 +1005,7 @@ Begin
   Result := Nil;
 
   Min := 99999;
-  Base := Self.Position;
+  Base := Self.AbsolutePosition;
   GroupID := Self.HighlightGroup;
 
   It := Self.UI.Widgets.GetIterator();
@@ -888,8 +1015,8 @@ Begin
     If (W = Self) Or (Not W.CanHighlight(GroupID)) Then
       Continue;
 
-    X := W.Position.X;
-    Dist := W.Position.Distance(Base);
+    X := W.AbsolutePosition.X;
+    Dist := W.AbsolutePosition.Distance(Base);
     If (Dist< Min) And (X>Base.X + Self.Size.X) Then
     Begin
       Min := Dist;
@@ -910,7 +1037,7 @@ Begin
   Result := Nil;
 
   Min := 99999;
-  Base := Self.Position;
+  Base := Self.AbsolutePosition;
   GroupID := Self.HighlightGroup;
 
   It := Self.UI.Widgets.GetIterator();
@@ -920,7 +1047,7 @@ Begin
     If (W = Self) Or (Not W.CanHighlight(GroupID)) Then
       Continue;
 
-    P := W.Position;
+    P := W.AbsolutePosition;
     P.X := P.X + W.Size.X;
     Dist := P.Distance(Base);
     If (Dist< Min) And (P.X<Base.X) Then
@@ -932,140 +1059,165 @@ Begin
   ReleaseObject(It);
 End;
 
-Function Widget.Show(AnimationFlags:Integer; Delay, EaseType, Duration:Integer):Tween;
+Function Widget.Show(AnimationFlags:Integer; EaseType:TweenEaseType; Delay, Duration:Cardinal; Callback:TweenCallback):Boolean;
 Var
   X, Y, TY:Single;
+  A:Byte;
 Begin
+  If Visible Then
+  Begin
+    Result := False;
+    Exit;
+  End;
+
   Log(logDebug, 'UI', 'Showing '+Self.Name+' with animation '+IntToString(AnimationFlags));
 
-  _Visible := True;
-  Result := Nil;
+  SetVisible(True);
 
   Self._NeedsHide := False;
 
-  If EaseType<0 Then
-    EaseType := UI.DefaultEaseType;
-
   If (AnimationFlags And widgetAnimatePosX<>0) Then
   Begin
-    X := _Position.X;
-    _Position.X := -(Self.Size.X);
-    Result := AddTween(wtPositionX, X, Duration, Delay);
+    X := _Position.X.Value;
+    _Position.X.Value := -(Self.Size.X);
+    _Position.X.AddTween(EaseType, X, Duration, Delay, Callback, Self);
+    Callback := Nil;
   End Else
   If (AnimationFlags And widgetAnimatePosX_Bottom<>0) Then
   Begin
-    X := _Position.X;
-    _Position.X := UIManager.Instance.Width + (Self.Size.X);
-    Result := AddTween(wtPositionX, X, Duration, Delay);
+    X := _Position.X.Value;
+    _Position.X.Value := UIManager.Instance.Width + (Self.Size.X);
+    _Position.X.AddTween(EaseType, X, Duration, Delay, Callback, Self);
+    Callback := Nil;
   End;
 
   If (AnimationFlags And widgetAnimatePosY<>0) Then
   Begin
-    Y := _Position.Y;
+    Y := _Position.Y.Value;
 
     TY := -Self.Size.Y;
     If (Self.Align = waCenter) Or (Self.Align = waLeftCenter) Or (Self.Align = waRightCenter) Then
       TY := TY - (UIManager.Instance.Height * 0.5);
 
-    _Position.Y := TY;
-
-    Result := AddTween(wtPositionY, Y, Duration, Delay);
+    _Position.Y.Value := TY;
+    _Position.Y.AddTween(EaseType, Y, Duration, Delay, Callback, Self);
+    Callback := Nil;
   End Else
   If (AnimationFlags And widgetAnimatePosY_Bottom<>0) Then
   Begin
-    Y := _Position.Y;
+    Y := _Position.Y.Value;
 
     TY := UIManager.Instance.Height + Self.Size.Y;
     If (Self.Align = waCenter) Or (Self.Align = waLeftCenter) Or (Self.Align = waRightCenter) Then
       TY := TY + (UIManager.Instance.Height * 0.5);
 
-    _Position.Y := TY;
-    Result := AddTween(wtPositionY, Y, Duration, Delay);
+    _Position.Y.Value := TY;
+    _Position.Y.AddTween(EaseType, Y, Duration, Delay, Callback, Self);
+    Callback := Nil;
   End;
 
   If (AnimationFlags And widgetAnimateAlpha<>0) Then
   Begin
-    _Color.A := 0;
-    Result := AddTween(wtColorAlpha, 1.0, Duration, Delay);
+    A := _Color.Alpha.Value;
+    _Color.Alpha.Value := 0;
+    _Color.Alpha.AddTween(EaseType, A, Duration, Delay, Callback, Self);
+    Callback := Nil;
   End;
 
   If (AnimationFlags And widgetAnimateRotation<>0) Then
   Begin
-    _Rotation := 360.0 * RAD;
-    Result := AddTween(wtRotation, 0.0, Duration, Delay);
+    X := GetRotation();
+    SetRotation(X + (360.0 * RAD) * 4.0);
+    _Rotation.AddTween(EaseType, X, Duration, Delay, Callback, Self);
+    Callback := Nil;
   End;
 
   If (AnimationFlags And widgetAnimateScale<>0) Then
   Begin
-    _Scale := 0.0;
-    Result := AddTween(wtScale, 1.0, Duration, Delay);
+    X := GetScale();
+    SetScale(0.0);
+    _Scale.AddTween(EaseType, X, Duration, Delay, Callback, Self);
+    Callback := Nil;
   End;
 
   If (AnimationFlags And widgetAnimateSaturation<>0) Then
   Begin
-    _Saturation := 0.0;
-    Result := AddTween(wtSaturation, 1.0, Duration, Delay);
+    X := GetSaturation();
+    SetSaturation(0.0);
+    _Saturation.AddTween(EaseType, X, Duration, Delay, Callback, Self);
+    Callback := Nil;
   End;
 
-  If Assigned(Result) Then
-    Result.EaseType := EaseType;
+  Result := True;
 End;
 
-Function Widget.Hide(AnimationFlags:Integer; Delay, EaseType, Duration:Integer):Tween;
+Function Widget.Hide(AnimationFlags:Integer; EaseType:TweenEaseType; Delay, Duration:Cardinal; Callback:TweenCallback):Boolean;
 Var
   Ofs:Single;
 Begin
-  _OriginalPosition := _Position;
-  _OriginalColor := _Color;
+  If (Not Self.Visible) Then
+  Begin
+    Result := False;
+    Exit;
+  End;
 
-  Result := Nil;
+  If (Not Self._NeedsHide) Then
+  Begin
+    _OriginalPosition := _Position.Value;
+    _OriginalColor := _Color.Value;
+  End;
 
-  If EaseType<0 Then
-    EaseType := UI.DefaultEaseType;
-  
   If (AnimationFlags And widgetAnimatePosX<>0) Then
   Begin
     Ofs := -Self.Size.X;
 
     If (Self.Align = waCenter) Or (Self.Align = waTopCenter) Or (Self.Align = waBottomCenter) Then
-      Ofs := Ofs - Self.Position.X;
+      Ofs := Ofs - Self.AbsolutePosition.X;
 
-    Result := AddTween(wtPositionX, Ofs, Duration, Delay);
+    _Position.X.AddTween(EaseType, Ofs, Duration, Delay, Callback, Self);
+    Callback := Nil;
   End Else
   If (AnimationFlags And widgetAnimatePosX_Bottom<>0) Then
-    Result := AddTween(wtPositionX, UIManager.Instance.Width +(Self.Size.X+15), Duration, Delay);
+  Begin
+    _Position.X.AddTween(EaseType, UIManager.Instance.Width +(Self.Size.X+15), Duration, Delay, Callback, Self);
+    Callback := Nil;
+  End;
 
   If (AnimationFlags And widgetAnimatePosY<>0) Then
   Begin
     Ofs := -Self.Size.Y;
 
     If (Self.Align = waCenter) Or (Self.Align = waLeftCenter) Or (Self.Align = waRightCenter) Then
-      Ofs := Ofs - Self.Position.Y;
+      Ofs := Ofs - Self.AbsolutePosition.Y;
 
-    Result := AddTween(wtPositionY, Ofs, Duration, Delay)
+    _Position.Y.AddTween(EaseType, Ofs, Duration, Delay, Callback, Self);
+    Callback := Nil;
   End Else
   If (AnimationFlags And widgetAnimatePosY_Bottom<>0) Then
-    Result := AddTween(wtPositionY, UIManager.Instance.Height + Self.Size.Y, Duration, Delay);
+  Begin
+    _Position.Y.AddTween(EaseType, UIManager.Instance.Height + Self.Size.Y, Duration, Delay, Callback, Self);
+    Callback := Nil;
+  End;
 
   If (AnimationFlags And widgetAnimateAlpha<>0) Then
-    Result := AddTween(wtColorAlpha, 0.0, Duration, Delay);
-
-  If Assigned(Result) Then
   Begin
-    Self._NeedsHide := True;
-    Result.EaseType := EaseType;
+    _Color.Alpha.AddTween(EaseType, 0.0, Duration, Delay, Callback, Self);
+    Callback := Nil;
   End;
+
+  Self._NeedsHide := True;
+  Result := True;
 End;
 
-Function Widget.ToggleVisibility(AnimationFlags:Integer; Delay, EaseType, Duration:Integer):Tween;
+Function Widget.ToggleVisibility(AnimationFlags:Integer; EaseType:TweenEaseType; Delay, Duration:Cardinal; Callback:TweenCallback):Boolean;
 Begin
-  If _Visible Then
-    Result := Hide(AnimationFlags, Delay, EaseType, Duration)
+  If Self.Visible Then
+    Result := Hide(AnimationFlags, EaseType, Delay, Duration, Callback)
   Else
-    Result := Show(AnimationFlags, Delay, EaseType, Duration);
+    Result := Show(AnimationFlags, EaseType, Delay, Duration, Callback);
 End;
 
-Function Widget.IsVisible:Boolean;
+Function Widget.GetVisible:Boolean;
 Begin
   If (Self = Nil) Then
   Begin
@@ -1073,10 +1225,10 @@ Begin
     Exit;
   End;
 
-	Result := _Visible;
+	Result := _Visible.Value;
   If (Result) And (Assigned(_Parent)) Then
   Begin
-    Result := Result And (_Parent.IsVisible);
+    Result := Result And (_Parent.Visible);
 
     If (Result) And (Self.TabIndex>=0) And (Parent.TabControl<>Nil) And (_Parent.TabControl Is UITabList) Then
     Begin
@@ -1091,12 +1243,12 @@ Begin
   {If (Self = Nil) Then
     Exit;}
 
-  If (Value = _Visible) Then
+  If (Value = Self.Visible) Then
     Exit;
 
   //Log(logDebug,'UI', Self._Name+' visibility is now '+BoolToString(Value));
     
-  _Visible := Value;
+  _Visible.Value := Value;
 
   If Value Then
     _VisibleFrame := GraphicsManager.Instance.FrameID;
@@ -1105,44 +1257,64 @@ Begin
     Self.StopHighlight();
 End;
 
-Procedure Widget.SetPosition(Pos:Vector2D);
+Procedure Widget.SetRelativePosition(Const Pos:Vector2D);
 Begin
-  If (Pos.X = _Position.X) And (Pos.Y = _Position.Y) Then
+  If (Pos.X = _Position.X.Value) And (Pos.Y = _Position.Y.Value) Then
     Exit;
 
-  _Position := Pos;
+  _Position.Value := Pos;
   _TransformChanged := True;
+End;
+
+Procedure Widget.SetAbsolutePosition(Pos:Vector2D);
+Begin
+  If Assigned(_Parent) Then
+    Pos.Subtract(_Parent.AbsolutePosition);
+
+  Self.SetRelativePosition(Pos);
 End;
 
 Procedure Widget.SetLayer(Z:Single);
 Begin
-  If (Z = _Layer) Then
+  If (Z = _Layer.Value) Then
     Exit;
 
-  _Layer := Z;
+  _Layer.Value := Z;
 End;
 
 Procedure Widget.SetColor(MyColor:Color);
 Begin
-  If (Cardinal(MyColor) = Cardinal(_Color)) Then
-    Exit;
+(*  If (Cardinal(MyColor) = Cardinal(_Color)) Then
+    Exit;*)
 
-  _Color := MyColor;
+  _Color.Value := MyColor;
 End;
 
 Function Widget.GetColor:Color;  {$IFDEF FPC} Inline;{$ENDIF}
+Var
+  TempAlpha:Byte;
+  ParentColor:TERRA_Color.Color;
 Begin
-	Result := _Color;
+	Result := _Color.Value;
   If (Not _InheritColor) Then
     Exit;
-                          
+
 	If (Assigned(_Parent)) Then
-		Result := ColorMultiply(Result, _Parent.GetColor());
+  Begin
+    ParentColor := _Parent.GetColor();
+    TempAlpha := Result.A;
+		Result := ColorMultiply(Result, ParentColor);
+
+    If ParentColor.A < TempAlpha Then
+      Result.A := ParentColor.A
+    Else
+      Result.A := TempAlpha;
+  End;
 End;
 
 Function Widget.GetRelativePosition:Vector2D;
 Begin
-  Result := _Position;
+  Result := _Position.Value;
 End;
 
 Function Widget.GetAbsolutePosition:Vector2D;
@@ -1150,7 +1322,7 @@ Var
   Width, Height:Single;
   ParentSize, Center:Vector2D;
 Begin
-  Result := _Position;
+  Result := _Position.Value;
 
   If (Align<>waTopLeft) Then
   Begin
@@ -1224,7 +1396,7 @@ End;
 
 Function Widget.GetLayer:Single;  {$IFDEF FPC} Inline;{$ENDIF}
 Begin
-	Result := _Layer;
+	Result := _Layer.Value;
 
 	If (Assigned(_Parent)) Then
 		Result := Result + _Parent.GetLayer();
@@ -1232,7 +1404,7 @@ End;
 
 Function Widget.GetSaturation:Single;
 Begin
-	Result := _Saturation;
+	Result := _Saturation.Value;
 	If (Assigned(_Parent)) Then
 		Result := Result * _Parent.GetSaturation();
 End;
@@ -1245,256 +1417,127 @@ Begin
 End;
 
 
-Function Widget.GetColorTable:Texture;
+Function Widget.GetColorTable:TERRATexture;
 Begin
 	Result := _ColorTable;
 	If (Result = Nil) And (Assigned(_Parent)) Then
 		Result := _Parent.GetColorTable();
 End;
 
-Function Widget.HasTweens:Boolean;
+Procedure Widget.ClearProperties();
 Begin
-  PruneTweens;
-  Result := (_TweenCount>0);
+  _LastState := -1;
 End;
 
-Procedure Widget.PruneTweens;
-Var
-  I:Integer;
+Procedure Widget.CopyProperties(ID:Integer; Selected:Boolean; Out CurrentState, DefaultState:Integer);
 Begin
-  I:=0;
-  While I<_TweenCount Do
-  If (TweenManager.Instance.HasTween(_TweenList[I])) Then
-      Inc(I)
+  If (Selected) Then
+    CurrentState := 1
   Else
-  Begin
-    _TweenList[I] := _TweenList[Pred(_TweenCount)];
-    Dec(_TweenCount);
-  End;
-End;
+    CurrentState := 0;
 
-Function Widget.AddTween(TweenType:Integer; TargetValue:Single; Time:Integer; Delay:Integer=0):Tween;
-Begin
-  PruneTweens();
-
-  Case TweenType Of
-  wtPositionX:  Result := Tween.Create(Self, tweenFloat, @Self._Position.X, TargetValue, Self);
-  wtPositionY:  Result := Tween.Create(Self, tweenFloat, @Self._Position.Y, TargetValue, Self);
-  wtColorRed:   Result := Tween.Create(Self, tweenByte, @Self._Color.R, TargetValue, Self);
-  wtColorGreen: Result := Tween.Create(Self, tweenByte, @Self._Color.G, TargetValue, Self);
-  wtColorBlue:  Result := Tween.Create(Self, tweenByte, @Self._Color.B, TargetValue, Self);
-  wtColorAlpha: Result := Tween.Create(Self, tweenByte, @Self._Color.A, TargetValue, Self);
-  wtRotation:   Result := Tween.Create(Self, tweenFloat, @Self._Rotation, TargetValue, Self);
-  wtScale:      Result := Tween.Create(Self, tweenFloat, @Self._Scale, TargetValue, Self);
-  wtSaturation: Result := Tween.Create(Self, tweenFloat, @Self._Saturation, TargetValue, Self);
-  Else
-//    RaiseError('Invalid tween type: '+IntToString(TweenType));
-    Result := Self.CreateCustomTween(TweenType, TargetValue);
-  End;
-
-  If Not Assigned(Result) Then
+  If (CurrentState = _LastState) Then
     Exit;
 
-  Inc(_TweenCount);
-  SetLength(_TweenList, _TweenCount);
-  _TweenList[Pred(_TweenCount)] := Result;
+  Self.UpdateProperties();
+  _LastState := CurrentState;
 
-  Result.Time := Time;
-  Result.Delay := Delay;
+  DefaultState := CurrentState;
+
+  If (Self._MouseOver) Then
+    Inc(CurrentState, 2);
+
+  If Assigned(_SkinComponent) Then
+    _SkinComponent.GetProperties(_Properties, ID, CurrentState, DefaultState);
 End;
 
-Function Widget.LoadComponent(Name:TERRAString):Integer;
-Var
-  I:Integer;
-  Source, Temp:Image;
-  MyStream:Stream;
-  S:TERRAString;
-  Item:TextureAtlasItem;
-  Ext:ImageClassInfo;
-Begin
-  Name := GetFileName(Name, True);
-
-  Log(logDebug, 'UI', 'Getting '+Name);
-  Item := UIManager.Instance.GetTextureAtlas.Get(Name);
-  If Assigned(Item) Then
-  Begin
-    Result := _ComponentCount;
-    Inc(_ComponentCount);
-    SetLength(_ComponentList, _ComponentCount);
-    _ComponentList[Result] := Item;
-    Exit;
-  End;
-
-  Log(logDebug, 'UI', 'Searching icons');
-  S := '';
-  I := 0;
-  While (S='') And (I<GetImageExtensionCount()) Do
-  Begin
-    Ext := GetImageExtension(I);
-    S := FileManager.Instance.SearchResourceFile(Name+'.'+Ext.Name);
-    Inc(I);
-  End;
-
-  Log(logDebug, 'Game', 'Got '+S);
-  If S<>'' Then
-  Begin
-    Log(logDebug, 'Game', 'Opening stream');
-    MyStream := FileManager.Instance.OpenStream(S);
-    Log(logDebug, 'Game', 'Creating image: '+S);
-
-    Source := Image.Create(MyStream);
-    Log(logDebug, 'Game', 'Image created: '+IntToString(Source.Width)+'x'+IntToString(Source.Height));
-
-    Log(logDebug, 'Game', 'Adding compnent');
-
-    Result := _ComponentCount;
-    Inc(_ComponentCount);
-    SetLength(_ComponentList, _ComponentCount);
-
-    Log(logDebug, 'Game', 'Adding to TextureAtlas');
-
-    _ComponentList[Pred(_ComponentCount)] := UIManager.Instance.GetTextureAtlas.Add(Source, Name);
-    UIManager.Instance.TextureAtlasClear();
-
-    Log(logDebug, 'Game', 'TextureAtlas added');
-
-    ReleaseObject(Source);
-    ReleaseObject(MyStream);
-  End Else
-  Begin
-    Log(logWarning,'UI', 'UI component not found. ['+Name+']');
-    Result := -1;
-  End;
-End;
-
-Procedure Widget.DrawComponent(Index:Integer; Const Offset:Vector3D; X1,Y1,X2,Y2:Single; Color:Color; ScaleColor:Boolean);
-Var
-  P:Vector2D;
-  Z:Single;
-  StartPos, EndPos:Vector2D;
-  ShadowOffset:Vector2D;
-  TC1, TC2:Vector2D;
-  Source:Image;
-  MyTextureAtlas:TextureAtlas;
-  Saturation:Single;
-  ColorTable:Texture;
-  OfsX,OfsY:Single;
-Begin
-  If (Index<0) Or (Index>=_ComponentCount) Then
-    Exit;
-
-  If (Self.HasTweens) Then
-    _TransformChanged := True;
-
-  MyTextureAtlas := UIManager.Instance.GetTextureAtlas();
-  Source := _ComponentList[Index].Buffer;
-  P := Self.GetAbsolutePosition();
-  Z := Self.GetLayer + Offset.Z;
-  P.X := P.X + Offset.X;
-  P.Y := P.Y + Offset.Y;
-
-  Self.GetScrollOffset(OfsX, OfsY);
-
-  P.X := P.X + OfsX;
-  P.Y := P.Y + OfsY;
-
-  StartPos := VectorCreate2D(Trunc(P.X + Trunc(X1 * Source.Width)), Trunc(P.Y + Trunc(Y1 * Source.Height)));
-  EndPos := VectorCreate2D(Round(P.X + Trunc(X2 * Source.Width)), Round(P.Y + Trunc(Y2 * Source.Height)));
-  TC1.X := (_ComponentList[Index].U1 + ( (X1*Pred(Source.Width)) / MyTextureAtlas.Width));
-  TC1.Y := (_ComponentList[Index].V1 + ( (Y1*Pred(Source.Height)) / MyTextureAtlas.Height));
-  TC2.X := (_ComponentList[Index].U1 + ( ((X2*Pred(Source.Width))) / MyTextureAtlas.Width));
-  TC2.Y := (_ComponentList[Index].V1 + ( ((Y2*Pred(Source.Height))) / MyTextureAtlas.Height));
-
-  Saturation := Self.GetSaturation();
-  ColorTable := Self.GetColorTable();
-
-  If (ScaleColor) And (Not DisableUIColor) Then
-  Begin
-    Color := ColorMultiply(Color, UI._Color);
-    Saturation := Saturation * Self._Saturation;
-
-    If (ColorTable = Nil) Then
-      ColorTable := UI._ColorTable;
-  End;
-
-  If Not Enabled Then
-    Saturation := 0.0;
-
-  UI.AddQuad(StartPos, EndPos, TC1, TC2, Color, Z, _ComponentList[Index].PageID, _Transform, Saturation, ColorTable, GetClipRect());
-End;
-
-Procedure Widget.DrawWindow(Index:Integer; Const Offset:Vector3D; Width, Height:Integer; Layout:UISkinLayout; Color:Color);
-Var
-  IX,IY:Integer;
-  I,J:Integer;
-  LX,LY:Single;
-Begin
-  If (Index<0) Or (Index>=Self._ComponentCount) Then
-    Exit;
-
-  IX := _ComponentList[Index].Buffer.Width;
-  IY := _ComponentList[Index].Buffer.Height;
-
-  LX := Layout.GCSX(0) + Width * Layout.GCSX(1);
-  LX := LX - Layout.X[2] * IX;
-
-  LY := Layout.GCSY(0) + Height * Layout.GCSY(1);
-  LY := LY - Layout.Y[2] * IY;
-
-  Self.DrawComponent(0, Offset, 0.0, 0.0, Layout.X[1], Layout.Y[1], Color);
-  Self.DrawComponent(0, VectorCreate(Offset.X + LX, Offset.Y, Offset.Z), Layout.X[2], 0.0, 1.0, Layout.Y[1], Color);
-
-  Self.DrawComponent(0, VectorCreate(Offset.X, Offset.Y + LY, Offset.Z), 0.0, Layout.Y[2], Layout.X[1], 1.0, Color);
-  Self.DrawComponent(0, VectorCreate(Offset.X + LX, Offset.Y + LY, Offset.Z), Layout.X[2], Layout.Y[2], 1.0, 1.0, Color);
-
-  For I:=1 To Width Do
-  Begin
-    Self.DrawComponent(0, VectorCreate(Offset.X + Layout.GCSX(1) * Pred(I), Offset.Y, Offset.Z), Layout.X[1], Layout.Y[0], Layout.X[2], Layout.Y[1], Color);
-    Self.DrawComponent(0, VectorCreate(Offset.X + Layout.GCSX(1) * Pred(I), Offset.Y + LY, Offset.Z), Layout.X[1], Layout.Y[2], Layout.X[2], 1.0, Color);
-  End;
-
-  For I:=1 To Height Do
-  Begin
-    Self.DrawComponent(0, VectorCreate(Offset.X, Offset.Y + Layout.GCSY(1) * Pred(I), Offset.Z), 0.0, Layout.Y[1], Layout.X[1],  Layout.Y[2], Color);
-    Self.DrawComponent(0, VectorCreate(Offset.X + LX, Offset.Y + Layout.GCSY(1) * Pred(I), Offset.Z), Layout.X[2], Layout.Y[1], 1.0, Layout.Y[2], Color);
-  End;
-
-  For J:=1 To Height Do
-  For I:=1 To Width Do
-  Begin
-    Self.DrawComponent(0, VectorCreate(Offset.X + Layout.GCSX(1)*Pred(I), Offset.Y + Layout.GCSY(1)*Pred(J), Offset.Z), Layout.X[1], Layout.Y[1], Layout.X[2], Layout.Y[2], Color);
-  End;
-End;
-
-Procedure Widget.DrawText(Const Text:TERRAString; Const Offset:Vector3D; C:Color; Scale:Single; UseFont:Font);
+Procedure Widget.DrawText(Const Text:TERRAString; Const X,Y, Layer:Single; Const TextRect:Vector2D; Scale:Single; ID:Integer; Selected:Boolean; Const TextColor:Color);
 Var
   P:Vector2D;
   Z:Single;
   OfsX,OfsY:Single;
-  Fnt:TERRA_Font.Font;
+  M:Matrix3x3;
+  C:TERRA_Color.Color;
+  CurrentState, DefaultState:Integer;
 Begin
+  Self.CopyProperties(ID, Selected, CurrentState, DefaultState);
+
+  C := _Properties.TextColor;
+  C.A := _Properties.QuadColor.A;
+  C := ColorMultiply(C, TextColor);
   //Color.A := Trunc(Color.A * UI.Instance._Alpha);
 
   P := Self.GetAbsolutePosition();
-  Z := Self.GetLayer + Offset.Z;
+  Z := Self.GetLayer + Layer;
 
   Self.GetScrollOffset(OfsX, OfsY);
 
-  P.X := P.X + Offset.X + OfsX;
-  P.Y := P.Y + Offset.Y + OfsY;
+  P.X := P.X + X + OfsX;
+  P.Y := P.Y + Y + OfsY;
 
-  If Assigned(UseFont) Then
-    Fnt := UseFont
+  If (Scale = 1.0) Then
+    M := _Transform
   Else
-    Fnt := Self.GetFont();
+  Begin
+    M := MatrixTransformAroundPoint2D(VectorCreate2D(P.X + TextRect.X* 0.5, P.Y + TextRect.Y* 0.5), MatrixScale2D(Scale, Scale));
+    M := MatrixMultiply3x3(M, _Transform);
+  End;
 
-  _FontRenderer.SetFont(Fnt);
-  _FontRenderer.SetClipRect(GetClipRect());
-  _FontRenderer.SetTransform(_Transform);
+  _FontRenderer.SetFont(_Properties.TextFont);
+  _FontRenderer.SetClipRect(_Properties.Clip);
+  _FontRenderer.SetTransform(M);
   _FontRenderer.SetDropShadow(_DropShadowColor);
   _FontRenderer.SetColor(C);
 
   _FontRenderer.DrawText(P.X, P.Y, Z, Text);
+End;
+
+Procedure Widget.DrawComponent(X, Y, Layer: Single; Const Width, Height:UIDimension; ID:Integer; Selected:Boolean; ScaleColor:Boolean);
+Begin
+  Self.DrawCroppedComponent(X, Y, Layer, 0.0, 0.0, 1.0, 1.0, Width, Height, ID, Selected, ScaleColor);
+End;
+
+Procedure Widget.DrawCroppedComponent(X, Y, Layer, U1, V1, U2, V2:Single; Const Width, Height:UIDimension; ID:Integer; Selected:Boolean; ScaleColor:Boolean = True);
+Var
+  Target:UIQuadList;
+  P:Vector2D;
+  Z:Single;
+  OfsX,OfsY:Single;
+  I:Integer;
+
+  CurrentState, DefaultState:Integer;
+Begin
+  If _SkinComponent = Nil Then
+    Exit;
+
+  Self.CopyProperties(ID, Selected, CurrentState, DefaultState);
+
+  If (Self.HasPropertyTweens()) Then
+    _TransformChanged := True;
+
+  P := Self.GetAbsolutePosition();
+  Z := Self.GetLayer() + Layer;
+
+  Self.GetScrollOffset(OfsX, OfsY);
+
+  P.X := P.X + OfsX + X;
+  P.Y := P.Y + OfsY + Y;
+
+  FillChar(Target, SizeOf(Target), 0);
+  _SkinComponent.Draw(Target, P.X, P.Y, U1, V1, U2, V2, Trunc(Self.GetDimension(Width, uiDimensionWidth)), Trunc(Self.GetDimension(Height, uiDimensionHeight)), ID, CurrentState, DefaultState);
+
+  //_FontRenderer.SetFont(Self.GetFont());
+  _FontRenderer.SetClipRect(GetClipRect());
+  _FontRenderer.SetTransform(_Transform);
+  _FontRenderer.SetDropShadow(_DropShadowColor);
+  //_FontRenderer.SetColor(C);
+
+  //_FontRenderer.DrawText(P.X, P.Y, Z, Text);
+
+  For I:=0 To Pred(Target.QuadCount) Do
+  Begin
+    UI.AddQuad(Target.Quads[I], _Properties, Z, _Transform);
+  End;
 End;
 
 Function Widget.OnKeyDown(Key:Word):Boolean;
@@ -1516,10 +1559,6 @@ Begin
   If (Key = UI.Key_Action) Then
   Begin
     Result := Self.OnSelectAction();
-  End Else
-  If (Key = UI.Key_Action2) Then
-  Begin
-    Result := Self.OnSelectAlternateAction();
   End Else
   If (Key = UI.key_Up) Then
   Begin
@@ -1556,220 +1595,228 @@ Begin
 	Result := False;
 End;
 
-Function Widget.OnRegion(X,Y:Integer): Boolean;
+Function Widget.OnRegion(X,Y:Single): Boolean;
+Var
+  V:Vector2D;
 Begin
   {$IFDEF DEBUG_GUI}Log(logDebug, 'UI', 'X:'+IntToString(X)+' Y:'+IntToString(Y));{$ENDIF}
   {$IFDEF DEBUG_GUI}Log(logDebug, 'UI', _Name+ '.OnRegion called');{$ENDIF}
   {$IFDEF DEBUG_GUI}Log(logDebug, 'UI', 'X1:'+IntToString(Trunc(_Corners[0].X))+' Y1:'+IntToString(Trunc(_Corners[0].Y)));{$ENDIF}
   {$IFDEF DEBUG_GUI}Log(logDebug, 'UI', 'X2:'+IntToString(Trunc(_Corners[2].X))+' Y2:'+IntToString(Trunc(_Corners[2].Y)));{$ENDIF}
 
-  If (GraphicsManager.Instance.FrameID = Self._VisibleFrame) Or (OutsideClipRect(X,Y)) Or (Not _Enabled) Then
+  If (GraphicsManager.Instance.FrameID = Self._VisibleFrame) Or (OutsideClipRect(X,Y)) Then
   Begin
     Result := False;
     {$IFDEF DEBUG_GUI}Log(logDebug, 'UI', 'Cliprect clipped!');{$ENDIF}
     Exit;
   End;
 
-  Result := (X>= _Corners[0].X) And (X <= _Corners[2].X) And (Y >= _Corners[0].Y) And (Y <= _Corners[2].Y);
+  V.X := X;
+  V.Y := Y;
+  Self.ConvertGlobalToLocal(V);
+
+  Result := (V.X>=0.0) And (V.X <= Size.X) And (V.Y >= 0) And (V.Y <= Size.Y);
   {$IFDEF DEBUG_GUI}Log(logDebug, 'UI', 'Region result for '+_Name+' was '+BoolToString(Result));{$ENDIF}
 End;
 
-Function Widget.OnMouseDown(X,Y:Integer;Button:Word):Boolean;
+Function Widget.AllowsEvents(): Boolean;
+Begin
+  If (Not Visible) Then
+  Begin
+    Result := False;
+    Exit;
+  End;
+
+  Result := True;
+
+  If (_UI.Modal = Nil) Or  (Self = _UI.Modal) Then
+    Exit;
+
+  If Assigned(Self.Parent) Then
+    Result := Self.Parent.AllowsEvents();
+End;
+
+Procedure Widget.PickAt(Const X, Y:Integer; Var CurrentPick:Widget; Var Max:Single; Ignore:Widget);
 Var
   I:Integer;
 Begin
-  Result := False;
+  {$IFDEF DEBUG_GUI}Log(logDebug, 'UI', _Name+ '.PickAt called');{$ENDIF}
 
-  {$IFDEF DEBUG_GUI}Log(logDebug, 'UI', _Name+ '.OnMouseDown called');{$ENDIF}
-
-  If (Not Self.Visible) Or (Not Self.Enabled) Then
+  If (Self.Layer < Max) Or (Not Self.OnRegion(X,Y)) Or (Self = Ignore) Then
     Exit;
 
-  If (Self.HasTweens) Then
-  Begin
-    {$IFDEF DEBUG_GUI}Log(logDebug, 'UI', _Name+ ' has tweens!');{$ENDIF}
-    Exit;
-  End;
+  CurrentPick := Self;
+  Max := Self.Layer;
 
   For I:=0 To Pred(_ChildrenCount) Do
-    _ChildrenList[I]._Tested := False;
-
-  For I:=0 To Pred(_ChildrenCount) Do
-  If (_ChildrenList[I].Visible) And (_ChildrenList[I] Is UIComboBox) Then
+  If (_ChildrenList[I].AllowsEvents()) Then
   Begin
-    _ChildrenList[I]._Tested := True;
-    Result := _ChildrenList[I].OnMouseDown(X,Y, Button);
-    If Result Then
-      Exit;
-  End;
-
-  For I:=0 To Pred(_ChildrenCount) Do
-  If (_ChildrenList[I].Visible) And (_ChildrenList[I] Is UIWindow) Then
-  Begin
-    _ChildrenList[I]._Tested := True;
-    Result := _ChildrenList[I].OnMouseDown(X,Y, Button);
-    If Result Then
-      Exit;
-  End;
-
-  For I:=0 To Pred(_ChildrenCount) Do
-  If (_ChildrenList[I].Visible) And (Not _ChildrenList[I]._Tested)  Then
-  Begin
-    Result := _ChildrenList[I].OnMouseDown(X,Y, Button);
-    If Result Then
-      Exit;
-  End;
-
-  If (OnRegion(X,Y)) Then
-  Begin
-    If (Draggable) Then
-    Begin
-      If (Not _Dragging) Then
-      Begin
-        If (Assigned(OnBeginDrag)) Then
-          Self.OnBeginDrag(Self);
-
-        _UI._Dragger := Self;
-        _DragStart := _Position;
-        _Dragging := True;
-        _DragX := (X-_Position.X);
-        _DragY := (Y-_Position.Y);
-      End;
-      
-      Result := True;
-      Exit;
-    End;
-
-    {$IFDEF DEBUG_GUI}Log(logDebug, 'UI', 'Found, and has handler: '+BoolToString(Assigned(OnMouseClick)));{$ENDIF}
-    If (Assigned(OnMouseClick)) And (Pos('KEY_', Self.Name)<>1) Then
-    Begin
-      Result := True;
-      OnMouseClick(Self);
-    End;
+    _ChildrenList[I].PickAt(X, Y, CurrentPick, Max, Ignore);
   End;
 End;
 
-Function Widget.OnMouseUp(X,Y:Integer;Button:Word):Boolean;
+Procedure Widget.BeginDrag(X,Y:Integer; Mode:UIDragMode);
+Begin
+  If (Assigned(OnBeginDrag)) Then
+    Self.OnBeginDrag(Self);
+
+  _UI._Dragger := Self;
+  _DragMode := Mode;
+  _Dragging := True;
+
+  _DragStart := _Position.Value;
+  _DragSize := _Size;
+
+  _DragX := (X-_Position.X.Value);
+  _DragY := (Y-_Position.Y.Value);
+End;
+
+Procedure Widget.CancelDrag;
+Begin
+  If _Dragging Then
+  Begin
+    _Position.Value := _DragStart;
+    _Dragging := False;
+    If _UI._Dragger = Self Then
+      _UI._Dragger := Nil;
+
+    Self._TransformChanged := True;
+  End;
+End;
+
+Procedure Widget.FinishDrag();
+Begin
+  If (_UI._Dragger <> Self) Then
+    Exit;
+
+  If (Assigned(OnEndDrag)) Then
+    Self.OnEndDrag(Self);
+
+  _Dragging := False;
+  _UI._Dragger := Nil;
+End;
+
+Procedure Widget.OnMouseDown(X,Y:Integer;Button:Word);
+Begin
+  If (Draggable) Then
+  Begin
+    If (Not _Dragging) Then
+      Self.BeginDrag(X,Y);
+
+    Exit;
+  End;
+
+  {$IFDEF DEBUG_GUI}Log(logDebug, 'UI', 'Found, and has handler: '+BoolToString(Assigned(OnMouseClick)));{$ENDIF}
+  Self.OnHit(OnMouseClick);
+End;
+
+Procedure Widget.OnMouseUp(X,Y:Integer;Button:Word);
 Var
   I:Integer;
 Begin
-  Result := False;
-
   If (_Dragging) Then
   Begin
-    If (_UI._Dragger = Self) And (Assigned(OnEndDrag)) Then
-      Self.OnEndDrag(Self);
-
-    _Dragging := False;
-    _UI._Dragger := Nil;
-    Result := True;
+    Self.FinishDrag();
     Exit;
   End;
 
   {$IFDEF DEBUG_GUI}Log(logDebug, 'UI', _Name+ '.OnMouseUp called');{$ENDIF}
 
-  If (Not Self.Visible) Or (Self.HasTweens) Then
-    Exit;
-
-  For I:=0 To Pred(_ChildrenCount) Do
-  If (_ChildrenList[I]._Visible) Then
+  If (Assigned(OnMouseRelease)) Then
   Begin
-    Result := _ChildrenList[I].OnMouseUp(X,Y, Button);
-    If Result Then
-      Exit;
-  End;
-
-  If (OnRegion(X,Y)) And (Assigned(OnMouseRelease)) Then
-  Begin
-    Result := True;
     OnMouseRelease(Self);
   End;
 End;
 
-Function IsEditText(W:Widget):Boolean;
+Procedure Widget.ApplyDragMode(Const PX, PY:Single; Mode:UIDragMode);
+Var
+  Extra:Single;
 Begin
-  If W = Nil Then
-    Result := False
-  Else
-    Result := (W Is UIEditText);
+  Case Mode Of
+    UIDrag_Move:
+      Begin
+        _Position.X.Value := UISnap(PX);;
+        _Position.Y.Value := UISnap(PY);
+      End;
+
+    UIDrag_Left:
+      Begin
+        Extra := AdjustWidth(_DragSize.X + (_DragStart.X - PX));
+        _Position.X.Value := PX + Extra;
+        Self.UpdateRects();
+      End;
+
+    UIDrag_Top:
+      Begin
+        Extra := AdjustHeight(_DragSize.Y + (_DragStart.Y - PY));
+        _Position.Y.Value := PY + Extra;
+        Self.UpdateRects();
+      End;
+
+    UIDrag_Right:
+      Begin
+        AdjustWidth(_DragSize.X + (PX - _DragStart.X));
+        Self.UpdateRects();
+      End;
+
+    UIDrag_Bottom:
+      Begin
+        AdjustHeight(_DragSize.Y + (PY - _DragStart.Y));
+        Self.UpdateRects();
+      End;
+
+    End;
 End;
 
-Function Widget.OnMouseMove(X,Y:Integer):Boolean;
+Procedure Widget.OnMouseMove(X,Y:Integer);
 Var
-  B:Boolean;
   I:Integer;
+  B:Boolean;
+  PX, PY:Single;
 Begin
-  Result := False;
-
   If (_Dragging) Then
   Begin
-    _Position.X := X - _DragX;
-    _Position.Y := Y - _DragY;
-    _TransformChanged := True;
-    Exit;
-  End;
-  
-  If (Not Self.Visible) Or (Self.HasTweens) Or (OnRegion(X,Y)) Then
-    Exit;
+    PX := Trunc(X - _DragX);
+    PY := Trunc(Y - _DragY);
 
-  For I:=0 To Pred(_ChildrenCount) Do
-  If (_ChildrenList[I]._Visible) Then
-  Begin
-    Result := _ChildrenList[I].OnMouseMove(X,Y);
-    If Result Then
-      Exit;
-  End;
-
-  {$IFDEF PC}
-  If (Self.HasMouseOver) Then
-  Begin
-    B := OnRegion(X,Y);
-    If (B=True) And (UI.Highlight <> Self) And (Not IsEditText(UI.Highlight)) Then
-    Begin
-    	Result := True;
-      UI.Highlight := Self;
-
-      If (Assigned(OnMouseOver)) Then
-        OnMouseOver(Self);
-    End Else
-    If (B=False) And (UI.Highlight = Self) And (Not UI.Highlight._SelectedWithKeyboard) Then
-    Begin
-    	Result := True;
-
-      (*{$IFDEF MOBILE}
-      If (Assigned(OnMouseClick)) And (Pos('KEY_', Self.Name)<>1) Then
+    Case _DragMode Of
+    UIDrag_TopLeft:
       Begin
-        OnMouseClick(Self);
+        Self.ApplyDragMode(PX, PY, UIDrag_Top);
+        Self.ApplyDragMode(PX, PY, UIDrag_Left);
       End;
-      {$ENDIF}*)
 
-      If (Assigned(OnMouseOut)) Then
-        OnMouseOut(Self);
-    End Else
-    	Result := False;
-  End Else
-	  Result := False;
-  {$ENDIF}
+    UIDrag_TopRight:
+      Begin
+        Self.ApplyDragMode(PX, PY, UIDrag_Top);
+        Self.ApplyDragMode(PX, PY, UIDrag_Right);
+      End;
+
+    UIDrag_BottomLeft:
+      Begin
+        Self.ApplyDragMode(PX, PY, UIDrag_Bottom);
+        Self.ApplyDragMode(PX, PY, UIDrag_Left);
+      End;
+
+    UIDrag_BottomRight:
+      Begin
+        Self.ApplyDragMode(PX, PY, UIDrag_Bottom);
+        Self.ApplyDragMode(PX, PY, UIDrag_Right);
+      End;
+
+    Else
+      ApplyDragMode(PX, PY, _DragMode);
+    End;
+
+    _TransformChanged := True;
+
+    Exit;
+  End;
 End;
 
-Function Widget.OnMouseWheel(X,Y:Integer; Delta:Integer):Boolean;
-Var
-  I:Integer;
+Procedure Widget.OnMouseWheel(X,Y:Integer; Delta:Integer);
 Begin
-  Result := False;
-
-  If (Not Self.Visible) Or (Self.HasTweens) Or (OnRegion(X,Y)) Then
-    Exit;
-
-  For I:=0 To Pred(_ChildrenCount) Do
-  If (_ChildrenList[I]._Visible) Then
-  Begin
-    Result := _ChildrenList[I].OnMouseWheel(X, Y, Delta);
-    If Result Then
-      Exit;
-  End;
-
-	Result := False;
+  // do nothing
 End;
 
 Function Widget.Sort(Other:CollectionObject):Integer;
@@ -1807,13 +1854,13 @@ End;
 
 Procedure Widget.SetSaturation(const Value: Single);
 Begin
-  _Saturation := Value;
+  _Saturation.Value := Value;
   _NeedsUpdate := True;
 End;
 
 Procedure Widget.SetScale(const Value: Single);
 Begin
-  _Scale := Value;
+  _Scale.Value := Value;
   _NeedsUpdate := True;
   _TransformChanged := True;
 End;
@@ -1821,7 +1868,7 @@ End;
 
 Procedure Widget.SetRotation(const Value: Single);
 Begin
-  _Rotation := Value;
+  _Rotation.Value := Value;
   _NeedsUpdate := True;
   _TransformChanged := True;
 End;
@@ -1836,8 +1883,9 @@ Var
 Begin
   Result := False;
 
-  If (_NeedsHide) And (Not Self.HasTweens()) Then
+  If (_NeedsHide) And (Not Self.HasPropertyTweens()) Then
   Begin
+    Self.HasPropertyTweens();
     _NeedsHide := False;
     HideWidget(Self);
   End;
@@ -1848,7 +1896,7 @@ Begin
   _TransformChanged := False;
 
   For I:=0 To Pred(_ChildrenCount) Do
-  If (_ChildrenList[I]._Visible) Then
+  If (_ChildrenList[I].Visible) Then
     _ChildrenList[I]._TransformChanged := True;
 
   If Assigned(_Parent) Then
@@ -1861,10 +1909,10 @@ Begin
   Center.Y := Center.Y * _Pivot.Y;
   Center.Add(Self.GetAbsolutePosition());
 
-  If (_Rotation <> 0.0) Then
-    _Transform := MatrixRotationAndScale2D(_Rotation, _Scale, _Scale * Ratio)
+  If (_Rotation.Value <> 0.0) Then
+    _Transform := MatrixRotationAndScale2D(_Rotation.Value, _Scale.Value, _Scale.Value * Ratio)
   Else
-    _Transform := MatrixScale2D(_Scale, _Scale * Ratio);
+    _Transform := MatrixScale2D(_Scale.Value, _Scale.Value * Ratio);
 
   _Transform := MatrixTransformAroundPoint2D(Center, _Transform);
 
@@ -1873,27 +1921,14 @@ Begin
   Else
     _Transform := MatrixMultiply3x3(_Transform, _UI._Transform);
 
-  Pos := Self.GetAbsolutePosition();
-  W := Pos.X + Size.X;
-  H := Pos.Y + Size.Y;
-
   Self.GetScrollOffset(OfsX, OfsY);
 
-  _Corners[0] := VectorCreate2D(Pos.X, Pos.Y);
-  _Corners[1] := VectorCreate2D(W, Pos.Y);
-  _Corners[2] := VectorCreate2D(W, H);
-  _Corners[3] := VectorCreate2D(Pos.X, H);
-
-  For I:=0 To 3 Do
-  Begin
-    _Corners[I].Add(VectorCreate2D(OfsX, OfsY));
-    _Corners[I] := _Transform.Transform(_Corners[I]);
-  End;
+  _InverseTransform := MatrixInverse2D(_Transform);
 
   Result := True;
 End;
 
-Function Widget.GetChild(Index:Integer): Widget;
+Function Widget.GetChildByIndex(Index:Integer): Widget;
 Begin
   If (Index>=0) And (Index<=Self.ChildrenCount) Then
     Result := _ChildrenList[Index]
@@ -1901,7 +1936,7 @@ Begin
     Result := Nil;
 End;
 
-Function Widget.GetChild(Const Name:TERRAString): Widget;
+Function Widget.GetChildByName(Const Name:TERRAString): Widget;
 Var
   I:Integer;
 Begin
@@ -1915,18 +1950,7 @@ Begin
   Result := Nil;
 End;
 
-Procedure Widget.AddChild(W: Widget);
-Begin
-  If (W=Nil) Then
-    Exit;
-
-  W._Parent := Self;
-  Inc(_ChildrenCount);
-  SetLength(_ChildrenList, _ChildrenCount);
-  _ChildrenList[Pred(_ChildrenCount)] := W;
-End;
-
-Function Widget.GetChild(ChildClass: WidgetClass; Index:Integer): Widget;
+Function Widget.GetChildByClass(ChildClass: WidgetClass; Index:Integer): Widget;
 Var
   I, Count:Integer;
 Begin
@@ -1945,12 +1969,46 @@ Begin
   Result := Nil;
 End;
 
+Procedure Widget.AddChild(W: Widget);
+Begin
+  If (W=Nil) Or (W = Self) Then
+    Exit;
+
+  W._Parent := Self;
+  Inc(_ChildrenCount);
+  SetLength(_ChildrenList, _ChildrenCount);
+  _ChildrenList[Pred(_ChildrenCount)] := W;
+End;
+
+Procedure Widget.RemoveChild(W:Widget);
+Var
+  I:Integer;
+Begin
+  If (W = Nil) Then
+    Exit;
+
+  I := 0;
+  While (I<_ChildrenCount) Do
+  If (_ChildrenList[I] = W) Then
+  Begin
+    _ChildrenList[I]._Parent := Nil;
+    _ChildrenList[I] := _ChildrenList[Pred(_ChildrenCount)];
+    Dec(_ChildrenCount);
+    Exit;
+  End Else
+    Inc(I);
+End;
+
+
 Procedure Widget.Render;
 Var
   I:Integer;
 Begin
-  If (Not Self.Visible) Then
+  If (Not Self.Visible) Or (Self._Deleted) Then
     Exit;
+
+  If (Assigned(_SkinComponent)) And (_SkinComponent.Name <> Self._Skin.Value) Then
+    Self.LoadSkin(Self._Skin.Value);
 
   For I:=0 To Pred(_ChildrenCount) Do
   If (_ChildrenList[I].Visible) And (_ChildrenList[I].CanRender()) Then
@@ -1970,18 +2028,10 @@ End;
 
 Function Widget.OnSelectAction: Boolean;
 Begin
-  If (Self.Selected) And (Assigned(OnMouseClick)) And (Not Self.HasTweens()) Then
+  If (Self.Selected) And (Assigned(OnMouseClick)) And (Not Self.HasPropertyTweens()) Then
   Begin
-    Result := OnMouseClick(Self);
-  End Else
-    Result := False;
-End;
-
-Function Widget.OnSelectAlternateAction: Boolean;
-Begin
-  If (Self.Selected) And (Assigned(OnExtendedClick)) And (Not Self.HasTweens()) Then
-  Begin
-    Result := OnExtendedClick(Self);
+    Self.OnHit(OnMouseClick);
+    Result := True;
   End Else
     Result := False;
 End;
@@ -1995,7 +2045,7 @@ Begin
   If (Self.Selected) Then
   Begin
     W := Self.GetDownControl();
-    If (Assigned(W)) And (Not Self.HasTweens()) Then
+    If (Assigned(W)) And (Not Self.HasPropertyTweens()) Then
     Begin
       Result := True;
       UI.Highlight := W;
@@ -2012,7 +2062,7 @@ Begin
   If (Self.Selected) Then
   Begin
     W := Self.GetLeftControl();
-    If (Assigned(W)) And (Not Self.HasTweens()) Then
+    If (Assigned(W)) And (Not Self.HasPropertyTweens()) Then
     Begin
       Result := True;
       UI.Highlight := W;
@@ -2029,7 +2079,7 @@ Begin
   If (Self.Selected) Then
   Begin
     W := Self.GetRightControl();
-    If (Assigned(W)) And (Not Self.HasTweens()) Then
+    If (Assigned(W)) And (Not Self.HasPropertyTweens()) Then
     Begin
       Result := True;
       UI.Highlight := W;
@@ -2046,7 +2096,7 @@ Begin
   If (Self.Selected) Then
   Begin
     W := Self.GetUpControl();
-    If (Assigned(W)) And (Not Self.HasTweens()) Then
+    If (Assigned(W)) And (Not Self.HasPropertyTweens()) Then
     Begin
       Result := True;
       UI.Highlight := W;
@@ -2064,7 +2114,7 @@ Begin
     Result.Merge(_UI._ClipRect);
 End;
 
-Function Widget.GetFont:TERRA_Font.Font;
+Function Widget.GetFont:TERRAFont;
 Begin
   Result := _Font;
 
@@ -2098,7 +2148,7 @@ Begin
       _ScrollValue := Bar.Value;
     End;
 
-    If (Bar.Horizontal) Then
+    If (Bar.Kind = scrollHorizontal) Then
       OfsX := -Bar.Value
     Else
       OfsY := -Bar.Value;
@@ -2112,24 +2162,32 @@ Begin
   End;
 End;
 
-Procedure Widget.SetPositionRelative(Other: Widget; OfsX, OfsY: Single);
+Procedure Widget.SetPositionRelativeToOther(Other: Widget; OfsX, OfsY: Single);
+Var
+  P:Vector2D;
 Begin
+  P := Other.AbsolutePosition;
+
   If (Other.Parent<>Nil) Then
-    _Position := VectorCreate2D(Other.Position.X - Other.Parent.Position.X, Other.Position.Y - Other.Parent.Position.Y)
-  Else
-    _Position := Other.Position;
+    P.Subtract(Other.Parent.AbsolutePosition);
 
-  _Position.Add(VectorCreate2D(OfsX, OfsY));
-  _TransformChanged := True;
+  P.Add(VectorCreate2D(OfsX, OfsY));
+
+  Self.SetRelativePosition(P);
 End;
 
-Procedure Widget.SetName(const Value:TERRAString);
+Procedure Widget.SetObjectName(const Value:TERRAString);
+Var
+  Existed:Boolean;
 Begin
-  _Key := Value;
-  Self._UI._Widgets.Reindex(Self);
+  Existed := _UI._Widgets.Remove(Self);
+  Self._ObjectName := Value;
+
+  If Existed Then
+    _UI._Widgets.Add(Self);
 End;
 
-Function Widget.OutsideClipRect(X, Y: Integer): Boolean;
+Function Widget.OutsideClipRect(X, Y: Single): Boolean;
 Var
   X1, Y1, X2, Y2:Single;
 Begin
@@ -2159,7 +2217,7 @@ Procedure Widget.UpdateClipRect(Clip: ClipRect; LeftBorder,TopBorder, RightBorde
 Var
   Pos, Size:Vector2D;
 Begin
-  Pos := Self.Position;
+  Pos := Self.AbsolutePosition;
   Size := Self.Size;
   Clip.X := Pos.X + LeftBorder;
   Clip.Y := Pos.Y + TopBorder;
@@ -2167,7 +2225,7 @@ Begin
   Clip.Height := Size.Y - (TopBorder + BottomBorder);
 End;
 
-Procedure Widget.SetFont(const Value: TERRA_Font.Font);
+Procedure Widget.SetFont(const Value:TERRAFont);
 Begin
   If (Self._Font = Value) Then
     Exit;
@@ -2176,19 +2234,6 @@ Begin
     Value.Prefetch();
 
   Self._Font := Value;
-End;
-
-Procedure Widget.CancelDrag;
-Begin
-  If _Dragging Then
-  Begin
-    _Position := _DragStart;
-    _Dragging := False;
-    If _UI._Dragger = Self Then
-      _UI._Dragger := Nil;
-
-    Self._TransformChanged := True;
-  End;
 End;
 
 Function Widget.GetIndex: Integer;
@@ -2238,8 +2283,8 @@ End;
 Procedure Widget.ResetClipRect;
 Begin
   _ClipRect.Style := clipSomething;
-  _ClipRect.X := Self.Position.X;
-  _ClipRect.Y := Self.Position.Y;
+  _ClipRect.X := Self.AbsolutePosition.X;
+  _ClipRect.Y := Self.AbsolutePosition.Y;
   _ClipRect.Width := Self.Size.X;
   _ClipRect.Height := Self.Size.Y;
   _ClipRect.Transform(_UI.Transform);
@@ -2274,113 +2319,272 @@ Begin
     Result.SetFont(Self.Font);
 End;
 
-
 Function Widget.IsOutsideScreen: Boolean;
+Var
+  P:Vector2D;
 Begin
-  Result := (Self.Position.X + Self.Size.X<0) Or (Self.Position.Y + Self.Size.Y<0)
-    Or (Self.Position.X> UIManager.Instance.Width) Or (Self.Position.Y > UIManager.Instance.Height);
+  P := Self.AbsolutePosition;
+  Result := (P.X + Self.Size.X<0) Or (P.Y + Self.Size.Y<0) Or (P.X> UIManager.Instance.Width) Or (P.Y > UIManager.Instance.Height);
 End;
 
-{ UICursor }
-Constructor UICursor.Create(Name:TERRAString; UI:UI; OfsX, OfsY:Integer);
-Var
-  Source:Image;
-  MyStream:Stream;
+Function Widget.GetDimension(Const Dim: UIDimension; Const Target:UIDimensionTarget): Single;
 Begin
-  _UI := UI;
-  _Item := UIManager.Instance.GetTextureAtlas.Get(Name);
-
-  If Not Assigned(_Item) Then
+  If Dim.IsPercent Then
   Begin
-    Name := FileManager.Instance.SearchResourceFile(Name);
-    If Name<>'' Then
-    Begin
-      MyStream := FileManager.Instance.OpenStream(Name);
-      Source := Image.Create(MyStream);
-      _Item := UIManager.Instance.GetTextureAtlas.Add(Source, Name);
-      UIManager.Instance.TextureAtlasClear();
-      ReleaseObject(Source);
-      ReleaseObject(MyStream);
-    End;
+    If (Target = uiDimensionWidth) Then
+      Result := (Dim.Value * 0.01) * UIManager.Instance.Width
+    Else
+      Result := (Dim.Value * 0.01) * UIManager.Instance.Height
+  End Else
+    Result := Dim.Value;
+End;
+
+Procedure Widget.ClipChildren(const Clip: ClipRect);
+Var
+  I:Integer;
+Begin
+  For I:=0 To Pred(_ChildrenCount) Do
+  If Assigned(_ChildrenList[I].Scroll) Then
+    _ChildrenList[I].SetClipRect(Clip);
+End;
+
+Function Widget.GetWidth: UIDimension;
+Begin
+  Result := _Width.Value;
+End;
+
+Function Widget.GetHeight: UIDimension;
+Begin
+  Result := _Height.Value;
+End;
+
+Procedure Widget.SetWidth(const Value: UIDimension);
+Begin
+  Self._Width.Value := Value;
+  Self.UpdateRects();
+End;
+
+Procedure Widget.SetHeight(const Value: UIDimension);
+Begin
+  Self._Height.Value := Value;
+  Self.UpdateRects();
+End;
+
+Procedure Widget.UpdateProperties;
+Begin
+  _Properties.QuadColor := Self.GetColor();
+  _Properties.TextColor := ColorWhite;
+
+  _Properties.TextFont := Self.GetFont();
+
+  _Properties.Saturation := Self.GetSaturation();
+  _Properties.ColorTable := Self.GetColorTable();
+
+  _Properties.Clip := Self.GetClipRect();
+
+  //If (ScaleColor) And (Not DisableUIColor) Then
+  Begin
+    _Properties.QuadColor := ColorMultiply(_Properties.QuadColor, UI._Color.Value);
+    _Properties.Saturation := _Properties.Saturation * UI._Saturation.Value;
+
+    If (_Properties.ColorTable = Nil) Then
+      _Properties.ColorTable := UI._ColorTable;
   End;
 
-  _Name := Name;
-  _OfsX := OfsY;
-  _OfsY := OfsY;
+  If Not Enabled Then
+    _Properties.Saturation := 0.0;
 End;
 
-Procedure UICursor.Release;
+Function Widget.GetRotation: Single;
+Begin
+  Result := _Rotation.Value;
+End;
+
+Function Widget.GetScale: Single;
+Begin
+  Result := _Scale.Value;
+End;
+
+Procedure Widget.NullEventHandler(Src:Widget);
 Begin
   // do nothing
 End;
 
-Procedure UICursor.Render;
+Function Widget.AdjustWidth(NewWidth: Single):Single;
 Var
-  StartPos, EndPos:Vector2D;
-  T1, T2:Vector2D;
-  MyTextureAtlas:TextureAtlas;
-  MyColor:Color;
-  CR:ClipRect;
+  Original, P:Single;
 Begin
-  If (Not Assigned(_Item)) Then
-    Exit;
+  Original := NewWidth;
+  NewWidth := UISnap(NewWidth);
 
-  CR.Style := clipNothing;
+  If (NewWidth<UISnapSize) Then
+      NewWidth := UISnapSize;
 
-  StartPos := VectorCreate2D(UI._CursorPos.X - _OfsX, UI._CursorPos.Y - _OfsY);
-  EndPos.X := StartPos.X + _Item.Buffer.Width;
-  EndPos.Y := StartPos.Y + _Item.Buffer.Height;
-  T1 := VectorCreate2D(_Item.U1, _Item.V1);
-  MyTextureAtlas := UIManager.Instance.GetTextureAtlas;
-  T2.X := T1.X + (_Item.Buffer.Width / MyTextureAtlas.Width);
-  T2.Y := T1.Y + (_Item.Buffer.Height / MyTextureAtlas.Height);
-  MyColor := ColorGrey(255, UI._Color.A);
-  UI.AddQuad(StartPos, EndPos, T1, T2, MyColor, 99, _Item.PageID, MatrixIdentity3x3, 1, Nil, CR);
+  Result := Original - NewWidth;
+
+  If _Width.Value.IsPercent Then
+  Begin
+    P := (NewWidth / UIManager.Instance.Width) * 100;
+    _Width.Value := UIPercent(P);
+  End Else
+    _Width.Value := UIPixels(NewWidth);
 End;
 
-{ UI }
-Constructor UI.Create;
+Function Widget.AdjustHeight(NewHeight: Single):Single;
+Var
+  Original, P:Single;
 Begin
-  _Widgets := HashMap.Create(1024);
-  _Visible := True;
+  Original := NewHeight;
+  NewHeight := UISnap(NewHeight);
 
-  _CurrentCursor := Nil;
-  _CursorCount := 0;
+  If (NewHeight<UISnapSize) Then
+      NewHeight := UISnapSize;
+
+  Result := Original - NewHeight;
+
+  If _Height.Value.IsPercent Then
+  Begin
+    P := (NewHeight / UIManager.Instance.Height) * 100;
+    _Height.Value := UIPercent(P);
+  End Else
+    _Height.Value := UIPixels(NewHeight);
+End;
+
+Function Widget.SupportDrag(Mode: UIDragMode): Boolean;
+Begin
+  Result := True;
+End;
+
+Procedure Widget.Delete();
+Var
+  I:Integer;
+Begin
+  Self._Deleted := True;
+  _UI._HasDeletions := True;
+
+  If Assigned(_Parent) Then
+    _Parent.RemoveChild(SElf);
+
+  For I:=0 To Pred(_ChildrenCount) Do
+    _ChildrenList[I].Delete();
+
+  _ChildrenCount := 0;
+End;
+
+
+Function Widget.GetAlign: Integer;
+Begin
+  Result := _Align.Value;
+End;
+
+Procedure Widget.SetAlign(const Value: Integer);
+Begin
+  _Align.Value := Value;
+End;
+
+Function Widget.GetTabIndex: Integer;
+Begin
+  Result := _TabIndex.Value;
+End;
+
+Procedure Widget.SetTabIndex(const Value: Integer);
+Begin
+  _TabIndex.Value  := Value;
+End;
+
+Function Widget.CreateProperty(const KeyName, ObjectType: TERRAString): TERRAObject;
+Begin
+  If (StringEquals(ObjectType, 'UIButton')) Then
+    Result := UIButton.Create(KeyName, Self, 0, 0, 50, UIPixels(10), UIPixels(10), '', 'button')
+  Else
+  If (StringEquals(ObjectType, 'UILabel')) Then
+    Result := UILabel.Create(KeyName, Self, 0, 0, 50, '???')
+  Else
+  If (StringEquals(ObjectType, 'UIEditText')) Then
+    Result := UIEditText.Create(KeyName, Self, 0, 0, 50, UIPixels(10), UIPixels(10), '???')
+  Else
+  If (StringEquals(ObjectType, 'UISprite')) Then
+    Result := UISprite.Create(KeyName, Self, 0, 0, 50, 'sprite')
+  Else
+  If (StringEquals(ObjectType, 'UIIcon')) Then
+    Result := UIIcon.Create(KeyName, Self, 0, 0, 50, UIPixels(10), UIPixels(10), 'icon')
+  Else
+  If (StringEquals(ObjectType, 'UIWindow')) Then
+    Result := UIWindow.Create(KeyName, Self, 0, 0, 50, UIPixels(10), UIPixels(10), 'window')
+  Else
+  If (StringEquals(ObjectType, 'UICheckbox')) Then
+    Result := UICheckbox.Create(KeyName, Self, 0, 0, 50, UIPixels(10), True, '???', 'checkbox')
+  Else
+  If (StringEquals(ObjectType, 'UITabList')) Then
+    Result := UITabList.Create(KeyName, Self, 0, 0, 50, UIPixels(10), UIPixels(10), 'icon')
+  Else
+    Result := Nil;
+End;
+
+Procedure Widget.SetParent(Target:Widget);
+Var
+  P:Vector2D;
+Begin
+  P := Self.AbsolutePosition;
+  If Assigned(Target) Then
+    P.Subtract(Target.AbsolutePosition);
+
+  Self.RelativePosition := P;
+
+  If Assigned(Self.Parent) Then
+  Begin
+    Self.Parent.RemoveChild(Self);
+  End;
+
+  If Assigned(Target) Then
+    Target.AddChild(Self)
+  Else
+    _UI.InsertIntoTopWidgets(Self);
+End;
+
+{ TERRAUI }
+Constructor TERRAUI.Create;
+Begin
+  Self.InitProperties();
+
+  _ObjectName := 'UI';
+  _Widgets := HashMap.Create(1024);
+  SetVisible(True);
+
   _Transition := Nil;
 
-  _Color := ColorCreateFromFloat(1.0, 1.0, 1.0, 1.0);
-  _Saturation := 1.0;
+  SetColor(ColorCreateFromFloat(1.0, 1.0, 1.0, 1.0));
+  SetSaturation(1.0);
   _ColorTable := Nil;
 
   _FontRenderer := Nil;
 
-  SetTransform(MatrixIdentity3x3);
+  _Skin := UISkinComponent.Create(Nil, Nil);
 
-  DefaultEaseType := easeInSine;
+  SetTransform(MatrixIdentity3x3);
 
   Key_Up := TERRA_OS.keyUp;
   Key_Down := TERRA_OS.keyDown;
   Key_Right := TERRA_OS.keyRight;
   Key_Left := TERRA_OS.keyLeft;
   Key_Action := TERRA_OS.keyEnter;
-  Key_Action2 := TERRA_OS.keyBackspace;
   Key_Cancel := TERRA_OS.keyEscape;
+
+  _ClipRect.SetStyle(clipNothing);
 
   UIManager.Instance.AddUI(Self);
 End;
 
-Procedure UI.Release;
+Procedure TERRAUI.Release;
 Var
   I:Integer;
 Begin
-  For I:=0 To Pred(_CursorCount) Do
-    ReleaseObject(_CursorList[I]);
-
+  ReleaseObject(_Skin);
   ReleaseObject(_Transition);
 	ReleaseObject(_Widgets);
 End;
 
-Procedure UI.Clear;
+Procedure TERRAUI.Clear;
 Begin
   Log(logError, 'UI', 'Clearing UI');
   _First := Nil;
@@ -2439,7 +2643,7 @@ Begin
 End;
 End;*)
 
-Procedure UI.SetFocus(W: Widget);
+Procedure TERRAUI.SetFocus(W: Widget);
 Begin
   If (W = _Focus) Then
     Exit;
@@ -2453,66 +2657,42 @@ Begin
   _Focus := W;
 End;
 
-Procedure UI.SetDefaultFont(const Value: Font);
+Procedure TERRAUI.SetDefaultFont(const Value:TERRAFont);
 Begin
   FontManager.Instance.PreFetch(Value);
   Self._DefaultFont := Value;
 End;
 
-Function UI.AllowsEvents(W: Widget): Boolean;
-Begin
-  If (W = Nil) Or (Not W.Visible) Then
-  Begin
-    Result := False;
-    Exit;
-  End;
-
-  If (_Modal = Nil) Or  (W = _Modal) Then
-  Begin
-    Result := True;
-    Exit;
-  End;
-
-  If (Not _Modal.Visible) Then
-  Begin
-    _Modal := Nil;
-    Result := True;
-    Exit;
-  End;
-
-
-  Result := Self.AllowsEvents(W.Parent);
-End;
-
-Procedure UI.SetColorTable(Const Value:Texture);
+Procedure TERRAUI.SetColorTable(Const Value:TERRATexture);
 Begin
   Self._ColorTable := Value;
 End;
 
-Function UI.LoadCursor(Const Name:TERRAString; OfsX, OfsY:Integer):UICursor;
-Begin
-  Inc(_CursorCount);
-  SetLength(_CursorList, _CursorCount);
-  Result := UICursor.Create(Name, Self, OfsX, OfsY);
-  _CursorList[Pred(_CursorCount)] := Result;
-  If (Not Assigned(_CurrentCursor)) Then
-    _CurrentCursor := Result;
-End;
-
-Procedure UI.AddWidget(MyWidget:Widget);
+Procedure TERRAUI.AddWidget(MyWidget:Widget);
 Var
-  Temp, Last:Widget;
+  Temp:Widget;
   Found:Boolean;
   It:Iterator;
+  NameIndex:Integer;
+  BaseName:TERRAString;
 Begin
-  If Assigned(GetWidget(MyWidget.Name)) Then
+  BaseName := MyWidget.Name;
+  NameIndex := 0;
+  While Assigned(GetWidget(MyWidget.Name)) Do
   Begin
-    Log(logWarning, 'UI', 'A widget with that name already exists! ['+ MyWidget.Name +']');
+    If NameIndex<=0 Then
+    Begin
+      Temp := GetWidget(MyWidget.Name);
+      Temp.Name := BaseName + '_'+IntToString(NameIndex);
+    End;
+
+    Inc(NameIndex);
+    MyWidget.Name := BaseName + '_' + IntToString(NameIndex);
   End;
 
-  If (Assigned(MyWidget._Parent)) Then
+  If (Assigned(MyWidget.Parent)) Then
   Begin
-    It := _Widgets.GetIterator();
+    (*It := _Widgets.GetIterator();
     Found := False;
     While (It.HasNext) Do
     Begin
@@ -2527,14 +2707,26 @@ Begin
     ReleaseObject(It);
 
     If Not Found Then
-      Log(logWarning, 'UI', 'Error finding parent for '+ MyWidget.Name +'!');
+      Log(logWarning, 'UI', 'Error finding parent for '+ MyWidget.Name +'!');*)
+
+    MyWidget.Parent.AddChild(MyWidget);
   End Else
+    InsertIntoTopWidgets(MyWidget);
+
+  _Widgets.Add(MyWidget);
+End;
+
+Procedure TERRAUI.InsertIntoTopWidgets(W:Widget);
+Var
+  Found:Boolean;
+  Temp, Last:Widget;
+Begin
   If (Assigned(_First)) Then
   Begin
-    If (_First.Layer > MyWidget.Layer) Then
+    If (_First.Layer > W.Layer) Then
     Begin
-      MyWidget._Next := _First;
-      _First := MyWidget;
+      W._Next := _First;
+      _First := W;
     End Else
     Begin
       Last := _First;
@@ -2542,10 +2734,10 @@ Begin
       Found := False;
       While (Assigned(Temp)) Do
       Begin
-        If (Temp.Layer > MyWidget.Layer) Then
+        If (Temp.Layer > W.Layer) Then
         Begin
-          MyWidget._Next := Temp;
-          Last._Next := MyWidget;
+          W._Next := Temp;
+          Last._Next := W;
           Found := True;
           Break;
         End;
@@ -2555,54 +2747,48 @@ Begin
 
       If (Not Found) Then
       Begin
-        Last._Next := MyWidget;
-        MyWidget._Next := Nil;
+        Last._Next := W;
+        W._Next := Nil;
       End;
     End;
 
   End Else
   Begin
-    _First := MyWidget;
-    MyWidget._Next := Nil;
+    _First := W;
+    W._Next := Nil;
   End;
-
-  _Widgets.Add(MyWidget);
 End;
 
-Procedure UI.DeleteWidget(MyWidget:Widget);
+Procedure TERRAUI.RemoveFromTopWidgets(W:Widget);
 Var
-  It:Iterator;
-  Temp:Widget;
+  Current, Temp:Widget;
+Begin
+  If (_First = W) Then
+  Begin
+    _First := _First.Next;
+    Exit;
+  End;
+
+  Current := _First;
+  While Assigned(Current) Do
+  Begin
+    Temp := Current.Next;
+    If (Temp = W) Then
+    Begin
+      Current._Next := Temp.Next;
+      Exit;
+    End;
+
+    Current := Temp;
+  End;
+End;
+
+Procedure TERRAUI.DeleteWidget(MyWidget:Widget);
 Begin
   If (MyWidget = Nil) Then
     Exit;
 
-  If (MyWidget = _Focus) Then
-    _Focus := Nil;
-
-  If (MyWidget = _Highlight) Then
-    _Highlight := Nil;
-
-  TweenManager.Instance.RemoveTween(MyWidget);
-
-  If (_First = MyWidget) Then
-  Begin
-    _First := MyWidget._Next;
-  End Else
-  Begin
-    It := _Widgets.GetIterator();
-    While (It.HasNext) Do
-    Begin
-      Temp := Widget(It.Value);
-      If (Temp._Next = MyWidget) Then
-      Begin
-        Temp._Next := MyWidget._Next;
-        Break;
-      End;
-    End;
-    ReleaseObject(It);
-  End;
-  _Widgets.Delete(MyWidget);
+  MyWidget.Delete();
 End;
 
 Function SearchWidgetByName(P:CollectionObject; UserData:Pointer):Boolean; CDecl;
@@ -2610,7 +2796,7 @@ Begin
   Result := (Widget(P).Name = PString(Userdata)^);
 End;
 
-Function UI.GetWidget(Const Name:TERRAString):Widget;
+Function TERRAUI.GetWidget(Const Name:TERRAString):Widget;
 Var
   WidgetName:TERRAString;
 Begin
@@ -2619,29 +2805,28 @@ Begin
 End;
 
 
-Function UI.AddQuad(Const StartPos, EndPos:Vector2D; Const TexCoord1, TexCoord2:Vector2D; MyColor:Color; Z:Single; PageID:Integer;
-                    Const Transform:Matrix3x3; Saturation:Single; ColorTable:Texture; Const Clip:ClipRect):QuadSprite;
+Function TERRAUI.AddQuad(Const Quad:UIQuad; Const Props:UISkinProperty; Z:Single; Const Transform:Matrix3x3):QuadSprite;
 Var
-  Tex:Texture;
+  Tex:TERRATexture;
 Begin
-  Tex := UIManager.Instance.TextureAtlas.GetTexture(PageID);
-  Result := SpriteManager.Instance.DrawSprite(StartPos.X, StartPos.Y, Z, Tex, ColorTable, blendBlend, Saturation);
+  Tex := UIManager.Instance.TextureAtlas.GetTexture(Quad.PageID);
+  Result := SpriteManager.Instance.DrawSprite(Quad.Pos.X, Quad.Pos.Y, Z, Tex, ColorTable, blendBlend, Saturation);
   If (Result = Nil) Then
     Exit;
 
-  Result.Rect.Width := Trunc(EndPos.X - StartPos.X);
-  Result.Rect.Height := Trunc(EndPos.Y - StartPos.Y);
+  Result.Rect.Width := Trunc(Quad.Size.X);
+  Result.Rect.Height := Trunc(Quad.Size.Y);
 
-  //Clip.Merge(Self._ClipRect);
-  Result.ClipRect := Clip;
+  Result.ClipRect := Props.Clip;
 
   Result.SetTransform(Transform);
 
-  Result.SetColor(MyColor);
-  Result.Rect.UVRemap(TexCoord1.X, TexCoord1.Y, TexCoord2.X, TexCoord2.Y);
+  Result.SetColor(Props.QuadColor);
+  //Result.Rect.UVRemap(Quad.StartUV.X, Quad.StartUV.Y, Quad.EndUV.X, Quad.EndUV.Y);
+  Result.Rect.UVRemap(Quad.StartUV.X, Quad.StartUV.Y, Quad.EndUV.X, Quad.EndUV.Y);
 End;
 
-Procedure UI.UpdateLanguage();
+Procedure TERRAUI.UpdateLanguage();
 Var
   MyWidget:Widget;
   It:Iterator;
@@ -2656,21 +2841,14 @@ Begin
   ReleaseObject(It);
 End;
 
-Procedure UI.Render;
+Procedure TERRAUI.Render;
 Var
-  MyWidget:Widget;
+  Current, Temp:Widget;
   I, J:Integer;
-  Temp:Image;
-  W,H:Integer;
-  S:TERRAString;
   X,Y:Single;
-  PositionHandle, UVHandle, ColorHandle:Integer;
-  Transform:Matrix4x4;
-  Q:Vector4D;
+  It:Iterator;
 Begin
   _Draw := False;
-  _CursorPos.X := InputManager.Instance.Mouse.X;
-  _CursorPos.Y := InputManager.Instance.Mouse.Y;
 
   If (Assigned(_Highlight)) And ((Not _Highlight.Visible) Or (Not _Highlight.Enabled)) Then
   Begin
@@ -2707,22 +2885,51 @@ Begin
 
   GraphicsManager.Instance.Renderer.SetBlendMode(blendBlend);
 
-  If (Assigned(_CurrentCursor)) Then
-    _CurrentCursor.Render;
-
-  MyWidget := _First;
-  While (Assigned(MyWidget)) Do
+  If _HasDeletions Then
   Begin
-    If (Not Assigned(MyWidget._Parent)) And (MyWidget.IsVisible) And (MyWidget.CanRender()) Then
-      MyWidget.Render();
+    _HasDeletions := False;
 
-    MyWidget := MyWidget._Next;
+    It := Self.Widgets.GetIterator();
+    While It.HasNext() Do
+    Begin
+      Current := Widget(It.Value);
+
+      If Current._Deleted Then
+      Begin
+        If Current.Parent = Nil Then
+          Self.RemoveFromTopWidgets(Current);
+
+        Current.Discard();
+      End;
+    End;
+    ReleaseObject(It);
+  End;
+
+  While (Assigned(_First)) And (Assigned(_First.Parent)) Do
+  Begin
+    _First := _First.Next;
+  End;
+
+  Current := _First;
+  While (Assigned(Current)) Do
+  Begin
+    Temp := Current.Next;
+    If (Assigned(Temp)) And (Assigned(Temp.Parent)) Then
+    Begin
+      Current._Next := Temp.Next;
+      Temp := Current._Next;
+    End;
+
+    If (Current.Visible) And (Current.CanRender()) Then
+      Current.Render();
+
+    Current := Temp;
   End;
 
   //glDisable(glCoverage);
 End;
 
-Procedure UI.AfterEffects;
+Procedure TERRAUI.AfterEffects;
 Var
   CurrentTransitionID:Cardinal;
 Begin
@@ -2741,20 +2948,17 @@ Begin
   End;
 End;
 
-Procedure UI.SetTransition(MyTransition:UITransition);
+Procedure TERRAUI.SetTransition(MyTransition:UITransition);
 Begin
   ReleaseObject(_Transition);
 
   _Transition := MyTransition;
 
   If Assigned(_Transition) Then
-  Begin
-    _Transition.EaseType := Self.DefaultEaseType;
     _Transition.Transform := Self.Transform;
-  End;
 End;
 
-Function UI.OnKeyDown(Key:Word):Widget;
+Function TERRAUI.OnKeyDown(Key:Word):Widget;
 Begin
   Result := Nil;
 
@@ -2765,7 +2969,7 @@ Begin
   End;
 End;
 
-Function UI.OnKeyUp(Key:Word):Widget;
+Function TERRAUI.OnKeyUp(Key:Word):Widget;
 Var
   MyWidget:Widget;
 Begin
@@ -2792,7 +2996,7 @@ Begin
   MyWidget := _First;
   While (Assigned(MyWidget)) Do
   Begin
-    If (Not Assigned(MyWidget._Parent)) And (MyWidget.IsVisible) Then
+    If (Not Assigned(MyWidget._Parent)) And (MyWidget.Visible) Then
     Begin
       If MyWidget.OnKeyUp(Key) Then
       Begin
@@ -2805,7 +3009,7 @@ Begin
   End;
 End;
 
-Function UI.OnKeyPress(Key:Word):Widget;
+Function TERRAUI.OnKeyPress(Key:Word):Widget;
 Begin
   Result := Nil;
   Log(logDebug, 'UI', 'keypress: '+IntToString(Integer(Key)));
@@ -2820,198 +3024,57 @@ Begin
   Log(logDebug, 'UI', 'keypress done!');
 End;
 
-Function UI.OnMouseDown(X,Y:Integer;Button:Word):Widget;
+Function TERRAUI.PickWidget(X,Y:Integer; Ignore:Widget = Nil):Widget;
 Var
-  I, Count:Integer;
-	MyWidget, Pick:Widget;
-  Z:Single;
+	Current:Widget;
+  Max:Single;
 Begin
   _LastWidget := Nil;
 
 //  ConvertGlobalToLocal(X, Y);
 
-  If (Assigned(_VirtualKeyboard)) And (_VirtualKeyboard.Visible) And (_VirtualKeyboard.OnRegion(X,Y)) Then
-  Begin
-    If _VirtualKeyboard.OnMouseDown(X,Y, Button) Then
-      Result := _VirtualKeyboard
-    Else
-      Result := Nil;
-
-    _LastWidget := Result;
-    Exit;
-  End;
-
-  Count := 0;
-	MyWidget := _First;
-	While (Assigned(MyWidget)) Do
-	Begin
-    MyWidget._Picked := False;
-    If (MyWidget.Visible) Then
-      Inc(Count);
-    MyWidget := MyWidget._Next;
-	End;
-
-  {$IFDEF DEBUG_GUI}Log(logDebug, 'Game', IntToString(Count)+' widgets visible');{$ENDIF}
-
-  While (Count>0) Do
-  Begin
-    Pick := Nil;
-    Z := -9999;
-  	MyWidget := _First;
-  	While (Assigned(MyWidget)) Do
-  	Begin
-      {If (MyWidget.Visible) And (MyWidget.Position.X>UIManager.Instance.Width) Or (MyWidget.Position.Y>UIManager.Instance.Height) Then
-      Begin
-        MyWidget.Visible := False;
-      End;}
-
-      If (Not MyWidget.Visible) Then
-      Begin
-        MyWidget := MyWidget._Next;
-        Continue;
-      End;
-
-      If (Assigned(MyWidget.Parent)) Then
-      Begin
-        MyWidget := MyWidget._Next;
-        Continue;
-      End;
-
-      If (MyWidget._Picked) Then
-      Begin
-        MyWidget := MyWidget._Next;
-        Continue;
-      End;
-
-      If (MyWidget.GetLayer>Z) And (AllowsEvents(MyWidget)) Then
-      Begin
-        Z := MyWidget.GetLayer;
-        Pick := MyWidget;
-      End;
-
-      MyWidget := MyWidget._Next;
-  	End;
-
-    If (Assigned(Pick)) Then
-    Begin
-      {$IFDEF DEBUG_GUI}Log(logDebug, 'Game', 'Found a Widget for MouseDown: '+Pick.Name);{$ENDIF}
-
-      Pick._Picked := True;
-      Dec(Count);
-
-      If (Self.Modal<>Nil) And (Not Pick.IsSameFamily(Modal)) Then
-      Begin
-        Pick := Nil;
-        {$IFDEF DEBUG_GUI}Log(logDebug, 'Game', 'Cancelled because of modal...');{$ENDIF}
-      End;
-
-      If (Pick=Nil) Then
-        Break
-      Else
-       If (Pick.OnMouseDown(X,Y, Button)) Then
-      Begin
-        //Log(logDebug, 'Game', 'Found a Widget for MouseDown: '+Pick.Name);
-        Result := Pick;
-        _LastWidget := Result;
-        {$IFDEF DEBUG_GUI}Log(logDebug, 'Game', 'MouseDown event accepted!');{$ENDIF}
-  		  Exit;
-      End;
-    End Else
-      Break;
-  End;
-
   Result := Nil;
+  Max := -9999;
+
+  Current := _First;
+  While (Assigned(Current)) Do
+  Begin
+    If (Current.Parent = Nil) And (Current.AllowsEvents()) Then
+    Begin
+      Current.PickAt(X, Y, Result, Max, Ignore);
+    End;
+
+    Current := Current.Next;
+  End;
+
+
+  If (Self.Modal<>Nil) And (Assigned(Result)) And (Not Result.IsSameFamily(Modal)) Then
+  Begin
+    Result := Nil;
+    {$IFDEF DEBUG_GUI}Log(logDebug, 'Game', 'Cancelled because of modal...');{$ENDIF}
+  End;
+
+  //Log(logDebug, 'Game', 'Found a Widget for picking: '+CurrentPick.Name);
+  _LastWidget := Result;
 End;
 
-Function UI.OnMouseUp(X,Y:Integer;Button:Word):Widget;
-Var
-  I, Count:Integer;
-	MyWidget, Pick:Widget;
-  Z:Single;
+Function TERRAUI.OnMouseDown(X,Y:Integer;Button:Word):Widget;
 Begin
-  _LastWidget := Nil;
+  Result := Self.PickWidget(X,Y);
 
-//  ConvertGlobalToLocal(X, Y);
-
-  If (Assigned(_VirtualKeyboard)) And (_VirtualKeyboard.Visible) And (_VirtualKeyboard.OnRegion(X,Y)) Then
-  Begin
-    If _VirtualKeyboard.OnMouseUp(X,Y, Button) Then
-      Result := _VirtualKeyboard
-    Else
-      Result := Nil;
-
-    _LastWidget := Result;
-    
-    Exit;
-  End;
-
-
-  Count := 0;
-	MyWidget := _First;
-	While (Assigned(MyWidget)) Do
-	Begin
-    MyWidget._Picked := False;
-    If (MyWidget.Visible) Then
-      Inc(Count);
-    MyWidget := MyWidget._Next;
-	End;
-
-  Repeat
-    Pick := Nil;
-    Z := -9999;
-  	MyWidget := _First;
-  	While (Assigned(MyWidget)) Do
-  	Begin
-      If (Not MyWidget.Visible) Then
-      Begin
-        MyWidget := MyWidget._Next;
-        Continue;
-      End;
-
-      If (MyWidget._Picked) Then
-      Begin
-        MyWidget := MyWidget._Next;
-        Continue;
-      End;
-
-      If (MyWidget.GetLayer>Z) And (AllowsEvents(MyWidget)) Then
-      Begin
-        Z := MyWidget.GetLayer;
-        Pick := MyWidget;
-      End;
-
-      MyWidget := MyWidget._Next;
-  	End;
-
-    If (Assigned(Pick)) Then
-    Begin
-      Pick._Picked := True;
-      Dec(Count);
-
-      If (Self.Modal<>Nil) And (Not Pick.IsSameFamily(Modal)) Then
-        Pick := Nil;
-
-      If (Assigned(Pick)) And (Pick.OnMouseUp(X,Y, Button)) Then
-      Begin
-        //Log(logDebug, 'Game', 'Found a Widget for MouseDown: '+Pick.Name);
-        Result := Pick;
-        _LastWidget := Result;
-        //Log(logDebug, 'Game', 'MouseDown event processed');
-  		  Exit;
-      End;
-    End Else
-      Break;
-
-  Until (Count<=0);
-
-  Result := Nil;
+  If (Assigned(Result)) And (Result.Enabled) And (Not Result.HasPropertyTweens()) Then
+    Result.OnMouseDown(X, Y, Button);
 End;
 
-Function UI.OnMouseMove(X,Y:Integer):Widget;
-Var
-  I, Count:Integer;
-	MyWidget, Pick:Widget;
-  Z:Single;
+Function TERRAUI.OnMouseUp(X,Y:Integer;Button:Word):Widget;
+Begin
+  Result := Self.PickWidget(X,Y);
+
+  If (Assigned(Result)) And (Result.Enabled) And (Not Result.HasPropertyTweens()) Then
+    Result.OnMouseUp(X, Y, Button);
+End;
+
+Function TERRAUI.OnMouseMove(X,Y:Integer):Widget;
 Begin
   _LastWidget := Nil;
 
@@ -3019,174 +3082,49 @@ Begin
 
   If Assigned(_Dragger) Then
   Begin
-    If _Dragger.OnMouseMove(X, Y) Then
-    Begin
-      Result := _Dragger;
-      _LastWidget := Result;
-      Exit;
-    End;
+    _Dragger.OnMouseMove(X, Y);
+    Result := _Dragger;
+    _LastWidget := Result;
+    Exit;
   End;
 
-  Count := 0;
-	MyWidget := _First;
-	While (Assigned(MyWidget)) Do
-	Begin
-    MyWidget._Picked := False;
-    If (MyWidget.Visible) Then
-      Inc(Count);
-    MyWidget := MyWidget._Next;
-	End;
+  Result := Self.PickWidget(X,Y);
 
-  Repeat
-    Pick := Nil;
-    Z := -9999;
-  	MyWidget := _First;
-  	While (Assigned(MyWidget)) Do
-  	Begin
-      If (Not MyWidget.Visible) Then
-      Begin
-        MyWidget := MyWidget._Next;
-        Continue;
-      End;
+  If (Assigned(Result)) Then
+  Begin
+    If (Result.Enabled) And (Not Result.HasPropertyTweens()) Then
+      Result.OnMouseMove(X, Y);
+  End;
 
-      If (MyWidget._Picked) Then
-      Begin
-        MyWidget := MyWidget._Next;
-        Continue;
-      End;
+  If (_LastOver <> Result) Then
+  Begin
+    If (Assigned(_LastOver)) And (Assigned(_LastOver.OnMouseOut)) Then
+      _LastOver.OnMouseOut(Result);
 
-      If (MyWidget.GetLayer>Z) Then
-      Begin
-        Z := MyWidget.GetLayer;
-        Pick := MyWidget;
-      End;
+    If (Assigned(Result)) And (Assigned(Result.OnMouseOver)) Then
+      Result.OnMouseOver(_LastOver);
 
-      MyWidget := MyWidget._Next;
-  	End;
-
-    If (Assigned(Pick)) Then
-    Begin
-      If (Not AllowsEvents(Pick)) Then
-      Begin
-        Result := Nil;
-        Exit;
-      End;
-
-      Pick._Picked := True;
-      Dec(Count);
-
-      If (Self.Modal<>Nil) And (Not Pick.IsSameFamily(Modal)) Then
-        Pick := Nil;
-
-      If (Assigned(_Virtualkeyboard)) And (_VirtualKeyboard.Visible) And (Pick<>_VirtualKeyboard) And (Pick.Parent<>_VirtualKeyboard) Then
-        Pick := Nil;
-
-      If (Pick<>Nil) And (Pick.OnMouseMove(X,Y)) Then
-      Begin
-        //Log(logDebug, 'Game', 'Found a Widget for MouseDown: '+Pick.Name);
-        Result := Pick;
-        _LastWidget := Result;
-        //Log(logDebug, 'Game', 'MouseDown event processed');
-  		  Exit;
-      End;
-    End Else
-      Break;
-
-  Until (Count<=0);
-
-  Result := Nil;
+    _LastOver := Result;
+  End;
 End;
 
-Function UI.OnMouseWheel(X,Y:Integer; Delta:Integer):Widget;
-Var
-  I, Count:Integer;
-	MyWidget, Pick:Widget;
-  Z:Single;
+Function TERRAUI.OnMouseWheel(X,Y:Integer; Delta:Integer):Widget;
 Begin
-  _LastWidget := Nil;
-  Result := Nil;
-  
-  ConvertGlobalToLocal(X, Y);
-
 	If Assigned(_Focus) Then
   Begin
-		If _Focus.OnMouseWheel(X, Y, Delta) Then
-    Begin
-      Result := _Focus;
-      _LastWidget := Result;
-      Exit;
-    End;
+		_Focus.OnMouseWheel(X, Y, Delta);
+    Result := _Focus;
+    _LastWidget := Result;
+    Exit;
   End;
 
-  Count := 0;
-	MyWidget := _First;
-	While (Assigned(MyWidget)) Do
-	Begin
-    MyWidget._Picked := False;
-    If (MyWidget.Visible) Then
-      Inc(Count);
-    MyWidget := MyWidget._Next;
-	End;
+  Result := Self.PickWidget(X,Y);
 
-  Repeat
-    Pick := Nil;
-    Z := -9999;
-  	MyWidget := _First;
-  	While (Assigned(MyWidget)) Do
-  	Begin
-      If (Not MyWidget.Visible) Then
-      Begin
-        MyWidget := MyWidget._Next;
-        Continue;
-      End;
-
-      If (MyWidget._Picked) Then
-      Begin
-        MyWidget := MyWidget._Next;
-        Continue;
-      End;
-
-      If (MyWidget.GetLayer>Z) Then
-      Begin
-        Z := MyWidget.GetLayer;
-        Pick := MyWidget;
-      End;
-
-      MyWidget := MyWidget._Next;
-  	End;
-
-    If (Assigned(Pick)) Then
-    Begin
-      If (Not AllowsEvents(Pick)) Then
-      Begin
-        Result := Nil;
-        Exit;
-      End;
-
-      Pick._Picked := True;
-      Dec(Count);
-
-      If (Self.Modal<>Nil) And (Not Pick.IsSameFamily(Modal)) Then
-        Pick := Nil;
-
-      If (Assigned(_Virtualkeyboard)) And (_VirtualKeyboard.Visible) And (Pick<>_VirtualKeyboard) And (Pick.Parent<>_VirtualKeyboard) Then
-        Pick := Nil;
-
-      If (Pick<>Nil) And (Pick.OnMouseWheel(X,Y, Delta)) Then
-      Begin
-        Result := Pick;
-        _LastWidget := Result;
-  		  Exit;
-      End;
-    End Else
-      Break;
-
-  Until (Count<=0);
-
-  Result := Nil;
+  If (Assigned(Result)) And (Result.Enabled) And (Not Result.HasPropertyTweens()) Then
+    Result.OnMouseWheel(X, Y, Delta);
 End;
 
-Procedure UI.SetHighlight(const Value: Widget);
+Procedure TERRAUI.SetHighlight(const Value: Widget);
 Var
   Prev, Temp:Widget;
 Begin
@@ -3203,12 +3141,12 @@ Begin
   End;
 End;
 
-Procedure UI.SetDragger(const Value: Widget);
+Procedure TERRAUI.SetDragger(const Value: Widget);
 Begin
   Self._Dragger := Value;
 End;
 
-Procedure UI.CloseWnd();
+Procedure TERRAUI.CloseWnd();
 Begin
   System_BG.Visible := False;
   System_Wnd.Visible := False;
@@ -3220,7 +3158,7 @@ End;
 
 Function CloseMsgBox(Src:Widget):Boolean; Cdecl;
 Var
-  UI:TERRA_UI.UI;
+  UI:TERRAUI;
 Begin
   Result := True;
 
@@ -3231,7 +3169,7 @@ Begin
   If (UI = Nil) Then
     Exit;
 
-  If (UI.System_Wnd = Nil) Or (UI.System_Wnd.HasTweens) Then
+  If (UI.System_Wnd = Nil) Or (UI.System_Wnd.HasPropertyTweens()) Then
     Exit;
 
   UI.CloseWnd();
@@ -3245,7 +3183,7 @@ End;
 
 Function CloseMsgBox2(Src:Widget):Boolean; Cdecl;
 Var
-  UI:TERRA_UI.UI;
+  UI:TERRAUI;
 Begin
   Result := True;
 
@@ -3256,7 +3194,7 @@ Begin
   If (UI = Nil) Then
     Exit;
 
-  If (UI.System_Wnd = Nil) Or (UI.System_Wnd.HasTweens) Then
+  If (UI.System_Wnd = Nil) Or (UI.System_Wnd.HasPropertyTweens()) Then
     Exit;
 
   UI.CloseWnd();
@@ -3268,19 +3206,19 @@ Begin
   UI._WndCallback2 := Nil;
 End;
 
-Procedure UI.InitTempWidgets();
+Procedure TERRAUI.InitTempWidgets();
 Var
   N,I:Integer;
-  S:UISprite;
+//TODO  S:UISprite;
 Begin
-  System_Wnd := UIWindow(GetWidget(System_Name_Wnd));
+(*  System_Wnd := UIWindow(GetWidget(System_Name_Wnd));
   System_Text := UILabel(GetWidget(System_Name_Text));
   For I:=0 To 2 Do
     System_Btn[I] := UIButton(GetWidget(System_Name_Btn+IntToString(I)));
 
   If Not Assigned(System_Wnd) Then
   Begin
-    System_Wnd := UIWindow.Create(System_Name_Wnd, Self, Nil, 0, 0, 97, 8, 5);
+    System_Wnd := UIWindow.Create(System_Name_Wnd, Self, Nil, 0, 0, 97, UIPixels(500), UIPixels(200));
     System_Wnd.Visible := False;
     System_Text := UILabel.Create(System_Name_Text, Self, System_Wnd, 20, 20, 0.5, '??');
     For I:=0 To 2 Do
@@ -3302,16 +3240,16 @@ Begin
   If Not Assigned(System_BG) Then
   Begin
     S := UISprite.Create(System_Name_BG, Self, Nil, 0, 0, 96.5);
-    S.Texture := TextureManager.Instance.WhiteTexture;
+    S.Rect.Texture := TextureManager.Instance.WhiteTexture;
     S.Rect.Width := UIManager.Instance.Width;
     S.Rect.Height := UIManager.Instance.Height;
     S.Color := ColorGrey(0, 100);
     S.Visible := False;
     System_BG := S;
-  End;
+  End;*)
 End;
 
-Procedure UI.InitStuff();
+Procedure TERRAUI.InitStuff();
 Var
   I:Integer;
 Begin
@@ -3322,30 +3260,33 @@ Begin
   System_BG.Visible := True;
   System_Wnd.Visible := True;
 
-  For I:=0 To 2 Do
+(*  For I:=0 To 2 Do
     System_Btn[I].OnMouseClick := CloseMsgBox;
+    TODO
 
   System_Btn[2].OnMouseClick := CloseMsgBox2;
+    *)
 End;
 
-Procedure UI.MessageBox(Msg:TERRAString; Callback: WidgetEventHandler);
+Procedure TERRAUI.MessageBox(Msg:TERRAString; Callback: WidgetEventHandler);
 Var
   I:Integer;
 Begin
   _WndCallback1 := Callback;
   InitStuff();
 
+  (*TODO
   UILabel(System_Text).Caption := Msg;
   For I:=0 To 2 Do
     System_Btn[I].Visible := (I=0);
 
   _PrevHighlight := Highlight;
   If (Highlight<>Nil) Then
-    Highlight := System_Btn[0];
+    Highlight := System_Btn[0];*)
 End;
 
 
-Procedure UI.ChoiceBox(Msg, Option1, Option2:TERRAString; Callback1:WidgetEventHandler = Nil; Callback2: WidgetEventHandler = Nil);
+Procedure TERRAUI.ChoiceBox(Msg, Option1, Option2:TERRAString; Callback1:WidgetEventHandler = Nil; Callback2: WidgetEventHandler = Nil);
 Var
   I:Integer;
 Begin
@@ -3353,6 +3294,7 @@ Begin
   _WndCallback2 := Callback2;
   InitStuff();
 
+  (*TODO
   UILabel(System_Text).Caption := System_Text._FontRenderer.AutoWrapText(Msg, System_Wnd.Size.X - 30);
   For I:=0 To 2 Do
     System_Btn[I].Visible := (I>0);
@@ -3361,10 +3303,10 @@ Begin
   UIButton(System_Btn[2]).Caption := Option2;
 
   _PrevHighlight := Highlight;
-    Highlight := System_Btn[1];
+    Highlight := System_Btn[1];*)
 End;
 
-Procedure UI.ShowModal(W:Widget);
+Procedure TERRAUI.ShowModal(W:Widget);
 Begin
   If W = Nil Then
     Exit;
@@ -3381,7 +3323,7 @@ Begin
     Highlight := W;
 End;
 
-Procedure UI.ClearChoiceBox();
+Procedure TERRAUI.ClearChoiceBox();
 Begin
   Modal := Nil;
 
@@ -3392,15 +3334,15 @@ Begin
     System_Wnd.Visible := False;
 End;
 
-Function UI.GetVirtualKeyboard: Widget;
+Function TERRAUI.GetVirtualKeyboard: Widget;
 Begin
   If (_VirtualKeyboard = Nil) Then
-    _VirtualKeyboard := TERRA_UIVirtualKeyboard.VirtualKeyboard.Create('vkb', Self, 97);
+    _VirtualKeyboard := UIVirtualKeyboard.Create('vkb', Self, 97, 'keyboard');
 
   Result := _VirtualKeyboard;
 End;
 
-Procedure UI.OnOrientationChange;
+Procedure TERRAUI.OnOrientationChange;
 Var
   MyWidget:Widget;
   It:Iterator;
@@ -3416,12 +3358,7 @@ Begin
   ReleaseObject(It);
 End;
 
-Procedure UI.SetVisible(Const Value:Boolean);
-Begin
-  _Visible := Value;
-End;
-
-Function UI.GetHighlight: Widget;
+Function TERRAUI.GetHighlight: Widget;
 Begin
   If (Assigned(_Highlight)) And (Not _Highlight.Visible) Then
     _Highlight := Nil;
@@ -3429,40 +3366,14 @@ Begin
   Result := _Highlight;
 End;
 
-Procedure UI.ConvertGlobalToLocal(Var X, Y: Integer);
-Var
-  P:Vector2D;
-Begin
-  P.X := X;
-  P.Y := Y;
-
-  P := _InverseTransform.Transform(P);
-
-  X := Trunc(P.X);
-  Y := Trunc(P.Y);
-End;
-
-Procedure UI.ConvertLocalToGlobal(Var X, Y: Integer);
-Var
-  P:Vector2D;
-Begin
-  P.X := X;
-  P.Y := Y;
-
-  P := _Transform.Transform(P);
-
-  X := Trunc(P.X);
-  Y := Trunc(P.Y);
-End;
-
-Procedure UI.SetTransform(const M: Matrix3x3);
+Procedure TERRAUI.SetTransform(const M: Matrix3x3);
 Var
   It:Iterator;
   W:Widget;
 Begin
   _Transform := M;
   _InverseTransform := MatrixInverse2D(M);
-                         
+
   _ClipRect.Style := clipSomething;
   _ClipRect.X := 0;
   _ClipRect.Y := 0;
@@ -3480,7 +3391,7 @@ Begin
   ReleaseObject(It);
 End;
 
-Function UI.GetFontRenderer():FontRenderer;
+Function TERRAUI.GetFontRenderer():FontRenderer;
 Begin
   If Self._FontRenderer = Nil Then
     Self._FontRenderer := UIManager.Instance.FontRenderer;
@@ -3493,17 +3404,17 @@ Begin
   Result.SetDropShadow(ColorGrey(0, 64));
 End;
 
-Function UI.OnRegion(X, Y: Integer): Boolean;
+Function TERRAUI.OnRegion(X, Y: Integer): Boolean;
 Begin
   Result := (X>=0) And (Y>=0) And (X<=UIManager.Instance.Width) And (Y<=UIManager.Instance.Height);
 End;
 
-Procedure UI.SetFontRenderer(const Value: FontRenderer);
+Procedure TERRAUI.SetFontRenderer(const Value: FontRenderer);
 Begin
   _FontRenderer := Value;
 End;
 
-Function UI.SelectNearestWidget(Target:Widget):Widget;
+Function TERRAUI.SelectNearestWidget(Target:Widget):Widget;
 Var
   It:Iterator;
   Base:Vector2D;
@@ -3516,7 +3427,7 @@ Begin
     Exit;
 
   Min := 99999;
-  Base := Target.Position;
+  Base := Target.AbsolutePosition;
   GroupID := Target.HighlightGroup;
 
   It := Self.Widgets.GetIterator();
@@ -3526,7 +3437,7 @@ Begin
     If (W = Target) Or (Not W.CanHighlight(GroupID)) Then
       Continue;
 
-    Dist := W.Position.Distance(Base);
+    Dist := W.AbsolutePosition.Distance(Base);
     If (Dist< Min) Then
     Begin
       Min := Dist;
@@ -3536,7 +3447,7 @@ Begin
   ReleaseObject(It);
 End;
 
-Procedure UI.GetFirstHighLight(GroupID:Integer);
+Procedure TERRAUI.GetFirstHighLight(GroupID:Integer);
 Var
   W:Widget;
   It:Iterator;
@@ -3554,55 +3465,113 @@ Begin
   ReleaseObject(It);
 End;
 
-{ UISkinLayout }
-Constructor UISkinLayout.Create(Source: TextureAtlasItem);
+Function TERRAUI.LoadImage(Name:TERRAString):TextureAtlasItem;
 Var
   I:Integer;
+  Source, Temp:Image;
+  MyStream:Stream;
+  S:TERRAString;
+  Ext:ImageClassInfo;
 Begin
-  _Target := Source;
+  Name := GetFileName(Name, True);
 
-  For I:=0 To 2 Do
+  Log(logDebug, 'UI', 'Getting '+Name);
+  Result := UIManager.Instance.GetTextureAtlas.Get(Name);
+  If Assigned(Result) Then
+    Exit;
+
+  Log(logDebug, 'UI', 'Searching icons');
+  S := '';
+  I := 0;
+  While (S='') And (I<GetImageExtensionCount()) Do
   Begin
-    X[I] := I * (1/3);
-    Y[I] := I * (1/3);
+    Ext := GetImageExtension(I);
+    S := FileManager.Instance.SearchResourceFile(Name+'.'+Ext.Name);
+    Inc(I);
+  End;
+
+  Log(logDebug, 'Game', 'Got '+S);
+  If S<>'' Then
+  Begin
+    Log(logDebug, 'Game', 'Opening stream');
+    MyStream := FileManager.Instance.OpenStream(S);
+    Log(logDebug, 'Game', 'Creating image: '+S);
+
+    Source := Image.Create(MyStream);
+    Log(logDebug, 'Game', 'Image created: '+IntToString(Source.Width)+'x'+IntToString(Source.Height));
+
+    Log(logDebug, 'Game', 'Adding to TextureAtlas');
+
+    Result := UIManager.Instance.GetTextureAtlas.Add(Source, Name);
+    UIManager.Instance._UpdateTextureAtlas := True;
+
+    Log(logDebug, 'Game', 'TextureAtlas added');
+
+    ReleaseObject(Source);
+    ReleaseObject(MyStream);
+  End Else
+  Begin
+    Log(logWarning,'UI', 'UI component not found. ['+Name+']');
+    Result := Nil;
   End;
 End;
 
-Function UISkinLayout.GCSX(I: Integer): Single;
+Function TERRAUI.GetComponent(Const Name:TERRAString): UISkinComponent;
 Begin
-  If (I<2) Then
-    Result := (X[Succ(I)] - X[I])
+  If (Name = '') Then
+    Result := Nil
   Else
-    Result := (1.0 - X[I]);
-
-  If Assigned(_Target) Then
-    Result := Result * _Target.Buffer.Width;
+    Result := _Skin.GetChildByName(Name);
 End;
 
-Function UISkinLayout.GCSY(J: Integer): Single;
+Function TERRAUI.LoadSkin(const FileName: TERRAString):Boolean;
+Var
+  Root:XMLNode;
+  Location:TERRAString;
+  I:Integer;
 Begin
-  If (J<2) Then
-    Result := (Y[Succ(J)] - Y[J])
-  Else
-    Result := (1.0 - Y[J]);
+  Result := False;
+  Location := FileManager.Instance.SearchResourceFile(FileName+'.xml');
+  If Location = '' Then
+    Exit;
 
-  If Assigned(_Target) Then
-    Result := Result * _Target.Buffer.Height;
+  Root := XMLNode.Create();
+  Root.LoadFromFile(Location);
+
+  ReleaseObject(_Skin);
+  _Skin := UISkinComponent.Create(Root, Nil);
+  ReleaseObject(Root);
+
+  Result := True;
 End;
 
-Function UISkinLayout.GetWidth(Width: Integer): Single;
+Function TERRAUI.GetModal: Widget;
 Begin
-  Result := Self.GCSX(0) + Self.GCSX(1) * Width + Self.GCSX(2);
+  If (Assigned(_Modal)) And (Not _Modal.Visible) Then
+  Begin
+    Self.Modal := Nil;
+  End;
+
+  Result := Self._Modal;
 End;
 
-Function UISkinLayout.GetHeight(Height: Integer): Single;
+Function TERRAUI.GetPropertyByIndex(Index: Integer): TERRAObject;
+Var
+  P:Widget;
 Begin
-  Result := Self.GCSY(0) + Self.GCSY(1) * Height + Self.GCSY(2);
+  P := _First;
+  While (Index>0) And (Assigned(P)) Do
+  Begin
+    Dec(Index);
+    P := P._Next;
+  End;
+
+  Result := P;
 End;
 
-Procedure UISkinLayout.Release;
+Function TERRAUI.GetObjectType: TERRAString;
 Begin
-  // do nothing
+  Result := 'UI';
 End;
 
 { UIManager }
@@ -3611,6 +3580,25 @@ Begin
   _TextureAtlas := Nil;
   _Ratio := 1.0;
   _UpdateTextureAtlas := False;
+
+  _AlignEnums := EnumCollection.Create();
+  _AlignEnums.Add('TopLeft', waTopLeft);
+  _AlignEnums.Add('TopCenter', waTopCenter);
+  _AlignEnums.Add('TopRight', waTopRight);
+  _AlignEnums.Add('LeftCenter', waLeftCenter);
+  _AlignEnums.Add('Center', waCenter);
+  _AlignEnums.Add('RightCenter', waRightCenter);
+  _AlignEnums.Add('BottomLeft', waBottomLeft);
+  _AlignEnums.Add('BottomCenter', waBottomCenter);
+  _AlignEnums.Add('BottomRight', waBottomRight);
+
+  // make UI view
+  _Viewport := TERRAViewport.Create('UI', GraphicsManager.Instance.UI_Width, GraphicsManager.Instance.UI_Height, {$IFDEF FRAMEBUFFEROBJECTS}GraphicsManager.Instance.UI_Scale{$ELSE}1.0{$ENDIF});
+  _Viewport.BackgroundColor := ColorNull;
+  _Viewport.SetRenderTargetState(captureTargetColor, True);
+  _Viewport.SetTarget(GraphicsManager.Instance.DeviceViewport, 0, 0, 1.0, 1.0);
+
+  GraphicsManager.Instance.AddViewport(_Viewport);
 End;
 
 Procedure UIManager.Release;
@@ -3623,13 +3611,14 @@ Begin
   _UICount := 0;
 
   ReleaseObject(_FontRenderer);
-
   ReleaseObject(_TextureAtlas);
+
+  ReleaseObject(_AlignEnums);
 
   _UIManager_Instance := Nil;
 End;
 
-Procedure UIManager.AddUI(UI: UI);
+Procedure UIManager.AddUI(UI:TERRAUI);
 Var
   I:Integer;
 Begin
@@ -3645,7 +3634,7 @@ Begin
   _UIList[Pred(_UICount)] := UI;
 End;
 
-Procedure UIManager.RemoveUI(UI: UI);
+Procedure UIManager.RemoveUI(UI:TERRAUI);
 Var
   I:Integer;
 Begin
@@ -3657,6 +3646,66 @@ Begin
     Dec(_UICount);
   End Else
     Inc(I);
+End;
+
+Procedure UIManager.Render();
+Var
+  Flags:Cardinal;
+  Target:RenderTargetInterface;
+  Graphics:GraphicsManager;
+  Projection:Matrix4x4;
+Begin
+  {$IFDEF DEBUG_GRAPHICS}Log(logDebug, 'GraphicsManager', 'BeginUIRendering');{$ENDIF}
+
+  Graphics := GraphicsManager.Instance;
+
+  _Viewport.BackgroundColor := ColorNull;
+  Target := _Viewport.GetRenderTarget(captureTargetColor);
+  If Assigned(Target) Then
+  Begin
+    Target.BackgroundColor := _Viewport.BackgroundColor;
+    _Viewport.SetViewArea(0, 0, Target.Width, Target.Height);
+    Target.BeginCapture();
+
+    {$IFDEF PC_X}
+    glActiveTexture(GL_TEXTURE0);
+    glEnable(GL_TEXTURE_2D);
+    {$ENDIF}
+
+
+    Graphics.Renderer.SetBlendMode(blendBlend);
+    Graphics.SetFog(False);
+    //glEnable(GL_SCISSOR_TEST);
+
+    Projection := Matrix4x4Ortho(0.0, _Viewport.Width, _Viewport.Height, 0.0, -100, 100);
+    Projection := Matrix4x4Multiply4x4(Projection, Matrix4x4Translation(0.375, 0.375, 0.0));
+
+    _Viewport.SetViewArea(0, 0, _Viewport.Width, _Viewport.Height);
+
+    Graphics.Renderer.ClearBuffer((Not Assigned(Graphics.Scene)), True, True);
+
+    If (Not _Prefetching) Then
+    Begin
+      UIManager.Instance.RenderUIs();
+
+      If (Assigned(Graphics.Scene)) And (Not Application.Instance.HasFatalError) Then
+       Graphics.Scene.RenderSprites(_Viewport);
+    End;
+
+    SpriteManager.Instance.Render(Projection);
+
+    If ( Not _Prefetching) Then
+    Begin
+      UIManager.Instance.AfterEffects();
+    End;
+
+//  glDisable(GL_SCISSOR_TEST);
+  //glDisable(GL_ALPHA_TEST);
+
+    Target.EndCapture();
+  End;
+
+  {$IFDEF DEBUG_GRAPHICS}Log(logDebug, 'GraphicsManager', 'FinishedUIRendering');{$ENDIF}
 End;
 
 Function UIManager.GetTextureAtlas: TextureAtlas;
@@ -3676,7 +3725,7 @@ Begin
   Begin
     Result := GraphicsManager.Instance.Width;
   End;}
-  Result := GraphicsManager.Instance.UIViewport.Width;
+  Result := Self.Viewport.Width;
 End;
 
 Function UIManager.GetHeight: Integer;
@@ -3688,7 +3737,7 @@ Begin
   Begin
     Result := GraphicsManager.Instance.Height;
   End;}
-  Result := GraphicsManager.Instance.UIViewport.Height;
+  Result := Self.Viewport.Height;
 End;
 
 {Procedure UIManager.Adjust(Width, Height: Integer);
@@ -3711,7 +3760,7 @@ End;
 Class Function UIManager.Instance: UIManager;
 Begin
   If (_UIManager_Instance = Nil) Then
-    _UIManager_Instance := InitializeApplicationComponent(UIManager, TweenManager);
+    _UIManager_Instance := InitializeApplicationComponent(UIManager, Nil);
 
   Result := UIManager(_UIManager_Instance.Instance);
 End;
@@ -3724,7 +3773,12 @@ Begin
     _UIList[I].UpdateLanguage();
 End;
 
-Procedure UIManager.Render;
+Procedure UIManager.Resume;
+Begin
+  _UpdateTextureAtlas := True;
+End;
+
+Procedure UIManager.RenderUIs();
 Var
   I:Integer;
 Begin
@@ -3757,7 +3811,7 @@ Procedure UIManager.OnOrientationChange;
 Var
   I:Integer;
 Begin
-  If (GraphicsManager.Instance.UIViewport = Nil) Then
+  If (Viewport = Nil) Then
     Exit;
 
   UpdateRatio();
@@ -3773,7 +3827,7 @@ Begin
     _Ratio := 1.0;
 End;
 
-Function UIManager.GetUI(Index: Integer): UI;
+Function UIManager.GetUI(Index: Integer):TERRAUI;
 Begin
   If (Index<0) Or (Index>=Count) Then
     Result := Nil
@@ -3795,6 +3849,24 @@ Begin
     _FontRenderer := TERRA_FontRenderer.FontRenderer.Create();
 
   Result := _FontRenderer;
+End;
+
+Procedure UIManager.OnAppResize;
+Var
+  UIW, UIH:Integer;
+Begin
+  UIW := GraphicsManager.Instance.UI_Width;
+  UIH := GraphicsManager.Instance.UI_Height;
+  If (_Viewport.Width<>UIW) Or (_Viewport.Height<>UIH) Then
+    _Viewport.Resize(UIW, UIH);
+End;
+
+Function UIManager.CreateProperty(Owner:TERRAObject; const KeyName, ObjectType: TERRAString): TERRAObject;
+Begin
+  If (StringEquals(ObjectType, 'UI')) Then
+    Result := TERRAUI.Create()
+  Else
+    Result := Nil;
 End;
 
 End.

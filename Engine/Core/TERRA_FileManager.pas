@@ -27,7 +27,7 @@ Unit TERRA_FileManager;
 
 Interface
 Uses {$IFDEF USEDEBUGUNIT}TERRA_Debug,{$ENDIF}
-    TERRA_String, TERRA_Utils, TERRA_Resource, TERRA_Collections, TERRA_Stream, TERRA_FileStream,
+    TERRA_Object, TERRA_String, TERRA_Utils, TERRA_Resource, TERRA_Collections, TERRA_Stream, TERRA_FileStream,
     TERRA_Application, TERRA_Hashmap, TERRA_Package;
 
 Type
@@ -36,7 +36,7 @@ Type
     Function HasStream(Const Name:TERRAString):Boolean; Virtual; Abstract;
   End;
 
-  FileLocation = Class(HashMapObject)
+  FileLocation = Class(CollectionObject)
     Public
       Path:TERRAString;
 
@@ -110,7 +110,7 @@ End;
 
 Function SearchFileLocation(P:CollectionObject; UserData:Pointer):Boolean; CDecl;
 Begin
-  Result := (FileLocation(P).Key = PString(Userdata)^);
+  Result := (FileLocation(P).Name = PString(Userdata)^);
 End;
 
 { FileManager }
@@ -558,13 +558,13 @@ End;
 { FileLocation }
 Constructor FileLocation.Create(Const Name, Path:TERRAString);
 Begin
-  Self._Key := StringLower(GetFileName(Name, False));
+  Self.Name := StringLower(GetFileName(Name, False));
   Self.Path := Path;
 End;
 
 Procedure FileLocation.CopyValue(Other: CollectionObject);
 Begin
-  Self._Key := FileLocation(Other).Key;
+  Self.Name := FileLocation(Other).Name;
   Self.Path := FileLocation(Other).Path;
 End;
 

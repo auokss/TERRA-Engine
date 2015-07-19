@@ -26,7 +26,7 @@ Unit TERRA_MIDI;
 {$I terra.inc}
 
 Interface
-Uses TERRA_String, TERRA_Utils, TERRA_Stream, TERRA_OS, TERRA_Application, TERRA_MusicTrack;
+Uses TERRA_Object, TERRA_String, TERRA_Utils, TERRA_Stream, TERRA_OS, TERRA_Application, TERRA_MusicTrack;
 
 Type
   ChunkType = (MIDI_illegal, MIDI_header, MIDI_track);

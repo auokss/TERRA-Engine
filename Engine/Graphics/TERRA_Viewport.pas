@@ -26,7 +26,7 @@ Unit TERRA_Viewport;
 
 Interface
 Uses {$IFDEF USEDEBUGUNIT}TERRA_Debug,{$ENDIF}
-  TERRA_String, TERRA_Utils, TERRA_Camera, TERRA_Renderer, TERRA_Downsampler, TERRA_Resource,
+  TERRA_String, TERRA_Object, TERRA_Utils, TERRA_Camera, TERRA_Renderer, TERRA_Resource,
   TERRA_Ray, TERRA_Vector3D, TERRA_Matrix4x4, TERRA_Color, TERRA_Texture
   {$IFDEF POSTPROCESSING},TERRA_ScreenFX{$ENDIF};
 
@@ -35,7 +35,41 @@ Const
   vpPositionY   = 2;
 
 Type
-  Viewport = Class(TERRAObject)
+  TERRAViewport = Class;
+
+  RenderTargetSampler = Class(TERRAObject)
+    Protected
+      _Name:TERRAString;
+
+	    _Targets:Array Of RenderTargetInterface;
+      _Textures:Array Of TERRATexture;
+      _TargetCount:Integer;
+
+      _ResultIndex:Integer;
+
+    	Procedure Init(Width, Height:Integer; PixelSize:PixelSizeType); Virtual; Abstract;
+
+    	// Free memory
+	    Procedure Clear();
+
+    Public
+	    Constructor Create(Const Name:TERRAString; Width, Height:Integer; PixelSize:PixelSizeType);
+
+	    Procedure Release; Override;
+
+	    Procedure Update(View:TERRAViewport; Source:TERRATexture; DownsamplerShader:ShaderInterface; First, Count:Integer); Virtual; Abstract;
+
+	    // Number of render texture used
+      Property TextureCount:Integer Read _TargetCount;
+
+      // Get a downsampled render texture
+      Function GetRenderTexture(Index:Integer):TERRATexture;
+
+      Function GetResult():TERRATexture;
+  End;
+
+
+  TERRAViewport = Class(TERRAObject)
     Protected
       _Name:TERRAString;
       _Visible:Boolean;
@@ -51,7 +85,7 @@ Type
 
       _BackgroundColor:Color;
 
-      _Target:Viewport;
+      _Target:TERRAViewport;
       _TargetX1:Single;
       _TargetX2:Single;
       _TargetY1:Single;
@@ -63,13 +97,11 @@ Type
       _ViewHeight:Integer;
 
       _ResolveBuffer:RenderTargetInterface;
-      _ResolveTexture:Texture;
+      _ResolveTexture:TERRATexture;
 
       _RenderBuffers:Array[0..Pred(TotalCaptureTargets)] Of RenderTargetInterface;
-      _RenderTextures:Array[0..Pred(TotalCaptureTargets)] Of Texture;
+      _RenderTextures:Array[0..Pred(TotalCaptureTargets)] Of TERRATexture;
       _RenderSamplers:Array[0..Pred(TotalCaptureTargets)] Of RenderTargetSampler;
-
-      _DrawSky:Boolean;
 
       _VR:Boolean;
       _CurrentSubView:Integer;
@@ -86,7 +118,7 @@ Type
       Procedure UpdateEffectTargets();
       {$ENDIF}
 
-      Function GetResolveTexture: Texture;
+      Function GetResolveTexture: TERRATexture;
 
     Public
       AutoResolve:Boolean;
@@ -107,16 +139,16 @@ Type
       Function IsDirectDrawing():Boolean;
 
       Function GetRenderTarget(TargetType:RenderTargetType):RenderTargetInterface;
-      Function GetRenderTexture(TargetType:RenderTargetType):Texture;
+      Function GetRenderTexture(TargetType:RenderTargetType):TERRATexture;
 
-      Function ResolveToTexture():Texture;
+      Function ResolveToTexture():TERRATexture;
 
       Procedure SetViewArea(X,Y,Width,Height:Integer);
 
       Procedure SetPostProcessingState(Enabled:Boolean);
 
-      Procedure SetTarget(Target:Viewport; X1,Y1,X2,Y2:Single);
-      Procedure SetTargetInPixels(Target:Viewport; X1,Y1,X2,Y2:Integer);
+      Procedure SetTarget(Target:TERRAViewport; X1,Y1,X2,Y2:Single);
+      Procedure SetTargetInPixels(Target:TERRAViewport; X1,Y1,X2,Y2:Integer);
 
       Function ProjectPoint(Pos:Vector3D):Vector3D;
 
@@ -134,8 +166,6 @@ Type
 
       Property Camera:TERRA_Camera.Camera Read _Camera;
 
-      Property DrawSky:Boolean Read _DrawSky Write _DrawSky;
-
       Property Visible:Boolean Read _Visible Write _Visible;
 
       {$IFDEF POSTPROCESSING}
@@ -151,7 +181,7 @@ Type
       Property OffsetX:Integer Read _OfsX Write _OfsX;
       Property OffsetY:Integer Read _OfsY Write _OfsY;
 
-      Property Target:Viewport Read _Target;
+      Property Target:TERRAViewport Read _Target;
       Property TargetX1:Single Read _TargetX1;
       Property TargetX2:Single Read _TargetX2;
       Property TargetY1:Single Read _TargetY1;
@@ -159,11 +189,11 @@ Type
 
       Property VR:Boolean Read _VR Write _VR;
 
-      Property ResolveTexture:Texture Read GetResolveTexture;
+      Property ResolveTexture:TERRATexture Read GetResolveTexture;
   End;
 
 Implementation
-Uses TERRA_Error, TERRA_GraphicsManager, TERRA_Application, TERRA_Log, TERRA_OS, TERRA_Vector4D, TERRA_ShaderNode, TERRA_ShaderCompiler;
+Uses TERRA_Error, TERRA_GraphicsManager, TERRA_Application, TERRA_Log, TERRA_OS, TERRA_Vector4D, TERRA_ShaderNode, TERRA_Downsampler;
 
 {$IFDEF POSTPROCESSING}
 Var
@@ -177,6 +207,7 @@ Var
   S:TERRAString;
 Procedure Line(S2:TERRAString); Begin S := S + S2 + crLf; End;
 Begin
+  Result := ShaderGroup.Create();
   S := '';
   Line('version { 110 }');
   Line('vertex {');
@@ -187,8 +218,9 @@ Begin
 	Line('  void main()	{');
   Line('    texCoord = terra_UV0;');
   Line('    gl_Position = projectionMatrix * terra_position;}');
-  Line('}');
-  Line('fragment {');
+  Result.XVertexCode := S;
+
+  S := '';
   Line('varying highp vec2 texCoord;');
   Line('uniform highp float dx, dy;');
   Line('uniform sampler2D texture;');
@@ -227,8 +259,8 @@ Begin
   Line('color = color / 16.0;');
   Line('color.a = alpha;');
   Line('gl_FragColor = color;');
-  Line('}}');
-  Result := Nil;
+
+  Result.XFragmentCode := S;
 End;
 
 
@@ -261,9 +293,9 @@ Var
   S:TERRAString;
 Procedure Line(S2:TERRAString); Begin S := S + S2 + crLf; End;
 Begin
+  Result := ShaderGroup.Create();
   S := '';
-  Line('version { 110 }');
-  Line('vertex {');
+
   Line('  uniform mat4 projectionMatrix;');
   Line('  varying highp vec2 texCoord;');
   Line('  attribute highp vec4 terra_position;');
@@ -271,9 +303,9 @@ Begin
 	Line('  void main()	{');
   Line('    texCoord = terra_UV0;');
   Line('    gl_Position = projectionMatrix * terra_position;}');
-  Line('}');
-  Line('fragment {');
+  Result.XVertexCode := S;
 
+  S := '';
   Line('varying highp vec2 texCoord;');
   Line('uniform highp float dx, dy;');
   Line('uniform sampler2D texture;');
@@ -332,8 +364,7 @@ Begin
   Line('gl_FragColor = vec4(pp, pp, pp, 1.0);');
 
   //Line('gl_FragColor = texture2D(texture, texCoord);');
-  Line('}}');
-  Result := Nil;
+  Result.XFragmentCode := S;
 End;
 
 Function GetShader_DistanceField():TERRAString;
@@ -374,12 +405,63 @@ Begin
   Line('}}');
   Result := S;
 End;
-                                    
-Constructor Viewport.Create(Name:TERRAString; Width,Height:Integer; Scale:Single);
+
+{ RenderTargetSampler }
+Constructor RenderTargetSampler.Create(Const Name:TERRAString; Width, Height:Integer; PixelSize:PixelSizeType);
+Begin
+  Self._Name := Name;
+  Self.Init(Width, Height, PixelSize); // {$IFDEF FRAMEBUFFEROBJECTS}FBO_COLOR8{$ELSE}0{$ENDIF}); BIBI
+End;
+
+Function RenderTargetSampler.GetRenderTexture(Index:Integer):TERRATexture;
+Begin
+  If (Index<0) Or (Index>=_TargetCount) Then
+    Result := Nil
+  Else
+  Begin
+    If (_Textures[Index] = Nil) Then
+    Begin
+      _Textures[Index] := TERRATexture.Create(rtDynamic, Self._Name + '_rt'+IntToString(Index));
+      _Textures[Index].InitFromSurface(_Targets[Index]);
+      _Textures[Index].WrapMode := wrapNothing;
+    End;
+
+    Result := _Textures[Index];
+  End;
+End;
+
+Procedure RenderTargetSampler.Release();
+Begin
+  Self.Clear();
+End;
+
+
+Procedure RenderTargetSampler.Clear();
+Var
+  I:Integer;
+Begin
+  For I:=0 To Pred(_TargetCount) Do
+  Begin
+    ReleaseObject(_Textures[I]);
+    ReleaseObject(_Targets[I]);
+  End;
+
+  _TargetCount := 0;
+  SetLength(_Targets, 0);
+  SetLength(_Textures, 0);
+End;
+
+Function RenderTargetSampler.GetResult: TERRATexture;
+Begin
+  Result := Self.GetRenderTexture(_ResultIndex);
+End;
+
+
+{ TERRAViewport }
+Constructor TERRAViewport.Create(Name:TERRAString; Width,Height:Integer; Scale:Single);
 Begin
   _Name := Name;
   _Visible := True;
-  _DrawSky := False;
 
   _Width := Width;
   _Height := Height;
@@ -398,7 +480,7 @@ Begin
 End;
 
 
-Procedure Viewport.Resize(Width, Height:Integer);
+Procedure TERRAViewport.Resize(Width, Height:Integer);
 Begin
   Self._Width := Width;
   Self._Height := Height;
@@ -409,7 +491,7 @@ Begin
     Camera.Refresh();
 End;
 
-Procedure Viewport.Restore(Clear:Boolean);
+Procedure TERRAViewport.Restore(Clear:Boolean);
 Begin
   Self.SetViewArea(_OfsX, _OfsY, _Width, _Height);
 
@@ -417,7 +499,7 @@ Begin
     Self.Clear();
 End;
 
-Procedure Viewport.Release;
+Procedure TERRAViewport.Release;
 Var
   I:Integer;
 Begin
@@ -441,7 +523,7 @@ Begin
   {$ENDIF}
 End;
 
-Function Viewport.ProjectPoint(Pos:Vector3D):Vector3D;
+Function TERRAViewport.ProjectPoint(Pos:Vector3D):Vector3D;
 Var
   modelview:Matrix4x4;
   temp:Array[0..7] Of Single;
@@ -495,7 +577,7 @@ Begin
 End;
 
 
-Function Viewport.UnprojectVector(WX,WY,WZ:Single):Vector3D;
+Function TERRAViewport.UnprojectVector(WX,WY,WZ:Single):Vector3D;
 Var
   M:Matrix4x4;
   P:Vector4D;
@@ -522,7 +604,7 @@ Begin
   Result := VectorCreate(P.X/P.W, P.Y/P.W, P.Z/P.W);
 End;
 
-Function Viewport.GetPickRay(TX, TY:Integer):Ray;
+Function TERRAViewport.GetPickRay(TX, TY:Integer):Ray;
 Var
   N,F:Vector3D;
   Px, Py:Single;
@@ -555,7 +637,7 @@ Begin
 End;
 
 
-Procedure Viewport.Bind(Subview:Integer);
+Procedure TERRAViewport.Bind(Subview:Integer);
 Begin
 	//glMatrixMode(GL_PROJECTION);
 	//glLoadMatrixf(@_ProjectionMatrix);
@@ -567,7 +649,7 @@ Begin
 End;
 
 
-Procedure Viewport.SetRenderTargetState(TargetType:RenderTargetType; Enabled: Boolean);
+Procedure TERRAViewport.SetRenderTargetState(TargetType:RenderTargetType; Enabled: Boolean);
 Var
   TargetValue:Integer;
   Graphics:GraphicsManager;
@@ -624,7 +706,7 @@ Begin
   {$IFDEF DEBUG_CALLSTACK}PopCallStack();{$ENDIF}
 End;
 
-Function Viewport.IsRenderTargetEnabled(TargetType:RenderTargetType):Boolean;
+Function TERRAViewport.IsRenderTargetEnabled(TargetType:RenderTargetType):Boolean;
 Var
   TargetValue:Integer;
 Begin
@@ -639,7 +721,7 @@ Begin
     Result := Assigned(_RenderSamplers[TargetValue]);
 End;
 
-Function Viewport.GetRenderTarget(TargetType:RenderTargetType):RenderTargetInterface;
+Function TERRAViewport.GetRenderTarget(TargetType:RenderTargetType):RenderTargetInterface;
 Var
   TargetValue:Integer;
 Begin
@@ -659,7 +741,7 @@ Begin
   End;
 End;
 
-Function Viewport.GetRenderTexture(TargetType:RenderTargetType):Texture;
+Function TERRAViewport.GetRenderTexture(TargetType:RenderTargetType):TERRATexture;
 Var
   TargetValue:Integer;
 Begin
@@ -674,7 +756,7 @@ Begin
 
     If _RenderTextures[TargetValue] = Nil Then
     Begin
-      _RenderTextures[TargetValue] := Texture.Create(rtDynamic, _Name+'_rt'+IntToString(TargetValue));
+      _RenderTextures[TargetValue] := TERRATexture.Create(rtDynamic, _Name+'_rt'+IntToString(TargetValue));
       _RenderTextures[TargetValue].InitFromSurface(Self.GetRenderTarget(TargetType));
     End;
 
@@ -682,9 +764,9 @@ Begin
   End;
 End;
 
-Function Viewport.ResolveToTexture():Texture;
+Function TERRAViewport.ResolveToTexture():TERRATexture;
 Var
-  TempTarget:Viewport;
+  TempTarget:TERRAViewport;
 Begin
   If (Not GraphicsManager.Instance.Renderer.Settings.PostProcessing.Enabled) Then
   Begin
@@ -700,7 +782,7 @@ Begin
 
   If _ResolveTexture = Nil Then
   Begin
-    _ResolveTexture := Texture.Create(rtDynamic, _Name+'_resolve');
+    _ResolveTexture := TERRATexture.Create(rtDynamic, _Name+'_resolve');
     _ResolveTexture.InitFromSurface(_ResolveBuffer);
   End;
 
@@ -719,6 +801,7 @@ Begin
 	{$ENDIF}
 
   _ResolveBuffer.BackgroundColor := ColorNull;
+  Self.SetViewArea(0, 0, _ResolveBuffer.Width, _ResolveBuffer.Height);
   _ResolveBuffer.BeginCapture();
   Self.DrawToTarget(False);
   _ResolveBuffer.EndCapture();
@@ -730,7 +813,7 @@ Begin
   Result := _ResolveTexture;
 End;
 
-Procedure Viewport.DrawToTarget(ProcessEffects:Boolean);
+Procedure TERRAViewport.DrawToTarget(ProcessEffects:Boolean);
 Var
   MyShader:ShaderInterface;
   I:Integer;
@@ -814,7 +897,7 @@ Begin
   GraphicsManager.Instance.DrawFullscreenQuad(MyShader, _TargetX1, _TargetY1, _TargetX2, _TargetY2);
 End;
 
-(*Procedure Viewport.BindStageTexture(Stage:RenderTargetType; Slot:Integer);
+(*Procedure TERRAViewport.BindStageTexture(Stage:RenderTargetType; Slot:Integer);
 Begin
 {$IFDEF POSTPROCESSING}
   If Assigned(_Buffers[Integer(Stage)]) Then
@@ -824,7 +907,7 @@ Begin
   TextureManager.Instance.BlackTexture.Bind(Slot);
 End;*)
 
-Procedure Viewport.SetPostProcessingState(Enabled: Boolean);
+Procedure TERRAViewport.SetPostProcessingState(Enabled: Boolean);
 Begin
   If (Not GraphicsManager.Instance.Renderer.Settings.PostProcessing.Enabled) Then
     Enabled := False;
@@ -840,7 +923,7 @@ Begin
   {$ENDIF}
 End;
 
-Function Viewport.IsDirectDrawing: Boolean;
+Function TERRAViewport.IsDirectDrawing: Boolean;
 Var
   I:Integer;
 Begin
@@ -854,7 +937,7 @@ Begin
   Result := True;
 End;
 
-Procedure Viewport.Clear;
+Procedure TERRAViewport.Clear;
 Var
   UseScissors:Boolean;
   Flags:Integer;
@@ -876,12 +959,12 @@ Begin
     GraphicsManager.Instance.Renderer.SetScissorState(False);
 End;
 
-Procedure Viewport.SetBackgroundColor(BG: Color);
+Procedure TERRAViewport.SetBackgroundColor(BG: Color);
 Begin
   _BackgroundColor := BG;
 End;
 
-Procedure Viewport.EnableDefaultTargets();
+Procedure TERRAViewport.EnableDefaultTargets();
 Begin
   Self.SetRenderTargetState(captureTargetColor, True);
   {$IFDEF ADVANCED_ALPHA_BLEND}
@@ -889,7 +972,7 @@ Begin
   {$ENDIF}
 End;
 
-Procedure Viewport.SetTarget(Target: Viewport; X1, Y1, X2, Y2: Single);
+Procedure TERRAViewport.SetTarget(Target: TERRAViewport; X1, Y1, X2, Y2: Single);
 Begin
   If (Self._Target = Target) Then
     Exit;
@@ -901,7 +984,7 @@ Begin
   Self._TargetY2 := Y2;
 End;
 
-Procedure Viewport.SetTargetInPixels(Target: Viewport; X1, Y1, X2, Y2:Integer);
+Procedure TERRAViewport.SetTargetInPixels(Target: TERRAViewport; X1, Y1, X2, Y2:Integer);
 Begin
   If (Self._Target = Target) Then
     Exit;
@@ -912,7 +995,7 @@ Begin
     SetTarget(Nil, 0.0, 0.0, 1.0, 1.0);
 End;
 
-Procedure Viewport.SetViewArea(X, Y, Width, Height: Integer);
+Procedure TERRAViewport.SetViewArea(X, Y, Width, Height: Integer);
 Begin
   _ViewX := X;
   _ViewY := Y;
@@ -942,7 +1025,7 @@ Begin
 End;
 
 
-Procedure Viewport.OnContextLost;
+Procedure TERRAViewport.OnContextLost;
 Var
   I:Integer;
 Begin
@@ -967,7 +1050,7 @@ Begin
   {$ENDIF}
 End;
 
-Function Viewport.GetResolveTexture: Texture;
+Function TERRAViewport.GetResolveTexture: TERRATexture;
 Var
   ShowID:RenderTargetType;
 Begin
@@ -987,7 +1070,7 @@ Begin
   End;
 End;
 
-Function Viewport.HasPostProcessing: Boolean;
+Function TERRAViewport.HasPostProcessing: Boolean;
 Begin
 {$IFDEF POSTPROCESSING}
   Result := Assigned(_FXChain);
@@ -997,7 +1080,7 @@ Begin
 End;
 
 {$IFDEF POSTPROCESSING}
-Function Viewport.GetFXChain: ScreenFXChain;
+Function TERRAViewport.GetFXChain: ScreenFXChain;
 Begin
   If Not GraphicsManager.Instance.Renderer.Features.PostProcessing.Avaliable Then
   Begin
@@ -1012,7 +1095,7 @@ Begin
   Result := _FXChain;
 End;
 
-Procedure Viewport.UpdateEffectTargets;
+Procedure TERRAViewport.UpdateEffectTargets;
 Var
   Sampler:RenderTargetSampler;
   I, Count:Integer;
@@ -1050,7 +1133,7 @@ Begin
           Count := 4;
         End;
 
-        Sampler.Update(Self.GetRenderTexture(SrcType), _BlurShader, 0, Count);
+        Sampler.Update(Self, Self.GetRenderTexture(SrcType), _BlurShader, 0, Count);
       End;
 
     effectTargetEdge:
@@ -1069,7 +1152,7 @@ Begin
           _DistanceFieldShader.Generate('DistanceField', GetShader_DistanceField());
         End;*)
 
-        Sampler.Update(Self.GetRenderTexture(captureTargetNormal), _EdgeShader, 0, 1);
+        Sampler.Update(Self, Self.GetRenderTexture(captureTargetNormal), _EdgeShader, 0, 1);
         //Sampler.Update(Sampler.GetResult(), _DistanceFieldShader, 0, 256);
       End;
 

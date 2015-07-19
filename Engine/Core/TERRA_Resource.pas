@@ -25,7 +25,7 @@ Unit TERRA_Resource;
 {$I terra.inc}
 
 Interface
-Uses TERRA_String, TERRA_Collections, TERRA_Hashmap, TERRA_Stream;
+Uses TERRA_String, TERRA_Object, TERRA_Collections, TERRA_Hashmap, TERRA_Stream;
 
 Type
   ResourceStatus = (
@@ -43,7 +43,7 @@ Type
 
   ResourceClass = Class Of Resource;
 
-  Resource = Class(HashMapObject)
+  Resource = Class(CollectionObject)
     Private
       _Status:ResourceStatus;
       _Kind:ResourceType;
@@ -84,7 +84,7 @@ Type
 
       Function ShouldUnload():Boolean;
 
-      Property Name:TERRAString Read _Key;
+      Property Name:TERRAString Read _ObjectName;
       Property Location:TERRAString Read _Location;
       Property Time:Cardinal Read _Time Write _Time;
       Property Status:ResourceStatus Read _Status Write SetStatus;
@@ -109,11 +109,11 @@ Begin
 
   If Kind = rtDynamic Then
   Begin
-    Self._Key := Location;
+    Self._ObjectName := Location;
     Self._Location := '';
   End Else
   Begin
-    Self._Key := GetFileName(Location,True);
+    Self._ObjectName := GetFileName(Location,True);
     Self._Location := Location;
   End;
 

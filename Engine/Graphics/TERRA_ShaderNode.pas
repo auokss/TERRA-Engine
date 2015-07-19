@@ -3,7 +3,7 @@ Unit TERRA_ShaderNode;
 {$I terra.inc}
 
 Interface
-Uses TERRA_Utils, TERRA_String, TERRA_ShaderCompiler, TERRA_VertexFormat,
+Uses TERRA_Utils, TERRA_Object, TERRA_String, TERRA_ShaderCompiler, TERRA_VertexFormat,
   TERRA_Vector2D, TERRA_Vector3D, TERRA_Vector4D, TERRA_Matrix3x3, TERRA_Matrix4x4;
 
 
