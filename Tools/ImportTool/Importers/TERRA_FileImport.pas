@@ -210,7 +210,7 @@ Var
   Source, Dest:Stream;
   INI:INIParser;
   Filter:MeshFilter;
-  MyMesh:Mesh;
+  MyMesh:TERRAMesh;
   ImgInfo:ImageClassInfo;
 Begin
   SourceFile := StringLower(SourceFile);
@@ -407,7 +407,7 @@ Begin
   Filter := CreateMeshFilter(SourceFile);
   If Assigned(Filter) Then
   Begin
-    MyMesh := Mesh.CreateFromFilter(Filter);
+    MyMesh := TERRAMesh.CreateFromFilter(Filter);
     MakeDir(TargetDir);
     Result := TargetDir + PathSeparator + GetFileName(SourceFile, True)+'.mesh';
     Dest := FileStream.Create(Result);

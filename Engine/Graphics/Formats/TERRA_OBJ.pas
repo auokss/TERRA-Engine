@@ -26,7 +26,7 @@ Unit TERRA_OBJ;
 
 {$I terra.inc}
 Interface
-Uses TERRA_String, TERRA_Utils, TERRA_Stream, TERRA_Color, TERRA_Vector3D, TERRA_Vector2D, TERRA_Texture,
+Uses TERRA_String, TERRA_Object, TERRA_Utils, TERRA_Stream, TERRA_Color, TERRA_Vector3D, TERRA_Vector2D, TERRA_Texture,
   TERRA_Math, TERRA_Mesh, TERRA_Resource, TERRA_MeshFilter, TERRA_OS, TERRA_FileUtils,
   TERRA_FileManager, TERRA_FileStream, TERRA_MemoryStream, TERRA_Renderer, TERRA_VertexFormat;
 

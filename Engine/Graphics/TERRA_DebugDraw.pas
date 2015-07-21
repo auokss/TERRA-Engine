@@ -280,12 +280,16 @@ End;
 Procedure DrawBone(View:TERRAViewport; Bone:MeshBone; State:AnimationState; Const Transform:Matrix4x4; LineColor:Color; LineWidth:Single);
 Var
   A,B:Vector3D;
+  M:Matrix4x4;
 Begin
   If (Bone = Nil) Or (Bone.Parent = Nil) Then
     Exit;
 
-  A := State.Transforms[Bone.Index+1].Transform(VectorZero);
-  B := State.Transforms[Bone.Parent.Index+1].Transform(VectorZero);
+  M := Matrix4x4Multiply4x3(Transform, Matrix4x4Multiply4x3(State.Transforms[Bone.Index+1], Matrix4x4Inverse(Bone.AbsoluteMatrix)));
+  A := M.Transform(VectorZero);
+
+  M := Matrix4x4Multiply4x3(Transform, Matrix4x4Multiply4x3(State.Transforms[Bone.Parent.Index+1], Matrix4x4Inverse(Bone.Parent.AbsoluteMatrix)));
+  B := M.Transform(VectorZero);
 
   DrawLine3D(View, A, B, LineColor, LineWidth);
 End;
@@ -297,7 +301,7 @@ Begin
   If (Skeleton = Nil) Then
     Exit;
 
-  For I:=0 To Pred(Skeleton.BoneCount) Do
+  For I:=1 To Pred(Skeleton.BoneCount) Do
     DrawBone(View, Skeleton.GetBone(I), State, Transform, LineColor, LineWidth);
 End;
 

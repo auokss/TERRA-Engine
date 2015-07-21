@@ -27,7 +27,7 @@ Unit TERRA_GIF;
 {$I terra.inc}
 
 Interface
-Uses TERRA_Error, TERRA_Utils, TERRA_Application, TERRA_Stream, TERRA_Image, TERRA_Math, TERRA_Color;
+Uses TERRA_Error, TERRA_Utils, TERRA_Object, TERRA_Application, TERRA_Stream, TERRA_Image, TERRA_Math, TERRA_Color;
 
 Implementation
 

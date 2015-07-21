@@ -26,7 +26,7 @@ Unit TERRA_Collada;
 {$I terra.inc}
 
 Interface
-Uses TERRA_String, TERRA_Utils, TERRA_OS, TERRA_Stream, TERRA_XML, TERRA_Math, TERRA_Vector3D,
+Uses TERRA_String, TERRA_Utils, TERRA_Object, TERRA_ObjectTree, TERRA_OS, TERRA_Stream, TERRA_XML, TERRA_Math, TERRA_Vector3D,
   TERRA_Vector2D, TERRA_Log, TERRA_Color, TERRA_MeshFilter, TERRA_FileUtils,
   TERRA_FileStream, TERRA_VertexFormat;
 
@@ -106,13 +106,13 @@ Type
       _Materials:Array Of ColladaMaterial;
       _MaterialCount:Integer;
 
-      Procedure LoadImages(Node:XMLNode);
-      Procedure LoadGeometry(Node:XMLNode);
-      Procedure LoadMaterials(Node, Node2:XMLNode);
+      Procedure LoadImages(Node:TERRAObjectNode);
+      Procedure LoadGeometry(Node:TERRAObjectNode);
+      Procedure LoadMaterials(Node, Node2:TERRAObjectNode);
 
       Function GetMaterial(MatName:AnsiString):PColladaMaterial;
       Function GetImage(ID:AnsiString):PColladaImage;
-      Procedure AddGroup(Node:XMLNode);
+      Procedure AddGroup(Node:TERRAObjectNode);
 
     Public
       Function Load(Source:Stream):Boolean; Override;
@@ -143,7 +143,7 @@ Type
 
 Implementation
 
-Procedure PrintXML(X:XMLNode; Level:Integer = 0);
+Procedure PrintXML(X:TERRAObjectNode; Level:Integer = 0);
 Var
   I:Integer;
 Begin
@@ -156,17 +156,17 @@ Begin
   WriteLn(X.Name);
 
   // print all children
-  For I:=0 To Pred(X.NodeCount) Do
-    PrintXML(X.GetNodeByIndex(I), Succ(Level));
+  For I:=0 To Pred(X.ChildCount) Do
+    PrintXML(X.GetChildByIndex(I), Succ(Level));
 End;
 
 { ModelCollada }
-Procedure ModelCollada.AddGroup(Node:XMLNode);
+Procedure ModelCollada.AddGroup(Node:TERRAObjectNode);
 Var
   Tag, S, S2:AnsiString;
   I, J, N, K:Integer;
   O1, O2, O3, O4:Integer;
-  Child, FA, P, P2:XMLNode;
+  Child, FA, P, P2:TERRAObjectNode;
   Group:^ColladaGroup;
   Sources:Array Of ColladaSource;
   SourceCount:Integer;
@@ -229,39 +229,39 @@ Begin
   SetLength(_Groups, _GroupCount);
   Group := @(_Groups[Pred(_GroupCount)]);
   Group.VertexCount := 0;
-  P := Node.GetNodeByName('name');
+  P := Node.GetChildByName('name');
   If Assigned(P) Then
     Group.Name := P.Value
   Else
     Group.Name := 'Group'+IntToString(_GroupCount);
 
-  Node := Node.GetNodeByName('mesh');
+  Node := Node.GetChildByName('mesh');
   If Not Assigned(Node) Then
     Exit;
 
   SourceCount := 0;
-  For I:=0 To Pred(Node.NodeCount) Do
+  For I:=0 To Pred(Node.ChildCount) Do
   Begin
-    Child := Node.GetNodeByIndex(I);
+    Child := Node.GetChildByIndex(I);
     If Child.Name = 'source' Then
     Begin
-      P := Child.GetNodeByName('id');
+      P := Child.GetChildByName('id');
       If Not Assigned(P) Then
         Continue;
 
       Inc(SourceCount);
       SetLength(Sources, SourceCount);
       Sources[Pred(SourceCount)].ID := P.Value;
-      FA := Child.GetNodeByName('float_array');
+      FA := Child.GetChildByName('float_array');
 
-      P := Child.GetNodeByName('technique_common');
-      P := P.GetNodeByName('accessor');
+      P := Child.GetChildByName('technique_common');
+      P := P.GetChildByName('accessor');
       P2 := P;
 
-      P := P2.GetNodeByName('count');
+      P := P2.GetChildByName('count');
       Sources[Pred(SourceCount)].Count := StringToInt(P.Value);
 
-      P := P2.GetNodeByName('stride');
+      P := P2.GetChildByName('stride');
       Sources[Pred(SourceCount)].Stride := StringToInt(P.Value);
 
       SetLength(Sources[Pred(SourceCount)].Values, Sources[Pred(SourceCount)].Count);
@@ -291,10 +291,10 @@ Begin
     If (Child.Name = 'vertices') Then
     Begin
       Ok := False;
-      P := Child.GetNodeByName('input');
+      P := Child.GetChildByName('input');
       If Assigned(P) Then
       Begin
-        P := P.GetNodeByName('source');
+        P := P.GetChildByName('source');
         If Assigned(P) Then
         Begin
           SrcVtx := GetSource(P.Value);
@@ -307,34 +307,34 @@ Begin
     End Else
     If (Child.Name = 'triangles') Then
     Begin
-      P := Child.GetNodeByName('count');
+      P := Child.GetChildByName('count');
       Group.TriangleCount := StringToInt(P.Value);
       SetLength(Group.Triangles, Group.TriangleCount);
 
-      P := Child.GetNodeByName('material');
+      P := Child.GetChildByName('material');
       If Assigned(P) Then
         Group.Material := GetMaterial(P.Value);
 
       SrcNormal := Nil;
       SrcUV1 := Nil;
       SrcUV2 := Nil;
-      For J:=0 To Pred(Child.NodeCount) Do
+      For J:=0 To Pred(Child.ChildCount) Do
       Begin
-        P := Child.GetNodeByIndex(J);
+        P := Child.GetChildByIndex(J);
         If (P.Name='input') Then
         Begin
-          FA := P.GetNodeByName('semantic');
+          FA := P.GetChildByName('semantic');
           S := FA.Value;
 
           If (S='NORMAL') Then
           Begin
-            FA := P.GetNodeByName('source');
+            FA := P.GetChildByName('source');
             SrcNormal := GetSource(FA.Value);
           End;
 
           If (S='TEXCOORD') Then
           Begin
-            FA := P.GetNodeByName('source');
+            FA := P.GetChildByName('source');
             SrcUV1 := GetSource(FA.Value);
           End;
         End Else
@@ -419,9 +419,9 @@ Begin
   Result := Nil;
 End;
 
-Procedure ModelCollada.LoadMaterials(Node, Node2:XMLNode);
+Procedure ModelCollada.LoadMaterials(Node, Node2:TERRAObjectNode);
 Var
-  Child, P, P2:XMLNode;
+  Child, P, P2:TERRAObjectNode;
   I,J,K, N:Integer;
   S, ID:AnsiString;
   Mat:PColladaMaterial;
@@ -449,18 +449,18 @@ Var
     Result.A := Trunc(StringToFloat(S2) * 255);
   End;
 
-  Function SearchEffect(ID:AnsiString):XMLNode;
+  Function SearchEffect(ID:AnsiString):TERRAObjectNode;
   Var
     I:Integer;
-    P, Child:XMLNode;
+    P, Child:TERRAObjectNode;
   Begin
     If (ID[1]='#') Then
       ID := Copy(ID, 2, MaxInt);
 
-    For I:=0 To Pred(Node2.NodeCount) Do
+    For I:=0 To Pred(Node2.ChildCount) Do
     Begin
-      Child := Node2.GetNodeByIndex(I);
-      P := Child.GetNodeByName('id');
+      Child := Node2.GetChildByIndex(I);
+      P := Child.GetChildByName('id');
       If P = Nil Then
         Continue;
 
@@ -503,16 +503,16 @@ Begin
   SamplerCount := 0;
   SurfaceCount := 0;
 
-  For I:=0 To Pred(Node.NodeCount) Do
+  For I:=0 To Pred(Node.ChildCount) Do
   Begin
-    Child := Node.GetNodeByIndex(I);
+    Child := Node.GetChildByIndex(I);
     Inc(_MaterialCount);
     SetLength(_Materials, _MaterialCount);
-    P := Child.GetNodeByName('id');
+    P := Child.GetChildByName('id');
     Mat := @_Materials[Pred(_MaterialCount)];
     Mat.ID := P.Value;
-    P := Child.GetNodeByName('instance_effect');
-    P := P.GetNodeByName('url');
+    P := Child.GetChildByName('instance_effect');
+    P := P.GetChildByName('url');
     S := P.Value;
 
     Child := SearchEffect(S);
@@ -522,70 +522,70 @@ Begin
       Continue;
     End;
 
-    Child := Child.GetNodeByName('profile_COMMON');
+    Child := Child.GetChildByName('profile_COMMON');
     If Assigned(Child) Then
-    For J:=0 To Pred(Child.NodeCount) Do
+    For J:=0 To Pred(Child.ChildCount) Do
     Begin
-      P := Child.GetNodeByIndex(J);
+      P := Child.GetChildByIndex(J);
       If (P.Name = 'newparam') Then
       Begin
         P2 := P;
 
-        P := P2.GetNodeByName('sid');
+        P := P2.GetChildByName('sid');
         ID := P.Value;
 
-        P := P2.GetNodeByName('surface');
+        P := P2.GetChildByName('surface');
         If Assigned(P) Then
         Begin
           Inc(SurfaceCount);
           SetLength(Surfaces, SurfaceCount);
           Surfaces[Pred(SurfaceCount)].ID := ID;
-          P := P.GetNodeByName('init_from');
+          P := P.GetChildByName('init_from');
           If Assigned(P) Then
             Surfaces[Pred(SurfaceCount)].Image := P.Value;
         End;
 
-        P := P2.GetNodeByName('sampler2D');
+        P := P2.GetChildByName('sampler2D');
         If Assigned(P) Then
         Begin
           Inc(SamplerCount);
           SetLength(Samplers, SamplerCount);
           Samplers[Pred(SamplerCount)].ID := ID;
           
-          P := P.GetNodeByName('source');
+          P := P.GetChildByName('source');
           If Assigned(P) Then
             Samplers[Pred(SamplerCount)].Surface := P.Value;
         End;
       End Else
       If (P.Name = 'technique') Then
       Begin
-        P2 := P.GetNodeByName('blinn');
+        P2 := P.GetChildByName('blinn');
         If P2=Nil Then
-          P2 := P.GetNodeByName('phong');
+          P2 := P.GetChildByName('phong');
         If P2<>Nil Then
         Begin
-          For K:=0 To Pred(P2.NodeCount) Do
+          For K:=0 To Pred(P2.ChildCount) Do
           Begin
-            P := P2.GetNodeByIndex(K);
+            P := P2.GetChildByIndex(K);
             If (P.Name = 'emission') Then
             Begin
-              P := P.GetNodeByName('color');
+              P := P.GetChildByName('color');
               Mat.Emission := ReadColor(P.Value);
             End Else
             If (P.Name = 'specular') Then
             Begin
-              P := P.GetNodeByName('color');
+              P := P.GetChildByName('color');
               Mat.Specular := ReadColor(P.Value);
             End Else
             If (P.Name = 'shininess') Then
             Begin
-              P := P.GetNodeByName('float');
+              P := P.GetChildByName('float');
               Mat.Shininess := StringToFloat(P.Value);
             End Else
             If (P.Name = 'diffuse') Then
             Begin
-              P := P.GetNodeByName('texture');
-              P := P.GetNodeByName('texture');
+              P := P.GetChildByName('texture');
+              P := P.GetChildByName('texture');
               Mat.DiffuseMap := GetTexture(P.Value);
             End Else
               Log(logWarning, 'Collada', 'Material attribute ignored: '+P.Name);
@@ -600,25 +600,25 @@ Begin
   End;
 End;
 
-Procedure ModelCollada.LoadGeometry(Node:XMLNode);
+Procedure ModelCollada.LoadGeometry(Node:TERRAObjectNode);
 Var
   I:Integer;
-  Child:XMLNode;
+  Child:TERRAObjectNode;
 Begin
   If Node = Nil Then
     Exit;
 
-  For I:=0 To Pred(Node.NodeCount) Do
+  For I:=0 To Pred(Node.ChildCount) Do
   Begin
-    Child := Node.GetNodeByIndex(I);
+    Child := Node.GetChildByIndex(I);
     If Child.Name = 'geometry' Then
       Self.AddGroup(Child);
   End;
 End;
 
-Procedure ModelCollada.LoadImages(Node: XMLNode);
+Procedure ModelCollada.LoadImages(Node: TERRAObjectNode);
 Var
-  P:XMLNode;
+  P:TERRAObjectNode;
   I:Integer;
   S:AnsiString;
 Begin
@@ -627,16 +627,16 @@ Begin
   If (Node = Nil) Then
     Exit;
 
-  For I:=0 To Pred(Node.NodeCount) Do
+  For I:=0 To Pred(Node.ChildCount) Do
   Begin
-    P := Node.GetNodeByIndex(I);
+    P := Node.GetChildByIndex(I);
     If (P.Name<>'image') Then
       Continue;
 
     Inc(_ImageCount);
     SetLength(_Images, _ImageCount);
-    _Images[Pred(_ImageCount)].Id := P.GetNodeByName('id').Value;
-    S := P.GetNodeByName('init_from').Value;
+    _Images[Pred(_ImageCount)].Id := P.GetChildByName('id').Value;
+    S := P.GetChildByName('init_from').Value;
     S := GetOSIndependentFileName(S);
     S := GetFileName(S, False);
     _Images[Pred(_ImageCount)].Path := S;
@@ -646,25 +646,25 @@ End;
 Function ModelCollada.Load(Source: Stream): Boolean;
 Var
   S:AnsiString;
-  Collada:XMLDocument;
-  Node, Node2:XMLNode;
+  Collada:TERRAObjectNode;
+  Node, Node2:TERRAObjectNode;
 Begin
 	 Result := True;
-  Collada := XMLDocument.Create;
-  Collada.Load(Source);
+  Collada := XMLNode.Create;
+  Collada.LoadFromStream(Source);
   S := '';
 //  S := Self.GetTag(Source);
   Result := S ='';
   PrintXML(Collada.Root, 0);
 
-  Node := Collada.Root.GetNodeByName('library_images');
+  Node := Collada.Root.GetChildByName('library_images');
   LoadImages(Node);
 
-  Node := Collada.Root.GetNodeByName('library_materials');
-  Node2 := Collada.Root.GetNodeByName('library_effects');
+  Node := Collada.Root.GetChildByName('library_materials');
+  Node2 := Collada.Root.GetChildByName('library_effects');
   LoadMaterials(Node, Node2);
 
-  Node := Collada.Root.GetNodeByName('library_geometries');
+  Node := Collada.Root.GetChildByName('library_geometries');
   LoadGeometry(Node);
 
   ReleaseObject(Collada);

@@ -477,10 +477,14 @@ Var
 Begin
   Result := QuaternionConjugate(Q);
   N := QuaternionNorm(Result);
-  Result.X := Result.X/N;
-  Result.Y := Result.Y/N;
-  Result.Z := Result.Z/N;
-  Result.W := Result.W/N;
+
+  If (N<>0) Then
+  Begin
+    Result.X := Result.X/N;
+    Result.Y := Result.Y/N;
+    Result.Z := Result.Z/N;
+    Result.W := Result.W/N;
+  End;
 End;
 
 {$IFDEF SSE}

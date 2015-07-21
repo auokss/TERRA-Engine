@@ -26,7 +26,7 @@ Unit TERRA_SMDImport;
 {$I terra.inc}
 
 Interface
-Uses TERRA_Application, TERRA_SMD, TERRA_MeshAnimation, TERRA_Utils, TERRA_OS;
+Uses TERRA_Application, TERRA_Object, TERRA_SMD, TERRA_MeshAnimation, TERRA_Utils, TERRA_OS;
 
 implementation
 
@@ -128,7 +128,7 @@ Var
   S:AnsiString;
   SMDAnim:SMDAnimation;
   Filter:MeshFilter;
-  MyMesh:Mesh;
+  MyMesh:TERRAMesh;
   Anim:Animation;
   TargetName:AnsiString;
   StartFrame, EndFrame, LoopFrame:Integer;
@@ -159,7 +159,7 @@ Begin
     Filter := SMDModel.Create;
     Filter.Load(Source);
     //ModelMilkshape3D.Save('output\test.ms3d', Filter);
-    MyMesh := Mesh.CreateFromFilter(Filter);
+    MyMesh := TERRAMesh.CreateFromFilter(Filter);
     Dest := FileStream.Create(Destfile);
     MyMesh.Save(Dest);
     ReleaseObject(Dest);

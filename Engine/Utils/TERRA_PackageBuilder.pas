@@ -40,7 +40,7 @@ Type
     End;
 
 Implementation
-Uses TERRA_Error, TERRA_Utils, TERRA_CRC32, TERRA_Application, TERRA_OS, TERRA_Log, TERRA_ResourceManager,
+Uses TERRA_Object, TERRA_Error, TERRA_Utils, TERRA_CRC32, TERRA_Application, TERRA_OS, TERRA_Log, TERRA_ResourceManager,
   TERRA_FileStream, TERRA_FileManager;
 
 Constructor ResourceBuilderInfo.Create(Const FileName:TERRAString; Owner:Package);

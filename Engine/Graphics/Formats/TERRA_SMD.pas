@@ -26,7 +26,7 @@ Unit TERRA_SMD;
 {$I terra.inc}
 Interface
 Uses {$IFDEF USEDEBUGUNIT}TERRA_Debug,{$ENDIF}
-  TERRA_String, TERRA_Utils, TERRA_Stream, TERRA_Vector3D, TERRA_Matrix4x4, TERRA_Math, TERRA_Color,
+  TERRA_String, TERRA_Object, TERRA_Utils, TERRA_Stream, TERRA_Vector3D, TERRA_Matrix4x4, TERRA_Math, TERRA_Color,
   TERRA_Quaternion, TERRA_Vector2D, TERRA_MeshFilter, TERRA_FileStream, TERRA_FileUtils,
   TERRA_OS, TERRA_MemoryStream, TERRA_Renderer, TERRA_VertexFormat;
 
@@ -146,7 +146,6 @@ Type
       Function GetBoneName(BoneID:Integer):AnsiString; Override;
       Function GetBoneParent(BoneID:Integer):Integer; Override;
       Function GetBonePosition(BoneID:Integer):Vector3D; Override;
-      Function GetBoneRotation(BoneID:Integer):Vector3D; Override;
 
       Function GetAnimationCount():Integer; Override;
       Function GetAnimationName(Index:Integer):AnsiString; Override;
@@ -372,8 +371,6 @@ Var
   I:Integer;
 Begin
 {$IFDEF PC}
-  GraphicsManager.Instance.EnableColorShader(ColorBlue, Transform);
-
 {  GraphicsManager.Instance.Renderer.SetBlendMode(blendNone);
 
   glLineWidth(2);
@@ -565,11 +562,6 @@ Begin
     Result := VectorSubtract(Result, _Animation._Bones[BoneID].Parent.Position);}
 End;
 
-Function SMDModel.GetBoneRotation(BoneID: Integer): Vector3D;
-Begin
-  Result := _Reference._Bones[BoneID].Rotation;
-  //Result := VectorZero;
-End;
 
 Function SMDModel.GetPositionKey(AnimationID, BoneID, Index: Integer): MeshVectorKey;
 Var
@@ -593,7 +585,7 @@ Begin
   Result.Time := _Animation._Frames[Index].Time;}
 	Result.Time := 0.0;
 	Result.Value := VectorZero;
-  Result.Value.Subtract(Self.GetBoneRotation(BoneID));
+//  Result.Value.Subtract(Self.GetBoneRotation(BoneID));
 End;
 
 Function SMDModel.GetRotationKeyCount(AnimationID,BoneID: Integer): Integer;

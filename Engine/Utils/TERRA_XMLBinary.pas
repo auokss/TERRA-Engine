@@ -3,7 +3,7 @@ Unit TERRA_XMLBinary;
 {$I terra.inc}
 
 Interface
-Uses TERRA_String, TERRA_Utils, TERRA_Stream, TERRA_FileStream, TERRA_XML;
+Uses TERRA_String, TERRA_Object, TERRA_ObjectTree, TERRA_Utils, TERRA_Stream, TERRA_FileStream, TERRA_XML;
 
 Const
   XMLBinaryHeader = 'TbXD';
@@ -17,7 +17,7 @@ Type
       Procedure XMLReadNode(Src:Stream; Node:XMLNode);
 
     Public
-      Function Load(SourceFile:TERRAString):XMLDocument;
+      Function Load(SourceFile:TERRAString):XMLNode;
   End;
 
   XMLBinaryWriter = Class(TERRAObject)
@@ -27,13 +27,13 @@ Type
 
       Function GetKey(Const Name:TERRAString):Cardinal;
 
-      Procedure XMLWriteNode(Dest:Stream; Node:XMLNode);
+      Procedure XMLWriteNode(Dest:Stream; Node:TERRAObjectNode);
 
     Public
       Function Convert(SourceFile, DestFile, ConstantFile:TERRAString):Boolean;
   End;
 
-Function XMLLoadBinary(SourceFile:TERRAString):XMLDocument;
+Function XMLLoadBinary(SourceFile:TERRAString):XMLNode;
 Function XMLConvertToBinary(SourceFile, DestFile, ConstantFile:TERRAString):Boolean;
 
 Implementation
@@ -59,13 +59,13 @@ Begin
   For I:=0 To Pred(Count) Do
   Begin
     Child := XMLNode.Create();
-    Node.AddNode(Child);
+    Node.AddChild(Child);
     XMLReadNode(Src, Child);
   End;
 End;
 
 
-Function XMLBinaryReader.Load(SourceFile:TERRAString):XMLDocument;
+Function XMLBinaryReader.Load(SourceFile:TERRAString):XMLNode;
 Var
   Header:FileHeader;
   Dest, Src:Stream;
@@ -82,8 +82,7 @@ Begin
   If Not CompareFileHeader(Header, XMLBinaryHeader) Then
     Exit;
 
-  Result := XMLDocument.Create();
-  Result.Root := XMLNode.Create('');
+  Result := XMLNode.Create();
 
   Src.ReadCardinal(Ofs);
   Temp := Src.Position;
@@ -96,7 +95,7 @@ Begin
 
   Src.Seek(Temp);
 
-  Self.XMLReadNode(Src, Result.Root);
+  Self.XMLReadNode(Src, Result);
   ReleaseObject(Src);
 
   {$IFDEF PC}
@@ -106,7 +105,7 @@ Begin
   {$ENDIF}
 End;
 
-Function XMLLoadBinary(SourceFile:TERRAString):XMLDocument;
+Function XMLLoadBinary(SourceFile:TERRAString):XMLNode;
 Var
   Reader:XMLBinaryReader;
 Begin
@@ -116,7 +115,7 @@ Begin
 End;
 
 { XMLBinaryWriter }
-Function XMLConvertNode(Node:XMLNode; Constants:HashMap):TERRAString;
+Function XMLConvertNode(Node:TERRAObjectNode; Constants:HashMap):TERRAString;
 Var
   It:StringIterator;
   I, J, N, Len:Integer;
@@ -162,9 +161,9 @@ Begin
     J := StringCharPos(Ord('@'), Node.Value);
   End;
 
-  For I:=0 To Pred(Node.NodeCount) Do
+  For I:=0 To Pred(Node.ChildCount) Do
   Begin
-    Result := XMLConvertNode(Node.GetNodeByIndex(I), Constants);
+    Result := XMLConvertNode(Node.GetChildByIndex(I), Constants);
     If Result<>'' Then
       Exit;
   End;
@@ -172,7 +171,7 @@ Begin
   Result := '';
 End;
 
-Procedure XMLBinaryWriter.XMLWriteNode(Dest:Stream; Node:XMLNode);
+Procedure XMLBinaryWriter.XMLWriteNode(Dest:Stream; Node:TERRAObjectNode);
 Var
   Key:Cardinal;
   I:Integer;
@@ -180,9 +179,9 @@ Begin
   Key := Self.GetKey(Node.Name);
   Dest.WriteCardinal(Key);
   Dest.WriteString(Node.Value);
-  Dest.WriteInteger(Node.NodeCount);
-  For I:=0 To Pred(Node.NodeCount) Do
-    XMLWriteNode(Dest, Node.GetNodeByIndex(I));
+  Dest.WriteInteger(Node.ChildCount);
+  For I:=0 To Pred(Node.ChildCount) Do
+    XMLWriteNode(Dest, Node.GetChildByIndex(I));
 End;
 
 Function XMLBinaryWriter.GetKey(const Name: TERRAString): Cardinal;
@@ -207,7 +206,7 @@ Function XMLBinaryWriter.Convert(SourceFile, DestFile, ConstantFile: TERRAString
 Var
   I:Integer;
   Ofs:Cardinal;
-  Doc:XMLDocument;
+  Doc:TERRAObjectNode;
   Dest:Stream;
   Constants:HashMap;
   ErrorStr:TERRAString;
@@ -215,7 +214,7 @@ Begin
   SetLength(_Keys, 0);
   _KeyCount := 0;
 
-  Doc := XMLDocument.Create;
+  Doc := XMLNode.Create;
   Doc.LoadFromFile(SourceFile);
 
   Constants := LoadKeypairList(ConstantFile);

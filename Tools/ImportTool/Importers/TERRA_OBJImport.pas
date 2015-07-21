@@ -41,7 +41,7 @@ Var
   Src, Dest:Stream;
   Obj1, Obj2:OBJModel;
   G:MeshGroup;
-  MyMesh:Mesh;
+  MyMesh:TERRAMesh;
 Begin
 	Result := '';
   If Pos('_lmap', SourceFile)>0 Then
@@ -68,7 +68,7 @@ Begin
     Obj2 := Nil;
 
   Log(logConsole, 'Import', 'Converting mesh...');
-  MyMesh := Mesh.CreateFromFilter(Obj1);
+  MyMesh := TERRAMesh.CreateFromFilter(Obj1);
 
   If Assigned(Obj2) Then
   Begin

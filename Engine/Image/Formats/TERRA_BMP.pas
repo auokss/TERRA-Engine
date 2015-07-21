@@ -27,7 +27,7 @@ Unit TERRA_BMP;
 Interface
 
 Implementation
-Uses TERRA_String, TERRA_Utils, TERRA_Stream, TERRA_Image, TERRA_Error, TERRA_INI, TERRA_Application, TERRA_Color;
+Uses TERRA_String, TERRA_Object, TERRA_Utils, TERRA_Stream, TERRA_Image, TERRA_Error, TERRA_INI, TERRA_Application, TERRA_Color;
 
 Type
  LBitmapFileHeader=Packed Record

@@ -3,7 +3,7 @@ Unit TERRA_LocalizationImport;
 {$I terra.inc}
 
 Interface
-Uses TERRA_String, TERRA_Utils, TERRA_Stream;
+Uses TERRA_String, TERRA_Object, TERRA_Utils, TERRA_Stream;
 
 
 Type

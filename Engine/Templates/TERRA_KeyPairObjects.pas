@@ -2,10 +2,10 @@ Unit TERRA_KeyPairObjects;
 
 {$I terra.inc}
 Interface
-Uses TERRA_String, TERRA_Utils, TERRA_Collections, TERRA_HashMap;
+Uses TERRA_String, TERRA_Object, TERRA_Utils, TERRA_Collections, TERRA_HashMap;
 
 Type
-  StringKeyPair = Class(HashMapObject)
+  StringKeyPair = Class(CollectionObject)
     Protected
       Procedure CopyValue(Other:CollectionObject); Override;
       Function Sort(Other:CollectionObject):Integer; Override;
@@ -45,13 +45,13 @@ End;
 { StringKeyPair }
 Constructor StringKeyPair.Create(Key, Value:TERRAString);
 Begin
-  Self._Key := Key;
+  Self._ObjectName := Key;
   Self.Value := Value;
 End;
 
 Procedure StringKeyPair.CopyValue(Other: CollectionObject);
 Begin
-  Self._Key := StringKeyPair(Other).Key;
+  Self._ObjectName := StringKeyPair(Other).Name;
   Self.Value := StringKeyPair(Other).Value;
 End;
 
@@ -59,13 +59,13 @@ Function StringKeyPair.Sort(Other: CollectionObject): Integer;
 Var
   S:TERRAString;
 Begin
-  S := StringKeyPair(Other).Key;
-  Result := GetStringSort(Self.Key, S);
+  S := StringKeyPair(Other).Name;
+  Result := GetStringSort(Self.Name, S);
 End;
 
 Function StringKeyPair.ToString:TERRAString;
 Begin
-  Result := Key;
+  Result := Name;
 End;
 
 End.
