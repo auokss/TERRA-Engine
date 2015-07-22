@@ -145,11 +145,14 @@ Type
     _Block:AnimationTransformBlock;
     _Ready:Boolean;
     _Parent:AnimationBoneState;
-    _AbsoluteMatrix:Matrix4x4;
-    _RelativeMatrix:Matrix4x4;
-    _FrameMatrix:Matrix4x4;
 
-    _BoneSpaceMatrix:Matrix4x4;
+    _BindAbsoluteMatrix:Matrix4x4;
+    _BindRelativeMatrix:Matrix4x4;
+
+    _FrameRelativeMatrix:Matrix4x4;
+    _FrameAbsoluteMatrix:Matrix4x4; // the current matrix for the
+
+    _RetargetMatrix:Matrix4x4;
 
     Procedure UpdateTransform;
 
@@ -191,6 +194,8 @@ Type
 
       Constructor Create(TargetSkeleton:MeshSkeleton);
       Procedure Release; Override;
+
+      Procedure Retarget(OtherSkeleton:MeshSkeleton);
 
       Procedure Update;
 
@@ -251,8 +256,11 @@ Begin
 
   _BoneStates[Pred(_BoneCount)] := AnimationBoneState.Create;
   _BoneStates[Pred(_BoneCount)]._BoneName := Bone.Name;
-  _BoneStates[Pred(_BoneCount)]._RelativeMatrix := Bone.RelativeMatrix;
-  _BoneStates[Pred(_BoneCount)]._BoneSpaceMatrix:= Bone.AbsoluteMatrix;
+
+  _BoneStates[Pred(_BoneCount)]._BindAbsoluteMatrix := Bone.AbsoluteMatrix;
+  _BoneStates[Pred(_BoneCount)]._BindRelativeMatrix := Bone.RelativeMatrix;
+  _BoneStates[Pred(_BoneCount)]._RetargetMatrix := Matrix4x4Identity;
+
   _BoneStates[Pred(_BoneCount)]._Owner := Self;
   _BoneStates[Pred(_BoneCount)]._ID := Pred(_BoneCount);
   _BoneStates[Pred(_BoneCount)]._Parent := Nil;
@@ -330,14 +338,14 @@ Begin
     _BoneStates[I].UpdateTransform();
 
   For I:=0 To Pred(_BoneCount) Do
-    Transforms[Succ(I)] := _BoneStates[I]._AbsoluteMatrix;
+    Transforms[Succ(I)] := _BoneStates[I]._FrameAbsoluteMatrix;
 
   If Assigned(Processor) Then
     Processor(Self);
 
   For I:=1 To _BoneCount Do
   Begin
-    Transforms[I] := Matrix4x4Multiply4x3(Transforms[I], Self._BoneStates[Pred(I)]._BoneSpaceMatrix);
+    Transforms[I] := Matrix4x4Multiply4x3(Transforms[I], _BoneStates[Pred(I)]._BindAbsoluteMatrix);
   End;
 End;
 
@@ -482,7 +490,7 @@ End;
 
 Function AnimationState.GetRelativeMatrix(Index: Integer): Matrix4x4;
 Begin
-  Result := _BoneStates[Index]._FrameMatrix;
+  Result := _BoneStates[Index]._FrameRelativeMatrix;
 End;
 
 Procedure AnimationState.SetSpeed(Value: Single);
@@ -517,6 +525,33 @@ Begin
   _LastAnimation := StringLower(_LastAnimation);
 End;
 
+Procedure AnimationState.Retarget(OtherSkeleton: MeshSkeleton);
+Var
+  I:Integer;
+  M:Matrix4x4;
+  OtherBone:MeshBone;
+Begin
+  If OtherSkeleton = Nil Then
+    Exit;
+
+  For I:=0 To Pred(Self._BoneCount) Do
+  Begin
+    OtherBone := OtherSkeleton.GetBone(Self._BoneStates[I]._BoneName);
+
+    M := (OtherBone.RelativeMatrix);
+    //M := (_BoneStates[I]._BindRelativeMatrix);
+//
+    //M := Matrix4x4Multiply4x3(Matrix4x4Inverse(OtherBone.RelativeMatrix), M);
+
+    //Self._BoneStates[I]._RetargetMatrix := M;
+
+    _BoneStates[I]._BindRelativeMatrix := Matrix4x4Multiply4x3(_BoneStates[I]._BindRelativeMatrix, Matrix4x4Inverse(OtherBone.RelativeMatrix));
+    //_BoneStates[I]._BindAbsoluteMatrix := Matrix4x4Multiply4x3(_BoneStates[I]._BindAbsoluteMatrix, Matrix4x4Inverse(OtherBone.AbsoluteMatrix));
+
+    //Self._BoneStates[I]._BindAbsoluteMatrix := OtherBone.AbsoluteMatrix;
+  End;
+End;
+
 { AnimationBoneState }
 Procedure AnimationBoneState.Release;
 Begin
@@ -536,18 +571,18 @@ Begin
 
 	// Create a transformation matrix from the position and rotation
 	// m_frame: additional transformation for this frame of the animation
-  _FrameMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(_Block.Translation), QuaternionMatrix4x4(_Block.Rotation));
+  _FrameRelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(_Block.Translation), QuaternionMatrix4x4(_Block.Rotation));
 
 	// Add the animation state to the rest position
-  _FrameMatrix := Matrix4x4Multiply4x3(_RelativeMatrix, _FrameMatrix);
+  _FrameRelativeMatrix := Matrix4x4Multiply4x3(_BindRelativeMatrix, _FrameRelativeMatrix);
 
 	If (_Parent = nil ) Then					// this is the root node
   Begin
-    _AbsoluteMatrix := _FrameMatrix;
+    _FrameAbsoluteMatrix := _FrameRelativeMatrix;
   End Else									// not the root node
 	Begin
 		// m_final := parent's m_final * m_rel (matrix concatenation)
-    _AbsoluteMatrix := Matrix4x4Multiply4x3(_Parent._AbsoluteMatrix, _FrameMatrix);
+    _FrameAbsoluteMatrix := Matrix4x4Multiply4x3(_Parent._FrameAbsoluteMatrix, _FrameRelativeMatrix);
 	End;
 
   _Ready := True;
@@ -879,4 +914,5 @@ Begin
 // do nothing
 End;
 
+//Bone.AbsoluteMatrix
 End.

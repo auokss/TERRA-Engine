@@ -29,8 +29,8 @@ Uses TERRA_Application, TERRA_Milkshape, TERRA_MeshAnimation, TERRA_Utils, TERRA
 
 implementation
 
-Uses TERRA_String, TERRA_Mesh, TERRA_INI, TERRA_Stream, TERRA_Matrix4x4, TERRA_ResourceManager,
-  TERRA_Vector3D, TERRA_Vector2D, TERRA_Math, TERRA_Color, TERRA_Log, TERRA_Lights, TERRA_Error,
+Uses TERRA_String, TERRA_Mesh, TERRA_Object, TERRA_INI, TERRA_Stream, TERRA_Matrix4x4, TERRA_ResourceManager,
+  TERRA_Vector3D, TERRA_Vector2D, TERRA_Quaternion, TERRA_Math, TERRA_Color, TERRA_Log, TERRA_Lights, TERRA_Error,
   SysUtils, TERRA_MeshFilter, TERRA_FileImport, TERRA_FileStream, TERRA_MemoryStream,
   TERRA_FileUtils, TERRA_Texture, TERRA_FileManager, TERRA_GraphicsManager, TERRA_Image,
   TERRA_VertexFormat, TERRA_MeshSkeleton, TERRA_Resource;
@@ -51,7 +51,7 @@ Procedure ImportAnimation(Const MS3D:Milkshape3DObject; Skeleton:MeshSkeleton; T
 Var
   I, J, K, PK:Integer;
   KSpeed:Single;
-  
+
   Parser:INIParser;
   MyStream:Stream;
   Dest:Stream;
@@ -65,6 +65,11 @@ Var
   ActionList:Array Of AnsiString;
   Bone:BoneAnimation;
   MaxTime:Single;
+
+  SourceBone:MeshBone;
+  TT, TV:Vector3D;
+  QT, QV:Quaternion;
+  MT, MR:Matrix4x4;
 Begin
     MyStream := MemoryStream.Create(Length(MS3D.Comment), @(MS3D.Comment[1]));
     Parser := INIParser.Create;
@@ -112,15 +117,28 @@ Begin
       KSpeed := (ASpeed*Speed);
 
       For J:=0 To Pred(MS3D.NumJoints) Do
+        Skeleton.GetBone(J).Init();
+
+      For J:=0 To Pred(MS3D.NumJoints) Do
       Begin
-        Bone := Anim.AddBone(Skeleton.GetBone(J).Name);
+        SourceBone := Skeleton.GetBone(J);
+        Bone := Anim.AddBone(SourceBone.Name);
+
+        TT := SourceBone.RelativeMatrix.GetTranslation();
+        MT := Matrix4x4Translation(TT);
+        QT := QuaternionRotation(SourceBone.RelativeMatrix.GetEulerAngles());
 
         Bone.Positions.Count := 0;
         For K:=0 To Pred(MS3D.Joints[J].NumKeyFramesTrans) Do
         Begin
           Z := Trunc(MS3D.Joints[J].KeyFramesTrans[K].Time * Anim.FPS);
           If (Z>=StartFrame) And (Z<=EndFrame) Then
-            Bone.Positions.AddKey(((MS3D.Joints[J].KeyFramesTrans[K].Time - BaseTime)/KSpeed), MS3D.Joints[J].KeyFramesTrans[K].Vector);
+          Begin
+            //TV := MT.Transform(MS3D.Joints[J].KeyFramesTrans[K].Vector);
+            TV := MS3D.Joints[J].KeyFramesTrans[K].Vector;
+            Bone.Positions.AddKey(((MS3D.Joints[J].KeyFramesTrans[K].Time - BaseTime)/KSpeed), TV);
+          End
+
         End;
 
         Bone.Rotations.Count := 0;
@@ -128,7 +146,12 @@ Begin
         Begin
           Z := Trunc(MS3D.Joints[J].KeyFramesRot[K].Time * Anim.FPS);
           If (Z>=StartFrame) And (Z<=EndFrame) Then
-            Bone.Rotations.AddKey((MS3D.Joints[J].KeyFramesRot[K].Time - BaseTime)/KSpeed, MS3D.Joints[J].KeyFramesRot[K].Vector);
+          Begin
+            QV := QuaternionRotation(MS3D.Joints[J].KeyFramesRot[K].Vector);
+            //QV := QuaternionMultiply(QV, QT); // maybe wrong?
+
+            Bone.Rotations.AddKey((MS3D.Joints[J].KeyFramesRot[K].Time - BaseTime)/KSpeed, QuaternionToEuler(QV));
+          End;
         End;
 
 {        If (Anim.Loop) Then
@@ -259,7 +282,7 @@ Var
 
   ASpeed:Single;
 
-  MyMesh:Mesh;
+  MyMesh:TERRAMesh;
   Group, Other:MeshGroup;
   ExpAnim:Boolean;
   Triplanar:Boolean;
@@ -409,7 +432,7 @@ Begin
   PinJointCount:=0;
   EmitterJointCount:=0;
 
-  MyMesh := Mesh.Create(rtDynamic, SourceFile);
+  MyMesh := TERRAMesh.Create(rtDynamic, SourceFile);
 
   I:=0;
   While I<MS3D.NumJoints Do
@@ -468,7 +491,7 @@ Begin
       Begin
         S := TrimRight(TrimLeft(MS3D.Joints[I].ParentName));
         Name := 'light'+IntToString(LightJointCount);
-        MyMesh.AddLight(Name, MS3D.Joints[I].Position, LightType, LightColor, Param1, Param2, Param3, S);
+        MyMesh.AddLight(Name, MS3D.Joints[I].AbsolutePosition, LightType, LightColor, Param1, Param2, Param3, S);
         WriteLn('Adding light');
       End Else
         WriteLn('Invalid light joint!');
@@ -487,7 +510,7 @@ Begin
       EmitterJoints[Pred(EmitterJointCount)] := MS3D.Joints[I];
       S := TrimRight(TrimLeft(MS3D.Joints[I].ParentName));
       Name := 'emmiter'+IntToString(EmitterJointCount);
-      MyMesh.AddEmitter(Name, MS3D.Joints[I].Position, MS3D.Joints[I].Comment, S);
+      MyMesh.AddEmitter(Name, MS3D.Joints[I].AbsolutePosition, MS3D.Joints[I].Comment, S);
       WriteLn('Adding emitter: ', MS3D.Joints[I].Comment);
 
       MS3D.RemoveJoint(I);
@@ -495,7 +518,7 @@ Begin
     If (Pos('$',S)>0) Then
     Begin
       S := Copy(S, 2, MaxInt);
-      MyMesh.AddMetadata(S, MS3D.Joints[I].Position, MS3D.Joints[I].Comment);
+      MyMesh.AddMetadata(S, MS3D.Joints[I].AbsolutePosition, MS3D.Joints[I].Comment);
       WriteLn('Found metadata: ', S);
 
       MS3D.Joints[I] := MS3D.Joints[Pred(MS3D.NumJoints)];
@@ -532,15 +555,11 @@ Begin
 
 			  Bone := MyMesh.Skeleton.AddBone;
 			  Bone.Name := S;
-        {$IFNDEF NO_ROTS}
-		  	Bone.StartPosition := MS3D.Joints[I].Position;
-			  Bone.StartRotation := MS3D.Joints[I].Rotation;
-        {$ELSE}
 		  	Bone.StartPosition := MS3D.Joints[I].RelativePosition;
-        {$ENDIF}
+        Bone.StartRotation := MS3D.Joints[I].RelativeRotation;
 
         If I=0 Then
-          Bone.StartPosition.Add(VectorCreate(OfsX, OfsY, OfsZ));
+          Bone.Position.Add(VectorCreate(OfsX, OfsY, OfsZ));
 
 
 			  S := MS3D.Joints[I].ParentName;
@@ -857,7 +876,7 @@ Begin
             While It.HasNext() Do
 			      Begin
               V := MeshVertex(It.Value);
-			        Dist := V.Position.Distance(PinJoints[I].Position);
+			        Dist := V.Position.Distance(PinJoints[I].AbsolutePosition);
 			        If (Dist<=Min) Then
 			        Begin
 				        Min := Dist;
@@ -882,7 +901,7 @@ Begin
     MyMesh.AddBoneMorph(I);
     For J:=0 To Pred(Morphs[I].NumJoints) Do
     Begin
-      MyMesh.SetBoneMorph(I, J, Morphs[I].Joints[J].Position);
+      MyMesh.SetBoneMorph(I, J, Morphs[I].Joints[J].AbsolutePosition);
     End;
   End;
 

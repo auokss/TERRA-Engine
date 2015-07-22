@@ -26,7 +26,7 @@ Unit TERRA_Milkshape;
 
 {$I terra.inc}
 Interface
-Uses TERRA_String, TERRA_Utils, TERRA_Math, TERRA_Stream, TERRA_INI, TERRA_Vector3D, TERRA_Vector2D, TERRA_Matrix4x4,
+Uses TERRA_String, TERRA_Object, TERRA_Utils, TERRA_Math, TERRA_Stream, TERRA_INI, TERRA_Vector3D, TERRA_Vector2D, TERRA_Matrix4x4,
   TERRA_Color, TERRA_FileStream, TERRA_FileUtils, TERRA_Vector4D, TERRA_MeshFilter, TERRA_VertexFormat;
 
 Const
@@ -109,21 +109,22 @@ Type
     Flags:Byte;  // SELECTED | DIRTY
     Name:Array[1..32]Of AnsiChar;
     ParentName:Array[1..32]Of AnsiChar;
-    Rotation:Vector3D;
-    Position:Vector3D;
     NumKeyFramesRot:SmallInt;
     NumKeyFramesTrans:SmallInt;
     KeyFramesRot:Array Of Milkshape3DKeyFrame;  // local animation matrices
     KeyFramesTrans:Array Of Milkshape3DKeyFrame;  // local animation matrices
     Comment:AnsiString;
 
+    RelativeRotation:Vector3D;
+    RelativePosition:Vector3D;
+
     // calculated, not present in file
     Parent:PMilkshape3DJoint;
     AbsolutePosition:Vector3D;
-    RelativePosition:Vector3D;
-    AbsoluteMatrix:Matrix4x4;
-    RelativeMatrix:Matrix4x4;
     Ready:Boolean;
+
+    RelativeMatrix:Matrix4x4;
+    AbsoluteMatrix:Matrix4x4;
 
     Procedure Init;
   End;
@@ -314,8 +315,8 @@ Begin
       Source.Read(@Flags,SizeOf(Flags));
       Source.Read(@Name,SizeOf(Name));
       Source.Read(@ParentName,SizeOf(ParentName));
-      Source.Read(@Rotation,SizeOf(Rotation));
-      Source.Read(@Position,SizeOf(Position));
+      Source.Read(@RelativeRotation,SizeOf(RelativeRotation));
+      Source.Read(@RelativePosition,SizeOf(RelativePosition));
       Source.Read(@NumKeyFramesRot,SizeOf(NumKeyFramesRot));
       Source.Read(@NumKeyFramesTrans,SizeOf(NumKeyFramesTrans));
       SetLength(KeyFramesRot,NumKeyFramesRot);
@@ -384,25 +385,8 @@ Begin
   For I:=0 To Pred(NumJoints)  Do
     Joints[I].Init();
 
-  //Dest := FileStream.Create('d:\code\minimonhd\trunk\output\bones.txt');
-  For I:=0 To Pred(NumJoints) Do
-  Begin
-    Joints[I].AbsolutePosition := Joints[I].AbsoluteMatrix.Transform(VectorZero);
-    Joints[I].RelativePosition := Joints[I].RelativeMatrix.Transform(VectorZero);
-
-    {If Assigned(Joints[I].Parent) Then
-      VectorSubtract(Joints[I].Parent.TargetPosition);
-    Else
-      Joints[I].TargetPosition := P;}
-
-    {If Assigned(Joints[I].Parent) Then
-      PName := StrClean(Joints[I].Parent.Name)
-    Else
-      PName := '';
-    Dest.WriteLine(StrClean(Joints[I].Name)+' ('+PName+') '+FloatToString(Joints[I].TargetPosition.X)+' '+FloatToString(Joints[I].TargetPosition.Y)+' '+FloatToString(Joints[I].TargetPosition.Z));
-    }
-  End;
-  //ReleaseObject(Dest);
+  For I:=0 To Pred(NumJoints)  Do
+    Joints[I].AbsolutePosition := Joints[I].AbsoluteMatrix.Transform(VectorZero); 
 
   Result := True;
 End;
@@ -451,8 +435,8 @@ Begin
       Dest.Write(@Flags,SizeOf(Flags));
       Dest.Write(@Name,SizeOf(Name));
       Dest.Write(@ParentName,SizeOf(ParentName));
-      Dest.Write(@Rotation,SizeOf(Rotation));
-      Dest.Write(@Position,SizeOf(Position));
+      Dest.Write(@RelativeRotation,SizeOf(RelativeRotation));
+      Dest.Write(@RelativePosition,SizeOf(RelativePosition));
       Dest.Write(@NumKeyFramesRot,SizeOf(NumKeyFramesRot));
       Dest.Write(@NumKeyFramesTrans,SizeOf(NumKeyFramesTrans));
       SetLength(KeyFramesRot,NumKeyFramesRot);
@@ -945,8 +929,7 @@ Begin
 
       MS3D.Joints[I].NumKeyFramesTrans := MyMesh.GetPositionKeyCount(AnimID, I);
       MS3D.Joints[I].NumKeyFramesRot := MyMesh.GetRotationKeyCount(AnimID, I);
-      MS3D.Joints[I].Position := MyMesh.GetBonePosition(I);
-      MS3D.Joints[I].Rotation := MyMesh.GetBoneRotation(I);
+      MS3D.Joints[I].RelativePosition := MyMesh.GetBonePosition(I);
       MS3D.Joints[I].Flags := 0;
 
       SetLength(MS3D.Joints[I].KeyFramesTrans, MS3D.Joints[I].NumKeyFramesTrans);
@@ -1143,7 +1126,7 @@ Begin
   If (Assigned(Parent)) And (Not Parent.Ready) Then
     Parent.Init;
 
-  RelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(Position), Matrix4x4Rotation(Rotation));
+  RelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(RelativePosition), Matrix4x4Rotation(RelativeRotation));
 
 	// Each bone's final matrix is its relative matrix concatenated onto its
 	// parent's final matrix (which in turn is ....)

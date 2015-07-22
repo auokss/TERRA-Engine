@@ -65,7 +65,7 @@ Type
 
       Procedure Crop(Time:Single);
       Procedure CloseLoop();
-      
+
       Procedure Clear();
 
       Property Owner:BoneAnimation Read _Owner;
@@ -758,6 +758,5 @@ Begin
   For I:=0 To Pred(Self.BoneCount) Do
     _Bones[I].CloseLoop();
 End;
-
 
 End.

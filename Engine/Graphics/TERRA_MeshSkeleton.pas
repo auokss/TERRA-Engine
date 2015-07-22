@@ -41,12 +41,7 @@ Type
     Selected:Boolean;
 
     StartPosition:Vector3D;
-    {$IFNDEF NO_ROTS}
     StartRotation:Vector3D;
-
-    AbsoluteRotation:Quaternion;
-    RelativeRotation:Quaternion;
-    {$ENDIF}
 
     AbsoluteMatrix:Matrix4x4;
     RelativeMatrix:Matrix4x4;
@@ -89,8 +84,6 @@ Type
 
       Function GetBoneLength(Index:Integer):Single;
 
-      Procedure Render(Const Transform:Matrix4x4; Instance:Pointer);
-
       Property BoneCount:Integer Read _BoneCount;
 
       Property Hash:Cardinal Read _Hash;
@@ -128,29 +121,16 @@ Begin
   If (Assigned(Parent)) And (Not Parent.Ready) Then
     Parent.Init;
 
-{$IFNDEF NO_ROTS}
   RelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(startPosition), Matrix4x4Rotation(startRotation));
-  RelativeRotation := QuaternionRotation(StartRotation);
-{$ELSE}
-  RelativeMatrix := Matrix4x4Translation(startPosition);
-{$ENDIF}
 
 	// Each bone's final matrix is its relative matrix concatenated onto its
 	// parent's final matrix (which in turn is ....)
-	//
 	If ( Parent = nil ) Then					// this is the root node
   Begin
     AbsoluteMatrix := RelativeMatrix;
-    {$IFNDEF NO_ROTS}
-    AbsoluteRotation := QuaternionZero;
-    {$ENDIF}
   End Else									// not the root node
 	Begin
-		// m_final := parent's m_final * m_rel (matrix concatenation)
     AbsoluteMatrix := Matrix4x4Multiply4x3(Parent.AbsoluteMatrix, RelativeMatrix);
-    {$IFNDEF NO_ROTS}
-    AbsoluteRotation := QuaternionMultiply(Parent.AbsoluteRotation, RelativeRotation);
-    {$ENDIF}
 	End;
 
   Ready := True;
@@ -165,11 +145,7 @@ Begin
   Parent := Nil;
 
   Source.Read(@StartPosition, SizeOf(Vector3D));
-  {$IFNDEF NO_ROTS}
   Source.Read(@StartRotation, SizeOf(Vector3D));
-  {$ELSE}
-  Source.Skip(SizeOf(Vector3D));
-  {$ENDIF}
 
   Ready := False;
 End;
@@ -182,11 +158,7 @@ Begin
   Else
     Dest.WriteString('');
   Dest.Write(@StartPosition, SizeOf(StartPosition));
-  {$IFNDEF NO_ROTS}
   Dest.Write(@StartRotation, SizeOf(StartRotation));
-  {$ELSE}
-  Dest.Write(@StartPosition, SizeOf(StartPosition));
-  {$ENDIF}
 End;
 
 { MeshSkeleton }
@@ -206,84 +178,6 @@ Begin
     Result := Nil
   Else
     Result := (_BoneList[Index]);
-End;
-
-Procedure MeshSkeleton.Render(Const Transform:Matrix4x4; Instance:Pointer);
-Var
-  I:Integer;
-  A, B:Vector3D;
-Begin
-{$IFDEF PCs}
-  GraphicsManager.Instance.BeginColorShader(ColorWhite, Transform);
-
-  glLineWidth(2);                         
-
-  GraphicsManager.Instance.SetFog(False);
-  GraphicsManager.Instance.SetBlendMode(blendNone);
-
-  glDepthMask(True);                      
-  glDepthRange(0,0.0001);                 
-
-  glBegin(GL_LINES);
-  For I:=0 To Pred(_BoneCount) Do
-  Begin
-    If Assigned(Instance) Then
-    Begin
-      A := 	MeshInstance(MeshInstance(Instance)).BoneMatrixList[Succ(I)].Transform(VectorZero);
-  	  If (Assigned(_BoneList[I].Parent)) Then
-        B := MeshInstance(MeshInstance(Instance)).BoneMatrixList[Succ(_BoneList[I].Parent.Index)].Transform(VectorZero)
-      Else
-        Continue;
-    End Else
-    Begin
-      A := 	_BoneList[I].AbsoluteMatrix.Transform(VectorZero);
-  	  If (Assigned(_BoneList[I].Parent)) Then
-        B := _BoneList[_BoneList[I].Parent.Index].AbsoluteMatrix.Transform(VectorZero)
-      Else
-        Continue;
-    End;
-
-    With A Do
-      glVertex3f(X,Y,Z);
-    With B Do
-      glVertex3f(X,Y,Z);
-  End;
-  glEnd;
-
-  glPointSize(10);
-  glBegin(GL_POINTS);
-  For I:=0 To Pred(_BoneCount) Do
-  Begin
-    If Assigned(Instance) Then
-      A := 	MeshInstance(MeshInstance(Instance)).BoneMatrixList[Succ(I)].Transform(VectorZero)
-    Else
-      A := 	_BoneList[I].AbsoluteMatrix.Transform(VectorZero);
-
-    With A Do
-      glVertex3f(X,Y,Z);
-  End;
-  glEnd;
-
-  (*
-  QuadObj:=gluNewQuadric;
-  gluQuadricNormals(QuadObj, GLU_NONE);
-  gluQuadricTexture(QuadObj, False);
-
-  For I:=0 To Pred(_BoneCount) Do
-  Begin
-    A := 	MeshInstance(Instance).BoneMatrixList[Succ(I)].Transform(VectorZero);
-    Shader.SetUniform('modelMatrix', MatrixMultiply4x3(Transform, MatrixTranslation(A)));
-    gluSphere(QuadObj, 0.25, 8, 8);           
-  End;
-
-  gluDeleteQuadric(QuadObj);              
-*)
-
-  glDepthMask(True);                      
-  glDepthRange(0,1);                      
-
-  GraphicsManager.Instance.EndColorShader;
-{$ENDIF}
 End;
 
 Procedure MeshSkeleton.Read(Source: Stream);
@@ -411,27 +305,16 @@ Begin
     _BoneList[I].Color := Bone.Color;
     _BoneList[I].Selected := Bone.Selected;
     _BoneList[I].StartPosition := Bone.StartPosition;
-    {$IFNDEF NO_ROTS}
     _BoneList[I].StartRotation := Bone.StartRotation;
-    {$ENDIF}
     _BoneList[I].Ready := Bone.Ready;
     _BoneList[I].AbsoluteMatrix := Bone.AbsoluteMatrix;
     _BoneList[I].RelativeMatrix := Bone.RelativeMatrix;
-
-    {$IFNDEF NO_ROTS}
-    _BoneList[I].AbsoluteRotation := Bone.AbsoluteRotation;
-    _BoneList[I].RelativeRotation := Bone.RelativeRotation;
-    {$ENDIF}
 
     If Assigned(Bone.Parent) Then
       _BoneList[I].Parent := Self.GetBone(Bone.Parent.Name)
     Else
       _BoneList[I].Parent := Nil;
   End;
-
-(*  SetLength(BindPose, Succ(_BoneCount));
-  For I:=0 To _BoneCount Do
-    BindPose[I] := Other.BindPose[I];*)
 End;
 
 
