@@ -220,7 +220,7 @@ Begin
     End;
 
     {$IFDEF DEBUG_GRAPHICS}Log(logDebug, 'GraphicsManager', 'Scene.RenderAlphaBucket');{$ENDIF}
-    RenderList(View, _BucketAlpha, renderBucket_Opaque);
+    RenderList(View, _BucketAlpha, renderBucket_Translucent);
     {$ENDIF}
 {$ENDIF}
 End;
