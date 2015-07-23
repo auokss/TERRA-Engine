@@ -153,6 +153,8 @@ Type
     _FrameAbsoluteMatrix:Matrix4x4; // the current matrix for the
 
     _RetargetMatrix:Matrix4x4;
+    //_RetargetRotation:Quaternion;
+    //_RetargetTranslation:Vector3D;
 
     Procedure UpdateTransform;
 
@@ -195,7 +197,7 @@ Type
       Constructor Create(TargetSkeleton:MeshSkeleton);
       Procedure Release; Override;
 
-      Procedure Retarget(OtherSkeleton:MeshSkeleton);
+      Procedure Retarget(ThisSkeleton, OtherSkeleton:MeshSkeleton);
 
       Procedure Update;
 
@@ -259,7 +261,9 @@ Begin
 
   _BoneStates[Pred(_BoneCount)]._BindAbsoluteMatrix := Bone.AbsoluteMatrix;
   _BoneStates[Pred(_BoneCount)]._BindRelativeMatrix := Bone.RelativeMatrix;
-  _BoneStates[Pred(_BoneCount)]._RetargetMatrix := Matrix4x4Identity;
+  _BoneStates[Pred(_BoneCount)]._RetargetMatrix := Bone.RelativeMatrix;
+//  _BoneStates[Pred(_BoneCount)]._RetargetRotation := QuaternionZero;
+  //_BoneStates[Pred(_BoneCount)]._RetargetTranslation := VectorZero;
 
   _BoneStates[Pred(_BoneCount)]._Owner := Self;
   _BoneStates[Pred(_BoneCount)]._ID := Pred(_BoneCount);
@@ -280,6 +284,8 @@ Procedure AnimationState.Update;
 Var
   I:Integer;
   Time, Delta:Cardinal;
+  BoneState:AnimationBoneState;
+  M:Matrix4x4;
 Begin
   If (Length(Transforms)<=0) Then
   Begin
@@ -337,15 +343,44 @@ Begin
   For I:=0 To Pred(_BoneCount) Do
     _BoneStates[I].UpdateTransform();
 
-  For I:=0 To Pred(_BoneCount) Do
+(*  For I:=0 To Pred(_BoneCount) Do
     Transforms[Succ(I)] := _BoneStates[I]._FrameAbsoluteMatrix;
 
   If Assigned(Processor) Then
-    Processor(Self);
+    Processor(Self);*)
 
   For I:=1 To _BoneCount Do
   Begin
-    Transforms[I] := Matrix4x4Multiply4x3(Transforms[I], _BoneStates[Pred(I)]._BindAbsoluteMatrix);
+    BoneState := _BoneStates[Pred(I)];
+
+    //M := Matrix4x4Scale(VectorConstant(2.0));
+(*    M := Matrix4x4Rotation(0, 45*RAD, 0);
+    If Odd(I) Then
+      M := Matrix4x4Identity;
+
+    M := BoneState._FrameRelativeMatrix;
+//    M := Matrix4x4Multiply4x3(BoneState._BindRelativeMatrix, M);
+
+
+    M := Matrix4x4Multiply4x3(M, BoneState._BindAbsoluteMatrix);
+
+
+    M := Matrix4x4Multiply4x3(Matrix4x4Inverse(BoneState._BindAbsoluteMatrix), M);
+
+
+   //M := Matrix4x4Multiply4x3(BoneState._BindAbsoluteMatrix, M);
+
+    Transforms[I] := M;*)
+
+    //Transforms[I] := Matrix4x4Multiply4x3(BoneState._FrameAbsoluteMatrix, Matrix4x4Inverse(BoneState._BindAbsoluteMatrix));
+
+    Transforms[I] := Matrix4x4Multiply4x3(BoneState._FrameAbsoluteMatrix, Matrix4x4Inverse(BoneState._BindAbsoluteMatrix));
+
+(*    Transforms[I] := Matrix4x4Identity;
+    If (I=4) Then
+      Transforms[I] := Matrix4x4Rotation(0, 90*RAD, 0);*)
+
+
   End;
 End;
 
@@ -525,30 +560,62 @@ Begin
   _LastAnimation := StringLower(_LastAnimation);
 End;
 
-Procedure AnimationState.Retarget(OtherSkeleton: MeshSkeleton);
+Procedure AnimationState.Retarget(ThisSkeleton, OtherSkeleton: MeshSkeleton);
 Var
   I:Integer;
-  M:Matrix4x4;
-  OtherBone:MeshBone;
+  A,B:Matrix4x4;
+  ThisBone, OtherBone:MeshBone;
+  T:Vector3D;
+  QFinal, QInitial:Quaternion;
 Begin
   If OtherSkeleton = Nil Then
     Exit;
 
   For I:=0 To Pred(Self._BoneCount) Do
   Begin
+    If I = 11 Then
+      IntToString(2);
+    ThisBone := ThisSkeleton.GetBone(Self._BoneStates[I]._BoneName);
     OtherBone := OtherSkeleton.GetBone(Self._BoneStates[I]._BoneName);
 
-    M := (OtherBone.RelativeMatrix);
+    If (ThisBone = Nil) Then
+    Begin
+      Log(logDebug, 'Bone', Self._BoneStates[I]._BoneName);
+      Continue;
+    End;
+
+    If (OtherBone = Nil) And (Assigned(Self._BoneStates[I]._Parent)) Then
+    Begin
+      OtherBone := OtherSkeleton.GetBone(Self._BoneStates[I]._Parent._BoneName);
+    End;
+
+    If (OtherBone = Nil) Then
+    Begin
+      Log(logDebug, 'Bone', Self._BoneStates[I]._BoneName);
+      Continue;
+    End;
+
+    QInitial := QuaternionRotation(OtherBone.StartRotation);
+    QFinal := QuaternionRotation(ThisBone.StartRotation);
+
+    //QInitial := QuaternionRotation(ThisBone.AbsoluteMatrix.GetEulerAngles());
+  //  QFinal := QuaternionRotation(OtherBone.AbsoluteMatrix.GetEulerAngles());
+
+    //Self._BoneStates[I]._RetargetRotation := QuaternionMultiply(QFinal, QuaternionConjugate(QInitial));
+//    Self._BoneStates[I]._RetargetTranslation := VectorSubtract(ThisBone.StartPosition, OtherBone.StartPosition);
+
+(*    A := _BoneStates[I]._BindAbsoluteMatrix;
+    B := OtherBone.RelativeMatrix;
     //M := (_BoneStates[I]._BindRelativeMatrix);
 //
     //M := Matrix4x4Multiply4x3(Matrix4x4Inverse(OtherBone.RelativeMatrix), M);
 
-    //Self._BoneStates[I]._RetargetMatrix := M;
+    //Self._BoneStates[I]._BindAbsoluteMatrix := OtherBone.AbsoluteMatrix;*)
 
-    _BoneStates[I]._BindRelativeMatrix := Matrix4x4Multiply4x3(_BoneStates[I]._BindRelativeMatrix, Matrix4x4Inverse(OtherBone.RelativeMatrix));
-    //_BoneStates[I]._BindAbsoluteMatrix := Matrix4x4Multiply4x3(_BoneStates[I]._BindAbsoluteMatrix, Matrix4x4Inverse(OtherBone.AbsoluteMatrix));
+//    _BoneStates[I]._BindRelativeMatrix := OtherBone.RelativeMatrix;
+  //  _BoneStates[I]._BindAbsoluteMatrix := OtherBone.AbsoluteMatrix;
 
-    //Self._BoneStates[I]._BindAbsoluteMatrix := OtherBone.AbsoluteMatrix;
+    Self._BoneStates[I]._RetargetMatrix := OtherBone.RelativeMatrix;
   End;
 End;
 
@@ -559,6 +626,8 @@ Begin
 End;
 
 Procedure AnimationBoneState.UpdateTransform;
+Var
+  Temp:Matrix4x4;
 Begin
   If (_Ready) Then
     Exit;
@@ -574,7 +643,10 @@ Begin
   _FrameRelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(_Block.Translation), QuaternionMatrix4x4(_Block.Rotation));
 
 	// Add the animation state to the rest position
-  _FrameRelativeMatrix := Matrix4x4Multiply4x3(_BindRelativeMatrix, _FrameRelativeMatrix);
+  _FrameRelativeMatrix := Matrix4x4Multiply4x3(_RetargetMatrix, _FrameRelativeMatrix);
+
+  _FrameRelativeMatrix := Matrix4x4Multiply4x3(_FrameRelativeMatrix, Matrix4x4Inverse(_RetargetMatrix));
+  _FrameRelativeMatrix := Matrix4x4Multiply4x3(_FrameRelativeMatrix, _BindRelativeMatrix);
 
 	If (_Parent = nil ) Then					// this is the root node
   Begin

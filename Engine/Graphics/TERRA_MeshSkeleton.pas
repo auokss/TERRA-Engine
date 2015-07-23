@@ -218,13 +218,15 @@ Begin
   For I:=0 To Pred(_BoneCount) Do
     _BoneList[I].Init();
 
-  (*SetLength(BindPose, Succ(_BoneCount));
-  BindPose[0] := Matrix4x4Identity;
-  For I:=0 To Pred(_BoneCount) Do
-    BindPose[Succ(I)] := _BoneList[I].AbsoluteMatrix;*)
+(*  For I:=0 To Pred(_BoneCount) Do
+  Begin
+    _BoneList[I].StartPosition := _BoneList[I].AbsoluteMatrix.Transform(VectorZero);
+    _BoneList[I].StartRotation := VectorZero;
+    _BoneList[I].Ready := False;
+  End;
 
   For I:=0 To Pred(_BoneCount) Do
-    _BoneList[I].AbsoluteMatrix := Matrix4x4Inverse(_BoneList[I].AbsoluteMatrix);
+    _BoneList[I].Init();*)
 End;
 
 Procedure MeshSkeleton.Write(Dest: Stream);

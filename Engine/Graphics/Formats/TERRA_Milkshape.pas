@@ -590,6 +590,9 @@ Function Milkshape3DObject.IsJointUsed(Index:Integer):Boolean;
 Var
   I:Integer;
 Begin
+    Result := True;
+    Exit;
+
   For I:=0 To Pred(Self.NumVertices) Do
   If (Self.Vertices[I].BoneIndex = Index) Then
   Begin

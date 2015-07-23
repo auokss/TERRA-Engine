@@ -34,7 +34,7 @@ Var
 Begin
   Inherited;
 
-  MyMesh := MeshManager.Instance.GetMesh('dwarf');
+  MyMesh := MeshManager.Instance.GetMesh('fox');
   If Assigned(MyMesh) Then
   Begin
     DwarfInstance :=MeshInstance.Create(MyMesh);
@@ -43,18 +43,18 @@ Begin
   End Else
     DwarfInstance := Nil;
 
-  MyMesh := MeshManager.Instance.GetMesh('ninja');
+  MyMesh := MeshManager.Instance.GetMesh('monster');
   If Assigned(MyMesh) Then
   Begin
     NinjaInstance :=MeshInstance.Create(MyMesh);
     NinjaInstance.SetPosition(VectorCreate(-5, 0, 0));
-    NinjaInstance.Animation.Play(AnimationManager.Instance.GetAnimation('dwarf_run', False), RescaleDuration);
-    NinjaInstance.Animation.Retarget(DwarfInstance.Geometry.Skeleton);
+    NinjaInstance.Animation.Play(AnimationManager.Instance.GetAnimation('fox_run', False), RescaleDuration);
+    NinjaInstance.Animation.Retarget(NinjaInstance.Geometry.Skeleton, DwarfInstance.Geometry.Skeleton);
   End Else
     NinjaInstance := Nil;
 
-  Self.Scene.MainViewport.Camera.SetPosition(VectorCreate(0, 10, -20));
-  Self.Scene.MainViewport.Camera.SetView(VectorCreate(0, -0.25, 1));
+  Self.Scene.MainViewport.Camera.SetPosition(VectorCreate(0, 10, 20));
+  Self.Scene.MainViewport.Camera.SetView(VectorCreate(0, -0.25, -1));
 End;
 
 Procedure MyDemo.OnDestroy;
@@ -69,7 +69,11 @@ Begin
   GraphicsManager.Instance.AddRenderable(V, DwarfInstance);
   GraphicsManager.Instance.AddRenderable(V, NinjaInstance);
 
-  DrawSkeleton(V, DwarfInstance.Geometry.Skeleton,  DwarfInstance.Animation, DwarfInstance.Transform, ColorRed, 4.0);
+(*  DrawSkeleton(V, DwarfInstance.Geometry.Skeleton,  DwarfInstance.Animation, DwarfInstance.Transform, ColorRed, 4.0);
+  DrawSkeleton(V, NinjaInstance.Geometry.Skeleton,  NinjaInstance.Animation, NinjaInstance.Transform, ColorRed, 4.0);*)
+
+//  DrawBone(V, DwarfInstance.Geometry.Skeleton.GetBone(1),  DwarfInstance.Animation, DwarfInstance.Transform, ColorRed, 4.0);
+//  DrawBone(V, NinjaInstance.Geometry.Skeleton.GetBone(1),  NinjaInstance.Animation, NinjaInstance.Transform, ColorRed, 4.0);
 End;
 
 {$IFDEF IPHONE}

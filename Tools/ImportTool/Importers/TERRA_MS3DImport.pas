@@ -127,6 +127,7 @@ Begin
         TT := SourceBone.RelativeMatrix.GetTranslation();
         MT := Matrix4x4Translation(TT);
         QT := QuaternionRotation(SourceBone.RelativeMatrix.GetEulerAngles());
+        QT.Normalize();
 
         Bone.Positions.Count := 0;
         For K:=0 To Pred(MS3D.Joints[J].NumKeyFramesTrans) Do
@@ -558,8 +559,11 @@ Begin
 		  	Bone.StartPosition := MS3D.Joints[I].RelativePosition;
         Bone.StartRotation := MS3D.Joints[I].RelativeRotation;
 
+        //Bone.StartPosition := MS3D.Joints[I].AbsolutePosition;
+        //Bone.StartRotation := VectorZero;
+
         If I=0 Then
-          Bone.Position.Add(VectorCreate(OfsX, OfsY, OfsZ));
+          Bone.StartPosition.Add(VectorCreate(OfsX, OfsY, OfsZ));
 
 
 			  S := MS3D.Joints[I].ParentName;
