@@ -42,6 +42,7 @@ Type
     Procedure OrthoNormalize;
 
     Procedure SetValue(I,J:Integer; Value:Single);
+    Procedure SetTranslation(Const P:Vector3D);
 
     Function Get(I,J:Integer):Single;
     Function GetTranslation:Vector3D;
@@ -362,6 +363,13 @@ Begin
 	Result.X  := atan2(sinYaw, cosYaw);
 	Result.Y := atan2(sinPitch, cosPitch);
 	Result.Z  := atan2(sinRoll, cosRoll);
+End;
+
+Procedure Matrix4x4.SetTranslation(Const P:Vector3D);
+Begin
+  V[12] := P.X;
+  V[13] := P.Y;
+  V[14] := P.Z;
 End;
 
 Function Matrix4x4.GetTranslation:Vector3D;

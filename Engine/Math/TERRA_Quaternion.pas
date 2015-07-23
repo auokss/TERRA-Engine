@@ -25,7 +25,7 @@ Unit TERRA_Quaternion;
 {$I terra.inc}
 
 Interface
-Uses TERRA_Math, TERRA_Vector3D, TERRA_Matrix4x4;
+Uses TERRA_Utils, TERRA_Math, TERRA_Vector3D, TERRA_Matrix4x4;
 
 Type
   PQuaternion = ^Quaternion;
@@ -84,8 +84,7 @@ Function QuaternionConjugate(Const Q:Quaternion):Quaternion;
 // Returns the norm of a Quaternion
 Function QuaternionNorm(Const Q:Quaternion):Single;
 
-// Returns the inverse of a Quaternion
-Function QuaternionInverse(Const Q:Quaternion):Quaternion;
+Function QuaternionNormalize(Const Q:Quaternion):Quaternion;
 
 // Multiplies two Quaternions
 Function QuaternionMultiply(Const Ql,Qr:Quaternion):Quaternion;
@@ -303,6 +302,8 @@ Begin
   Result.X := qL.W * qR.X + qL.X * qR.W + qL.Y * qR.Z - qL.Z * qR.Y;
   Result.Y := qL.W * qR.Y + qL.Y * qR.W + qL.Z * qR.X - qL.X * qR.Z;
   Result.Z := qL.W * qR.Z + qL.Z * qR.W + qL.X * qR.Y - qL.Y * qR.X;
+
+  Result.Normalize();
 End;
 
 {$IFDEF SSE}
@@ -468,22 +469,21 @@ End;
 
 Function QuaternionNorm(Const Q:Quaternion):Single;
 Begin
-  Result := (Q.W*Q.W)+(Q.Z*Q.Z)+(Q.Y*Q.Y)+(Q.X*Q.X);
+  Result := Sqr(Q.W)+Sqr(Q.Z)+Sqr(Q.Y)+Sqr(Q.X);
 End;
 
-Function QuaternionInverse(Const Q:Quaternion):Quaternion;
+Function QuaternionNormalize(Const Q:Quaternion):Quaternion;
 Var
   N:Single;
 Begin
-  Result := QuaternionConjugate(Q);
-  N := QuaternionNorm(Result);
+  N := QuaternionNorm(Q);
 
   If (N<>0) Then
   Begin
-    Result.X := Result.X/N;
-    Result.Y := Result.Y/N;
-    Result.Z := Result.Z/N;
-    Result.W := Result.W/N;
+    Result.X := Q.X/N;
+    Result.Y := Q.Y/N;
+    Result.Z := Q.Z/N;
+    Result.W := Q.W/N;
   End;
 End;
 
@@ -583,6 +583,7 @@ End;
 Function QuaternionToEuler(Const Q:Quaternion):Vector3D;
 Var
   sqx, sqy, sqz:Single;
+  N:Single;
 Begin
 {  Result.X := Atan2(2 * q.Y * q.W - 2 * q.X * q.Z,
  	                1 - 2* Pow(q.Y, 2) - 2*Pow(q.Z, 2)   );
@@ -607,8 +608,15 @@ Begin
 	sqy := Sqr(Q.Y);
 	sqz := Sqr(Q.Z);
 
+  N := -2 * (Q.x*Q.z - Q.y*Q.W);
+  If N>1 Then
+    N := 1
+  Else
+  If (N<-1) Then
+    N := -1;
+
   Result.x := atan2(2 * (Q.z*Q.y + Q.x*Q.W), 1 - 2*(sqx + sqy));
-  Result.y := arcsin(-2 * (Q.x*Q.z - Q.y*Q.W));
+  Result.y := arcsin(N);
   Result.z := atan2(2 * (Q.x*Q.y + Q.z*Q.W), 1 - 2*(sqy + sqz));
 End;
 
