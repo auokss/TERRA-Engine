@@ -243,6 +243,7 @@ End;
 
 Function Resource.Update:Boolean;
 Begin
+  SetStatus(rsReady);
   Result := True;
 End;
 

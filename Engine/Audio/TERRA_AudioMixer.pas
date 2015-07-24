@@ -3,15 +3,18 @@ Unit TERRA_AudioMixer;
 {$I terra.inc}
 
 Interface
-Uses TERRA_Utils, TERRA_String, TERRA_Threads, TERRA_Mutex;
+Uses TERRA_Utils, TERRA_String, TERRA_Threads, TERRA_Mutex, TERRA_Sound, TERRA_SoundSource, TERRA_AudioBuffer;
 
 Const
-  DefaultAudioBufferSize:Integer = 8192;
+  {$IFDEF MOBILE}
+  DefaultSampleFrequency = 22050;
+  {$ELSE}
+  DefaultSampleFrequency = 44100;
+  {$ENDIF}
+
+  DefaultAudioSampleCount = 1024 * 16;
 
 Type
-  PAudioSample = ^AudioSample;
-  AudioSample = Word;
-
   TERRAAudioMixer = Class;
 
   TERRAAudioDriver = Class(TERRAObject)
@@ -30,10 +33,11 @@ Type
 
   TERRAAudioMixer = Class(TERRAObject)
     Protected
-       _Frequency:Cardinal;
-       _SampleBufferSize:Cardinal;
+       _Ready:Boolean;
 
-       _Buffer:Array Of Cardinal;
+       _BufferA:AudioBuffer;
+       _BufferB:AudioBuffer;
+       _CurrentBuffer:AudioBuffer;
 
        _Thread:TERRAThread;
        _Mutex:CriticalSection;
@@ -41,14 +45,18 @@ Type
 
        _Driver:TERRAAudioDriver;
 
-       _CurrentOffset:Integer;
+       _CurrentSample:Cardinal;
+
+       _Sources:Array Of SoundSource;
+       _SourceCount:Integer;
 
        Procedure Update();
 
        Procedure Enter();
        Procedure Leave();
 
-       Procedure Render(DestBuffer:PAudioSample; Offset, Samples:Integer); Virtual;
+       Procedure ClearSources();
+       Procedure SwapBuffers();
 
     Public
        Constructor Create(Frequency, MaxSamples:Cardinal);
@@ -57,10 +65,12 @@ Type
        Procedure Start();
        Procedure Stop();
 
-       Procedure RequestSamples(DestBuffer:PAudioSample; Samples:Integer);
+       Procedure RequestSamples(Dest:AudioBuffer);
 
-       Property Frequency:Cardinal Read _Frequency;
-       Property SampleBufferSize:Cardinal Read _SampleBufferSize;
+       Procedure AddSource(Source:SoundSource);
+       Procedure RemoveSource(Source:SoundSource);
+
+       Property Buffer:AudioBuffer Read _CurrentBuffer;
   End;
 
   AudioMixerThread = Class(TERRAThread)
@@ -74,7 +84,7 @@ Type
 
 Implementation
 
-Uses TERRA_Error, TERRA_OS
+Uses TERRA_Error, TERRA_Log, TERRA_OS
 {$IFDEF WINDOWS}
 , TERRA_WinMMAudioDriver
 {$ENDIF}
@@ -89,10 +99,13 @@ Constructor TERRAAudioMixer.Create(Frequency, MaxSamples:Cardinal);
 Var
   I:Integer;
 Begin
-  _Frequency := Frequency;
- _SampleBufferSize := MaxSamples;
+  _BufferA := AudioBuffer.Create(MaxSamples, Frequency, True);
+  _BufferB := AudioBuffer.Create(MaxSamples, Frequency, True);
+  _CurrentBuffer := _BufferA;
 
-  SetLength(_Buffer, MaxSamples * 2); // stereo
+  SetLength(_Sources, 8);
+
+	Log(logDebug, 'Audio','Opening sound device');
 
   {$IFDEF WINDOWS}
   _Driver := WindowsAudioDriver.Create();
@@ -102,7 +115,13 @@ Begin
   _Driver := CoreAudioDriver.Create();
   {$ENDIF}
 
-  _Driver.Reset(Frequency, MaxSamples, Self);
+  _Ready := _Driver.Reset(Frequency, MaxSamples, Self);
+
+  If Not _Ready Then
+  Begin
+	  Log(logWarning, 'Audio','Failed initializing sound device');
+    Exit;
+  End;
 
  _ThreadTerminated := False;
  _Mutex := CriticalSection.Create();
@@ -113,18 +132,35 @@ End;
 
 Procedure TERRAAudioMixer.Release();
 Begin
-  Self.Enter();
-  _ThreadTerminated := True;
-  Self.Leave();
+  If _Ready Then
+  Begin
+    Self.Enter();
+    _ThreadTerminated := True;
+    Self.Leave();
 
-  _Thread.Terminate();
-  ReleaseObject(_Thread);
+    _Thread.Terminate();
+    ReleaseObject(_Thread);
+    ReleaseObject(_Mutex);
+  End;
 
-  ReleaseObject(_Mutex);
+  Self.ClearSources();
 
   ReleaseObject(_Driver);
 
-  SetLength(_Buffer, 0);
+  ReleaseObject(_BufferA);
+  ReleaseObject(_BufferB);
+End;
+
+Procedure TERRAAudioMixer.ClearSources();
+Var
+  I:Integer;
+Begin
+  For I := 0 To Pred(_SourceCount) Do
+    ReleaseObject(_Sources[I]);
+
+  SetLength(_Sources, 0);
+  _SourceCount := 0;
+
 End;
 
 Procedure TERRAAudioMixer.Enter;
@@ -149,31 +185,105 @@ begin
 // SuspendThread(_ThreadHandle);
 end;
 
-
-Procedure TERRAAudioMixer.Render(DestBuffer:PAudioSample; Offset, Samples:Integer);
-Begin
-
-End;
-
 Procedure TERRAAudioMixer.Update();
 Begin
   Self.Enter();
   Self._Driver.Update();
+
+  If (_CurrentSample>=_CurrentBuffer.SampleCount) Then
+  Begin
+    SwapBuffers();
+  End;
+
   Self.Leave();
 End;
 
-Procedure TERRAAudioMixer.RequestSamples(DestBuffer:PAudioSample; Samples:Integer);
+Procedure TERRAAudioMixer.AddSource(Source: SoundSource);
 Begin
-  Self.Render(DestBuffer, _CurrentOffset, Samples);
-  Inc(_CurrentOffset, Samples);
+  If (Source = Nil) Or (Not _Ready) Then
+    Exit;
 
-  If (_CurrentOffset >= _SampleBufferSize) Then
+  Self.Enter();
+
+  Inc(_SourceCount);
+  If Length(_Sources)<_SourceCount Then
+    SetLength(_Sources, Length(_Sources) * 2);
+  _Sources[Pred(_SourceCount)] := Source;
+
+  Self.Leave();
+End;
+
+Procedure TERRAAudioMixer.RemoveSource(Source: SoundSource);
+Var
+  N, I:Integer;
+Begin
+  If (Source = Nil) Or (Not _Ready) Then
+    Exit;
+
+  Self.Enter();
+
+  N := -1;
+  For I:=0 To Pred(_SourceCount) Do
+  If (_Sources[I] = Source) Then
   Begin
-   Samples := _CurrentOffset - _CurrentOffset;
-   _CurrentOffset := 0;
+    N := I;
+    Break;
+  End;
 
-   If Samples>0 Then
-    Self.RequestSamples(DestBuffer, Samples);
+  If (N>=0) Then
+  Begin
+    //ReleaseObject(_Sources[N]);
+    _Sources[N] := _Sources[Pred(_SourceCount)];
+    _Sources[Pred(_SourceCount)] := Nil;
+    Dec(_SourceCount);
+  End;
+
+  Self.Leave();
+End;
+
+Procedure TERRAAudioMixer.RequestSamples(Dest:AudioBuffer);
+Var
+  SampleCount, Leftovers, Temp:Integer;
+Begin
+  SampleCount := Dest.SampleCount;
+
+  If (SampleCount + _CurrentSample > _CurrentBuffer.SampleCount) Then
+  Begin
+    Temp := SampleCount;
+    SampleCount := _CurrentBuffer.SampleCount - _CurrentSample;
+    Leftovers := Temp - SampleCount;
+  End Else
+    Leftovers := 0;
+
+  Dest.ClearSamples();
+  Dest.MixSamples(0, Self._CurrentBuffer, _CurrentSample, SampleCount, 1.0);
+  Inc(_CurrentSample, SampleCount);
+End;
+
+Procedure TERRAAudioMixer.SwapBuffers;
+Var
+  I:Integer;
+Begin
+  _CurrentSample := 0;
+
+  If _CurrentBuffer = _BufferA Then
+    _CurrentBuffer := _BufferB
+  Else
+    _CurrentBuffer := _BufferA;
+
+  _CurrentBuffer.ClearSamples();
+
+  I := 0;
+  While (I<_SourceCount) Do
+  If (Not _Sources[I].Loop)  And (_Sources[I].Status = soundSource_Finished) Then
+  Begin
+    ReleaseObject(_Sources[I]);
+    _Sources[I] := _Sources[Pred(_SourceCount)];
+    Dec(_SourceCount);
+  End Else
+  Begin
+    _Sources[I].RenderSamples(Self._CurrentBuffer);
+    Inc(I);
   End;
 End;
 

@@ -71,7 +71,7 @@ Function NearestPowerOfTwo(P:Cardinal):Cardinal;
 Function LinearInterpolate(a,b, mu:Float):Float; {$IFDEF FPC} Inline;{$ENDIF}
 Function CubicInterpolate(y0, y1, y2, y3, mu:Float):Float; {$IFDEF FPC} Inline;{$ENDIF}
 Function CatmullRomInterpolate(y0, y1, y2, y3, mu:Float):Float; {$IFDEF FPC} Inline;{$ENDIF}
-Function HermiteInterpolate(pA, pB, vA, vB, u:Float):Float; {$IFDEF FPC} Inline;{$ENDIF}
+Function HermiteInterpolate(y0, y1, y2, y3, u:Float):Float; {$IFDEF FPC} Inline;{$ENDIF}
 
 Function QuadraticBezierCurve(y0, y1, y2, mu:Float):Float; {$IFDEF FPC} Inline;{$ENDIF}
 Function CubicBezierCurve(y0, y1, y2, y3, mu:Float):Float; {$IFDEF FPC} Inline;{$ENDIF}
@@ -457,7 +457,7 @@ Begin
    Result := (a0 * mu * mu2) + (a1 * mu2) + (a2 * mu) + a3;
 End;
 
-Function HermiteInterpolate(pA, pB, vA, vB, u:Float):Float; {$IFDEF FPC} Inline;{$ENDIF}
+Function HermiteInterpolate(y0, y1, y2, y3, u:Float):Float; {$IFDEF FPC} Inline;{$ENDIF}
 Var
   u2, u3, B0,B1,B2,B3:Float;
 Begin
@@ -467,7 +467,7 @@ Begin
   B1 := -2.0*u3 + 3.0*u2;
   B2 := u3 - 2.0*u2 + u;
   B3 := u3 - u;
-  Result := ( B0*pA + B1*pB + B2*vA + B3*vB );
+  Result := ( B0*y0 + B1*y1 + B2*y2 + B3*y3 );
 End;
 
 Function QuadraticBezierCurve(y0, y1, y2,  mu:Float):Float; {$IFDEF FPC} Inline;{$ENDIF}

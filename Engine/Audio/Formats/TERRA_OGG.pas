@@ -34,7 +34,7 @@ Unit TERRA_OGG;
 {$ENDIF}
 
 Interface
-Uses TERRA_String, TERRA_Utils, TERRA_Stream, TERRA_SoundStreamer, TERRA_Sound, TERRA_Log;
+Uses TERRA_String, TERRA_Utils, TERRA_Stream, TERRA_SoundStreamer, TERRA_Sound, TERRA_AudioBuffer, TERRA_AudioMixer, TERRA_Log;
 
 
 {$IFDEF USELIBVORBIS}
@@ -6099,7 +6099,7 @@ Const
   BufferSize = 1024 * 8;
 
 Type
-  OggStreamer=Class(SoundStream)
+  OggStreamer = Class(SoundStream)
     Protected
       {$IFDEF USELIBVORBIS}
       _StreamSize:Cardinal;
@@ -6113,7 +6113,6 @@ Type
       _Info:stb_vorbis_info;
       _Error:STBVorbisError;
       _BaseOffset:Integer;
-      _TargetSampleRate:Integer;
       _Temp:Array[0..Pred(BufferSize)] Of Byte;
 
       Function ResampleSound(left, right:PSingle; Offset, Length:Integer):Integer;
@@ -6121,15 +6120,15 @@ Type
       {$ENDIF}
 
       Procedure InitStream; Override;
-      Procedure Stream(Target:Cardinal); Override;
       Class Function Validate(Source:Stream):Boolean; Override;
+
+      Procedure RequestMoreSamples(); Override;
 
     Public
       Procedure Release; Override;
-
   End;
 
-   
+
 Function ValidateOGG(Source:Stream):Boolean;
 Var
   ID:FileHeader;
@@ -6145,6 +6144,7 @@ Var
   Mem:Array Of Byte;
   Samples, Channels, SampleRate, Size:Integer;
   Output:pSmallInt;
+  TargetBuffer:Pointer;
 Begin
   Result := False;
 
@@ -6158,9 +6158,7 @@ Begin
   If (Samples<0) Then
     Exit;
 
-  Size := Samples * Channels * 2;
-  MySound.New(Size, Channels, 16, SampleRate);
-  Move(Output^, MySound.Data^, Size);
+  MySound.New(Samples, SampleRate, (Channels=2), Output);
 
   FreeMem(Output);
   
@@ -6338,6 +6336,8 @@ End;
 Procedure OggStreamer.Release;
 Begin
   ov_clear(_OggStream);
+
+  ReleaseObject(_ExtraBuffer);
   Inherited;
 End;
 
@@ -6375,10 +6375,7 @@ Begin
   _Source.Seek(_BaseOffset);
 
   _Info := stb_vorbis_get_info(_Vorbis);
-  _TargetSampleRate := _Info.sample_rate; // 44100;
-
-  Self.AllocBuffer(_Info.Channels, 16, _TargetSampleRate);
-
+  _Buffer := AudioBuffer.Create(StreamingAudioSampleCount, _Info.sample_rate, (_Info.Channels = 2));
 End;
 
 Function stb_clamp(I,min,max:Integer):Integer;
@@ -6387,36 +6384,6 @@ begin
   if (i>max) Then i := max;
   result := I;
 End;
-
-Function OggStreamer.ResampleSound(left, right:PSingle; Offset, Length:Integer):Integer;
-Type
-  PSample = ^Sample;
-  Sample = Record
-    Left, Right:Word;
-  End;
-Const
-  scale:Single = 32768.0;
-Var
-  fs:Single;
-  j, newsamples:Cardinal;
-  index:Cardinal;
-  S:PSample;
-Begin
-  fs := _TargetSampleRate / _Info.sample_rate;
-
-  newsamples := Trunc(Length * fs);
-  Result := newsamples;
-
-  for j:=0 to pred(newsamples) do
-  Begin
-    index := trunc(j/fs);
-    S := PSample(_Data);
-    Inc(S, Index+Offset);
-    S.left := trunc( stb_clamp(trunc((scale * IncPointer(left,+index)^)), -32768, 32767));
-    S.right := trunc( stb_clamp(trunc((scale * IncPointer(right,+index)^)), -32768, 32767));
-  End;
-End;
-
 
 Function OggStreamer.FillBuffer(Offset: Integer): Integer;
 Label retry3;
@@ -6462,30 +6429,49 @@ Begin
     If (n = 0) Then
       Exit; // seek/error recovery
 
-    left := outputs[0];
-    If (num_c > 1) Then
-      right := outputs[1]
-    else
-      right := outputs[0];
+  left := outputs[0];
+  If (num_c > 1) Then
+    right := outputs[1]
+  Else
+    right := outputs[0];
 
-
-    Result := ResampleSound(left, right, Offset, n);
+  Result := ResampleSound(left, right, Offset, n);
 End;
 
-Procedure OggStreamer.Stream(Target:Cardinal);
+
+Function OggStreamer.ResampleSound(left, right:PSingle; Offset, Length:Integer):Integer;
+Const
+  scale:Single = 32768.0;
+Var
+  j, Index:Cardinal;
+  SrcData:PAudioSample;
+Begin
+  Result := Length;
+
+  For j:=0 to Pred(Result) do
+  Begin
+    Index := Offset + J;
+      
+    SrcData := _Buffer.GetSampleAt(Index, 0);
+
+    SrcData^ := trunc( stb_clamp(trunc((scale * IncPointer(left, J)^)), -32768, 32767));
+
+    Inc(SrcData);
+    SrcData^ := trunc( stb_clamp(trunc((scale * IncPointer(right, J)^)), -32768, 32767));
+  End;
+End;
+
+Procedure OggStreamer.RequestMoreSamples();
 Var
   Ofs, Count:Integer;
 Begin
-  _BufferSize := 0;
+  _CurrentSample := 0;
 
   Ofs := 0;
   Repeat
     Count := FillBuffer(Ofs);
     Inc(Ofs, Count);
-    Inc(_BufferSize, Count * 4);
-  Until (_BufferSize>=StreamBufferSize Div 2);
-
-  Inherited;
+  Until (Ofs >= _Buffer.SampleCount);
 End;
 
 Procedure OggStreamer.Release;

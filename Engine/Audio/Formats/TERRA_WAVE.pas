@@ -78,11 +78,12 @@ Var
   Chunk:TWaveChunk;
   Header:TWaveHeader;
   Pos,Id :Cardinal;
-  Size:Cardinal;
+  Size, Samples:Cardinal;
+  Temp:Pointer;
 Begin
   Result := False;
   Source.Read(@Chunk, SizeOf(Chunk));
-  Source.Read(@Id,4);
+  Source.ReadCardinal(Id);
 
   If (Chunk.ID<>RIFF_ID) Or (Id<> WAVE_ID) Then
   Begin
@@ -113,8 +114,17 @@ Begin
     Exit;
   End;
 
-  MySound.New(Chunk.Size, Header.Channels, Header.Bits, Header.Frequency);
-  Source.Read(MySound.Data, Chunk.Size);
+  Samples := Chunk.Size Div (Header.Bits Shr 3);
+  If Header.Channels>1 Then
+    Samples := Samples Div Header.Channels;
+
+  GetMem(Temp, Chunk.Size);
+  Source.Read(Temp, Chunk.Size);
+
+  MySound.New(Samples, Header.Frequency, (Header.Channels=2), Temp);
+
+  FreeMem(Temp);
+
   Result := True;
 End;
 

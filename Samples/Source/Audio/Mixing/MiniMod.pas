@@ -1349,14 +1349,14 @@ VAR
 BEGIN
  FILLCHAR(_Buffer[Offset], Samples * 2 * SizeOf(Cardinal), 0);
 
- Counter:=0;
- DoContinue:=TRUE;
- WHILE Counter<Samples DO
- BEGIN
-  IF BPMSamplesZaehler=0 THEN
-    DoTick;
-  INC(Counter,DoMix(Counter,BPMSamplesZaehler,DoContinue));
- END;
+   Counter:=0;
+   DoContinue:=TRUE;
+   WHILE Counter<Samples DO
+  BEGIN
+    IF BPMSamplesZaehler=0 THEN
+      DoTick;
+    INC(Counter,DoMix(Counter, BPMSamplesZaehler,DoContinue));
+   END;               
 
  IF Filter THEN BEGIN
   // Lowpass Filter

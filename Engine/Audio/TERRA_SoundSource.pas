@@ -18,38 +18,41 @@
  *
  **********************************************************************************************************************
  * TERRA_SoundSource
- * Implements a 3D sound source
+ * Implements a positional sound source
  ***********************************************************************************************************************
 }
 Unit TERRA_SoundSource;
 
 {$I terra.inc}
 
-{$IFDEF ANDROID}
-{$DEFINE USEJAVA}
-{$ENDIF}
-
 Interface
 Uses {$IFDEF USEDEBUGUNIT}TERRA_Debug,{$ENDIF}
   TERRA_Utils, TERRA_Math, TERRA_Vector3D, TERRA_Sound,
-  TERRA_OS,TERRA_AL
-  {$IFDEF USEJAVA},TERRA_Java{$ENDIF};
-
-{$IFDEF USEJAVA}
-Const
-  AudioTrackJavaClass = 'com.pascal.terra.TERRAAudioTrack';
-{$ENDIF}
+  TERRA_OS, TERRA_Resource, TERRA_AudioBuffer;
 
 Type
   SoundSource = Class;
 
-  SoundSourceCallback = Procedure(MySource:SoundSource; UserData:Pointer); Cdecl;
+  SoundSourceCallback = Procedure(MySource:SoundSource) Of Object;
+
+  SoundSourceMode = (
+    soundSource_Static,
+    soundSource_Dynamic
+  );
+
+  SoundSourceStatus = (
+    soundSource_Playing,
+    soundSource_Finished,
+    soundSource_Paused
+  );
 
   SoundSource = Class(TERRAObject)
     Protected
-      _Handle:Integer;
-      _Sound:Sound;
-      _StartTime:Cardinal;
+      _Mode:SoundSourceMode;
+      _Status:SoundSourceStatus;
+
+      _Buffer:AudioBuffer;
+      _CurrentSample:Cardinal;
 
       _Pitch:Single;
       _Volume:Single;
@@ -58,16 +61,7 @@ Type
       _Position:Vector3D;
       _Velocity:Vector3D;
 
-      _Waiting:Boolean;
-
-      {$IFDEF USEJAVA}
-      _Track:JavaObject;
-      {$ENDIF}
-
       _Callback:SoundSourceCallback;
-      _UserData:Pointer;
-
-      Function GetStatus:Integer;
 
       Procedure SetPitch(Value:Single);
       Procedure SetVolume(Value:Single);
@@ -75,48 +69,45 @@ Type
       Procedure SetPosition(Position:Vector3D);
       Procedure SetVelocity(Velocity:Vector3D);
 
-      Procedure UpdateSettings;
-      Procedure Clear;
+      Procedure RequestMoreSamples(); Virtual;
 
     Public
-      Constructor Create;
+      Constructor Create(Mode:SoundSourceMode);
       Procedure Release; Override;
 
-      Procedure Bind(MySound:Sound);
+      Procedure SetCallback(Callback:SoundSourceCallback);
 
-      Procedure Start;
-      Procedure Play;
-      Procedure Pause;
-      Procedure Stop;
+      Procedure RenderSamples(Dest:AudioBuffer); Virtual;
 
-      Procedure OnFinish();
-
-      Procedure SetCallback(Callback:SoundSourceCallback; UserData:Pointer = Nil);
-
-      Property Handle:Integer Read _Handle;
-      Property Sound:TERRA_Sound.Sound Read _Sound;
-      Property Status:Integer Read GetStatus;
-      Property StartTime:Cardinal Read _StartTime;
+      Property Status:SoundSourceStatus Read _Status;
 
       Property Pitch:Single Read _Pitch Write SetPitch;
       Property Volume:Single Read _Volume Write SetVolume;
       Property Loop:Boolean Read _Loop Write SetLoop;
 
-      Property Waiting:Boolean Read _Waiting;
-
       Property Position:Vector3D Read _Position Write SetPosition;
       Property Velocity:Vector3D Read _Velocity Write SetVelocity;
+  End;
+
+  ResourceSoundSource = Class(SoundSource)
+    Protected
+      _Sound:Sound;
+
+    Public
+      Constructor Create(Mode:SoundSourceMode; MySound:Sound);
+      Procedure Release; Override;
+
+      Procedure RenderSamples(Dest:AudioBuffer); Override;
+
+      Property Sound:TERRA_Sound.Sound Read _Sound;
   End;
 
 Implementation
 Uses TERRA_GraphicsManager, TERRA_SoundManager, TERRA_Log;
 
-// SoundSource
-Constructor SoundSource.Create;
+{ SoundSource }
+Constructor SoundSource.Create(Mode:SoundSourceMode);
 Begin
-  _Handle := 0;
-  _Sound := Nil;
-
   _Volume := 1.0;
   _Pitch := 1.0;
 
@@ -124,94 +115,8 @@ Begin
   _Velocity := VectorZero;
   _Loop := False;
 
-  {$IFDEF USEJAVA}
-  _Track := Nil;
-  {$ENDIF}
-End;
-
-Procedure SoundSource.Release;
-Begin
-  Clear;
-End;
-
-Procedure SoundSource.Clear;
-{$IFDEF USEJAVA}
-Var
-  Frame:JavaFrame;
-{$ENDIF}
-Begin
-  {$IFDEF DISABLESOUND}
-  Exit;
-  {$ENDIF}
-
-  Stop;
-
-  If Assigned(_Sound) Then
-    _Sound.RemoveSource(Self);
-
-  {$IFDEF USEJAVA}
-  If (_Track<>Nil) Then
-  Begin
-    Java_Begin(Frame);
-    _Track.CallVoidMethod(Frame, 'release', Nil);
-    ReleaseObject(_Track);
-    _Track := Nil;
-    Java_End(Frame);
-  End;
-  {$ELSE}
-  If (_Handle<>0) Then
-  Begin
-    alDeleteSources(1,@_Handle);    {$IFDEF FULLDEBUG}DebugOpenAL;{$ENDIF}
-    _Handle:=0;
-  End;
-  {$ENDIF}
-End;
-
-Procedure SoundSource.UpdateSettings;
-{$IFDEF USEJAVA}
-Var
-  Params:JavaArguments;
-  Frame:JavaFrame;
-{$ENDIF}
-Begin
-  Exit;
-  {$IFDEF USEJAVA}
-  If _Track<>Nil Then
-  Begin
-    Log(logDebug, 'SoundSource', 'Setting volume');
-
-    Java_Begin(Frame);
-
-    Params := JavaArguments.Create(Frame);
-    Params.AddFloat(_Volume);
-    _Track.CallVoidMethod(Frame, 'setVolume', Params);
-    ReleaseObject(Params);
-
-    Log(logDebug, 'SoundSource', 'Setting loop');
-    Params := JavaArguments.Create(Frame);
-    Params.AddBoolean(_Loop);
-    _Track.CallVoidMethod(Frame, 'setLoop', Params);
-    ReleaseObject(Params);
-
-    Java_End(Frame);
-  End;
-
-  {$ELSE}
-  If (_Handle<=0) Then
-    Exit;
-
-  //alSourcef(_Handle, AL_PITCH, _Pitch);         {$IFDEF FULLDEBUG}DebugOpenAL;{$ENDIF}
-  If (Self._Sound.Channels<=1) Then
-  Begin
-    alSourcef(_Handle, AL_GAIN, _Volume);         {$IFDEF FULLDEBUG}DebugOpenAL;{$ENDIF}
-    alSourcefv(_Handle, AL_POSITION, @_Position); {$IFDEF FULLDEBUG}DebugOpenAL;{$ENDIF}
-    alSourcefv(_Handle, AL_VELOCITY, @_Velocity); {$IFDEF FULLDEBUG}DebugOpenAL;{$ENDIF}
-    alSourcef(_Handle, AL_REFERENCE_DISTANCE, 30.0);  {$IFDEF FULLDEBUG}DebugOpenAL;{$ENDIF}
-    alSourcef(_Handle, AL_MAX_DISTANCE, 5000.0);
-    alSourcef(_Handle, AL_ROLLOFF_FACTOR, 2.0);
-  End;
-  alSourcei(_Handle, AL_LOOPING, Integer(_Loop));
-  {$ENDIF}
+  _Status := soundSource_Finished;
+  _Mode := Mode;
 End;
 
 Procedure SoundSource.SetPitch(Value: Single);
@@ -220,7 +125,6 @@ Begin
     Exit;
 
   _Pitch := Value;
-  UpdateSettings;
 End;
 
 Procedure SoundSource.SetVolume(Value:Single);
@@ -229,198 +133,115 @@ Begin
     Exit;
 
   _Volume := Value;
-  UpdateSettings;
 End;
 
 Procedure SoundSource.SetLoop(Value:Boolean);
 Begin
   _Loop := Value;
-  UpdateSettings;
 End;
 
 Procedure SoundSource.SetPosition(Position: Vector3D);
 Begin
   _Position := Position;
-  UpdateSettings;
 End;
 
 Procedure SoundSource.SetVelocity(Velocity: Vector3D);
 Begin
   _Velocity := Velocity;
-  UpdateSettings;
 End;
 
-Procedure SoundSource.Bind(MySound:Sound);
-Begin
-  If (_Sound=MySound) Or (Not Assigned(MySound)) Then
-    Exit;
-
-  Log(logDebug, 'SoundSource', 'Binding '+MySound.Name);
-
-  If Assigned(_Sound) Then
-    Clear;
-
-  _Sound := MySound;
-  _Sound.AttachSource(Self);
-  _Waiting := True;
-End;
-
-Procedure SoundSource.Start;
-{$IFDEF USEJAVA}
-Var
-  Params:JavaArguments;
-  Samples:Integer;
-  Frame:JavaFrame;
-{$ENDIF}
-Begin
-  _Waiting := False;
-
-  Log(logDebug, 'SoundSource', 'Updating '+ Sound.Name);
-  Sound.Update;
-
-  {$IFDEF USEJAVA}
-  Samples := (Sound.Size Div Sound.SampleSize);
-
-  Java_Begin(Frame);
-  Params := JavaArguments.Create(Frame);
-  Params.AddInteger(Sound.Channels);
-  Params.AddInteger(Sound.Frequency);
-  Params.AddInteger(Sound.Size);
-  Params.AddWordArray(Sound.Data, Samples);
-  _Track := JavaObject.Create(AudioTrackJavaClass, Params, Frame);
-  ReleaseObject(Params);
-  Java_End(Frame);
-
-  Log(logDebug, 'SoundSource', 'Ready!');
-  {$ELSE}
-  If (_Handle=0) Then
-  Begin
-    alGenSources(1, @_Handle);  {$IFDEF FULLDEBUG}DebugOpenAL;{$ENDIF}
-  End;
-
-  alSourcei(_Handle, AL_BUFFER, Sound.Buffer);
-  {$ENDIF}
-
-  UpdateSettings;
-
-  Self.Play;
-End;
-
-Procedure SoundSource.Play;
-Var
-  I:Integer;
-{$IFDEF USEJAVA}
-  Frame:JavaFrame;
-{$ENDIF}
-Begin
-  //If (Status<>sndPlaying) Then
-  Begin
-    _StartTime := Application.GetTime;
-
-    {$IFDEF USEJAVA}
-    If (_Track<>Nil) Then
-    Begin
-      Log(logDebug, 'SoundSource', 'Playing track');
-
-      Java_Begin(Frame);
-      _Track.CallVoidMethod(Frame, 'play', Nil);
-      Java_End(Frame);
-    End;
-    {$ELSE}
-    If (Assigned(SoundManager.Instance().Ambience)) Then
-      alSource3i(_Handle, AL_AUXILIARY_SEND_FILTER, SoundManager.Instance().Ambience.Handle, 0, AL_FILTER_NULL);
-
-    alSourcei(_Handle, AL_LOOPING, Integer(_Loop)); {$IFDEF FULLDEBUG}DebugOpenAL;{$ENDIF}
-    alSourcePlay(_Handle);  {$IFDEF FULLDEBUG}DebugOpenAL;{$ENDIF}
-    {$ENDIF}
-  End;
-End;
-
-Procedure SoundSource.Pause;
-Begin
-  If Status=sndPlaying Then
-  Begin
-    {$IFDEF USEJAVA}
-    Self.Stop();
-    {$ELSE}
-    alSourcePause(_Handle);
-    {$ENDIF}
-  End Else
-    Play;
-End;
-
-Procedure SoundSource.Stop;
-{$IFDEF USEJAVA}
-Var
-  Frame:JavaFrame;
-{$ENDIF}
-Begin
-  If (Status<>sndStopped) Then
-  Begin
-    {$IFDEF USEJAVA}
-    If _Track<>Nil Then
-    Begin
-      Log(logDebug, 'SoundSource', 'Stopping track');
-
-      Java_Begin(Frame);
-      _Track.CallVoidMethod(Frame, 'stop', Nil);
-
-      ReleaseObject(_Track);
-      _Track := Nil;
-      Java_End(Frame);
-    End;
-
-    {$ELSE}
-    alSourceStop(_Handle);  {$IFDEF FULLDEBUG}DebugOpenAL;{$ENDIF}
-    If (Assigned(SoundManager.Instance().Ambience)) Then
-    Begin
-      alSource3i(_Handle, AL_AUXILIARY_SEND_FILTER, AL_EFFECTSLOT_NULL, 0, AL_FILTER_NULL);
-      {$IFDEF FULLDEBUG}DebugOpenAL;{$ENDIF}
-    End;
-    {$ENDIF}
-  End;
-End;
-
-Function SoundSource.GetStatus:Integer;
-Var
-  State:Integer;
-{$IFDEF USEJAVA}
-  Frame:JavaFrame;
-{$ENDIF}
-Begin
-  {$IFDEF USEJAVA}
-  If _Track<>Nil Then
-  Begin
-    Java_Begin(Frame);
-    Result := _Track.CallIntMethod(Frame, 'getState', Nil);
-    Java_End(Frame);
-    //Log(logDebug, 'Sound', 'Result='+IntToString(Result));
-  End Else
-    Result := sndStopped;
-  {$ELSE}
-  alGetSourcei(_Handle, AL_SOURCE_STATE, @State);
-  Case State Of
-  AL_PLAYING: Result := sndPlaying;
-  AL_PAUSED: Result := sndPaused;
-  Else
-    Result := sndStopped;
-  End;
-  {$ENDIF}
-End;
-
-Procedure SoundSource.SetCallback(Callback: SoundSourceCallback; UserData: Pointer);
+Procedure SoundSource.SetCallback(Callback: SoundSourceCallback);
 Begin
   _Callback := Callback;
-  _UserData := Userdata;
 End;
 
-Procedure SoundSource.OnFinish;
+Procedure SoundSource.Release;
 Begin
   If Assigned(_Callback) Then
   Begin
-    _Callback(Self, _UserData);
+    _Callback(Self);
     _Callback := Nil;
   End;
 End;
+
+Procedure SoundSource.RenderSamples(Dest: AudioBuffer);
+Var
+  SampleCount, CopyTotal, Temp, Leftovers:Integer;
+  FreqRate:Single;
+Begin
+  FreqRate := _Buffer.Frequency / Dest.Frequency;
+
+  SampleCount := Dest.SampleCount;
+  If (Trunc(_CurrentSample + SampleCount * FreqRate) > _Buffer.SampleCount) Then
+  Begin
+    Temp := SampleCount;
+    SampleCount := Trunc((_Buffer.SampleCount - _CurrentSample) / FreqRate);
+    LeftOvers := Temp - SampleCount;
+  End Else
+    Leftovers := 0;
+
+  CopyTotal := Dest.MixSamples(0, _Buffer, _CurrentSample, SampleCount, 0.5);
+  Inc(_CurrentSample, CopyTotal);
+
+  If (Leftovers>0) Then
+  Begin
+    RequestMoreSamples();
+
+    If (_Status = soundSource_Playing) Then
+    Begin
+      CopyTotal := Dest.MixSamples(SampleCount, _Buffer, _CurrentSample, Leftovers, 0.5);
+      Inc(_CurrentSample, CopyTotal);
+    End;
+  End;
+
+  If (_CurrentSample>=_Buffer.SampleCount)  Then
+    RequestMoreSamples();
+End;
+
+Procedure SoundSource.RequestMoreSamples();
+Begin
+  If (Self._Loop) Then
+    _CurrentSample := 0
+  Else
+    _Status := soundSource_Finished;
+End;
+
+{ ResourceSoundSource }
+Constructor ResourceSoundSource.Create(Mode:SoundSourceMode; MySound:Sound);
+Begin
+  Inherited Create(Mode);
+
+  If (Not Assigned(MySound)) Then
+    Exit;
+
+  Log(logDebug, 'SoundSource', 'Binding '+ MySound.Name);
+
+  _Sound := MySound;
+  _Sound.AttachSource(Self);
+
+  _Status := soundSource_Playing;
+End;
+
+Procedure ResourceSoundSource.Release;
+Begin
+  If Assigned(_Sound) Then
+    _Sound.RemoveSource(Self);
+End;
+
+Procedure ResourceSoundSource.RenderSamples(Dest:AudioBuffer);
+Begin
+  If (Self._Sound = Nil) Or (Self._Sound.Status = rsInvalid) Then
+  Begin
+    Self._Status := soundSource_Finished;
+    Exit;
+  End;
+
+  If (Not Self._Sound.IsReady()) Then
+    Exit;
+
+  Self._Buffer := _Sound.Buffer;
+  Inherited RenderSamples(Dest);
+End;
+
 
 End.

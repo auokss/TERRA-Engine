@@ -35,7 +35,8 @@ Begin
   GraphicsManager.Instance.Scene := _Scene;
   GraphicsManager.Instance.DeviceViewport.BackgroundColor := ColorBlue;
 
-  MusicManager.Instance.Play('mar');
+  MusicManager.Instance.Volume := 0.4;
+  MusicManager.Instance.Play('bgm_town5');
 End;
 
 Procedure Demo.OnDestroy;

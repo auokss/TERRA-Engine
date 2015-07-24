@@ -26,7 +26,7 @@ Unit TERRA_MusicTrack;
 {$I terra.inc}
 Interface
 
-Uses TERRA_String, TERRA_Utils, TERRA_AL, TERRA_OGG, TERRA_SoundStreamer;
+Uses TERRA_String, TERRA_Utils, TERRA_OGG, TERRA_SoundManager, TERRA_SoundSource, TERRA_SoundStreamer;
 
 Type
   MusicTrackClass = Class Of MusicTrack;
@@ -117,11 +117,9 @@ Procedure StreamingMusicTrack.Init;
 Var
   Source:Stream;
 Begin
-  If (OpenALHandle=0) Then
-    Exit;
-
   Source := FileManager.Instance().OpenStream(FileName);
-  _Stream := CreateSoundStream(Source);
+  _Stream := CreateSoundStream(soundSource_Static, Source);
+  _Stream.Volume := Self.Volume;
 End;
 
 Procedure StreamingMusicTrack.Release;
@@ -129,26 +127,27 @@ Begin
   ReleaseObject(_Stream);
 End;
 
-
 Procedure StreamingMusicTrack.Play();
 Begin
   If Assigned(_Stream) Then
   Begin
     SetVolume(_Volume);
-    _Stream.Play;
+    SoundManager.Instance.Mixer.AddSource(_Stream);
   End;
 End;
 
 Procedure StreamingMusicTrack.Update;
 Begin
-  If Assigned(_Stream) Then
-    _Stream.Update;
+(*  If Assigned(_Stream) Then
+    _Stream.Update;*)
 End;
 
 Procedure StreamingMusicTrack.Stop;
 Begin
   If Assigned(_Stream) Then
-    _Stream.Stop;
+  Begin
+    SoundManager.Instance.Mixer.RemoveSource(_Stream);
+  End;
 End;
 
 Procedure StreamingMusicTrack.ChangeVolume(Volume:Single);
