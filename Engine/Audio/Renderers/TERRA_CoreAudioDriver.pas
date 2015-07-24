@@ -2,7 +2,7 @@ Unit TERRA_CoreAudioDriver;
 
 Interface
 
-Uses TERRA_Error, TERRA_String, TERRA_AudioMixer, MacOSAll, CoreAudio;
+Uses TERRA_Error, TERRA_Utils, TERRA_String, TERRA_AudioMixer, TERRA_AudioBuffer, MacOSAll, CoreAudio;
 
 Const
   kAudioUnitSubType_RemoteIO =  kAudioUnitSubType_DefaultOutput;
@@ -19,8 +19,11 @@ Type
 
       sinPhase:Single;
 
+      _Buffer:TERRAAudioBuffer;
+
     Public
-      Function Reset(AFrequency, MaxSamples:Cardinal; Mixer:TERRAAudioMixer):Boolean; Override;
+
+      Function Reset(Frequency, MaxSamples:Cardinal; Mixer:TERRAAudioMixer):Boolean; Override;
       Procedure Release; Override;
 
       Procedure Update(); Override;
@@ -43,9 +46,9 @@ Begin
 	// In this case, the AudioController passed itself so that you can access its data.
 	Driver := CoreAudioDriver(inRefCon);
 
+        Driver._Buffer.SampleCount := inNumberFrames;
 
-
-        Driver._Mixer.RequestSamples(PAudioSample(ioData.mBuffers[0].mData), inNumberFrames);
+        Driver._Mixer.RequestSamples(Driver._Buffer);
         Result := noErr;
         Exit;
 
@@ -92,7 +95,7 @@ Begin
 End;
 
 { CoreAudioDriver }
-Function CoreAudioDriver.Reset(AFrequency, InitBufferSize:Cardinal; Mixer:TERRAAudioMixer):Boolean;
+Function CoreAudioDriver.Reset(Frequency, MaxSamples:Cardinal; Mixer:TERRAAudioMixer):Boolean;
 Var
   I:Integer;
   Status:OSStatus;
@@ -113,9 +116,8 @@ Var
   streamFormat:AudioStreamBasicDescription;
 Begin
   Self._Mixer := Mixer;
-  Self._Frequency := AFrequency;
-  Self._OutputBufferSize := InitBufferSize;
 
+  _Buffer := TERRAAudioBuffer.Create(1024, Mixer.Buffer.Frequency, Mixer.Buffer.Stereo);
 
   //  10.6 and later: generate description that will match out output device (speakers)
   FillChar(outputcd, SizeOf(Outputcd), 0); // 10.6 version
@@ -139,10 +141,9 @@ Begin
 
   // set audio stream format
 
-  streamFormat.mSampleRate := _Frequency;
+  streamFormat.mSampleRate := _Mixer.Buffer.Frequency;
   streamFormat.mFormatID := kAudioFormatLinearPCM;
-  //streamFormat.mFormatFlags :=(* kAudioFormatFlagIsSignedInteger Or*) kAudioFormatFlagIsPacked;
- streamFormat.mFormatFlags := kAudioFormatFlagIsSignedInteger; //kAudioFormatFlagIsFloat;
+  streamFormat.mFormatFlags := kAudioFormatFlagIsSignedInteger Or kAudioFormatFlagIsPacked; //kAudioFormatFlagIsFloat;
   streamFormat.mFramesPerPacket := 1;
   streamFormat.mChannelsPerFrame := 2;
   streamFormat.mBitsPerChannel := 16;
@@ -322,6 +323,8 @@ Begin
 
   DisposeAUGraph(mGraph);  *)
 
+
+  ReleaseObject(_Buffer);
 End;
 
 Procedure CoreAudioDriver.Update();

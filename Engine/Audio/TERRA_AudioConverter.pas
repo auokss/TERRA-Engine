@@ -50,16 +50,16 @@ Type
     Tail : Pointer;
     LBS:StereoAudioSample16;
 
-    _Input:AudioBuffer;
+    _Input:TERRAAudioBuffer;
 
     function ConvertFreqs16Mono(InSize : Integer): Integer;
     function ConvertFreqs16Stereo(InSize : Integer): Integer;
 
   Public
-    Constructor Create(Input:AudioBuffer);
+    Constructor Create(Input:TERRAAudioBuffer);
     Procedure Release(); override;
 
-    Function Convert(OutSampleRate:Cardinal):AudioBuffer;
+    Function Convert(OutSampleRate:Cardinal):TERRAAudioBuffer;
 
     property FilterWindow : TACSFilterWindowType read FFilterWindow write FFilterWindow;
   End;
@@ -136,7 +136,7 @@ Begin
     OutData[i] := OutData[i]/S;
 End;
 
-Constructor AudioRateConverter.Create(Input:AudioBuffer);
+Constructor AudioRateConverter.Create(Input:TERRAAudioBuffer);
 Begin
   _Input := Input;
 
@@ -155,7 +155,7 @@ Begin
   DAM := nil;
 End;
 
-Function AudioRateConverter.Convert(OutSampleRate:Cardinal):AudioBuffer;
+Function AudioRateConverter.Convert(OutSampleRate:Cardinal):TERRAAudioBuffer;
 Var
   Ratio:Single;
   TailSize, NewSize:Integer;
@@ -193,7 +193,7 @@ Begin
   FillChar(Tail^, TailSize, 0);
 
   NewSize := Round(_Input.SampleCount * Ratio);
-  Result := AudioBuffer.Create(NewSize, Self.FOutSampleRate, _Input.Stereo);
+  Result := TERRAAudioBuffer.Create(NewSize, Self.FOutSampleRate, _Input.Stereo);
   Remainder := -1;
 
   If Ratio > 1.0 Then

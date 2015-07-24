@@ -35,7 +35,7 @@ Type
 
   Sound = Class(Resource)
     Protected
-      _Buffer:AudioBuffer;
+      _Buffer:TERRAAudioBuffer;
 
       _AttachList:Array Of Pointer;
       _AttachCount:Integer;
@@ -51,7 +51,7 @@ Type
 
       Procedure New(Samples, Frequency:Cardinal; Stereo:Boolean; Data:Pointer);
 
-      Property Buffer:AudioBuffer Read _Buffer;
+      Property Buffer:TERRAAudioBuffer Read _Buffer;
   End;
 
   SoundStreamValidateFunction=Function(Source:Stream):Boolean;
@@ -96,12 +96,12 @@ End;
 
 Procedure Sound.New(Samples, Frequency:Cardinal; Stereo:Boolean; Data:Pointer);
 Var
-  Temp:AudioBuffer;
+  Temp:TERRAAudioBuffer;
   Converter:AudioRateConverter;
 Begin
   ReleaseObject(_Buffer);
 
-  _Buffer := AudioBuffer.Create(Samples, Frequency, Stereo);
+  _Buffer := TERRAAudioBuffer.Create(Samples, Frequency, Stereo);
   Move(Data^, _Buffer.Samples^, _Buffer.SizeInBytes);
 
   If (Frequency <> DefaultSampleFrequency) Then

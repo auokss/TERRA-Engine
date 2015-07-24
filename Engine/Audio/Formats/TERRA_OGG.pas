@@ -6153,7 +6153,7 @@ Begin
 
   Source.Read(@Mem[0], Source.Size);
 
-  Samples := stb_vorbis_decode_memory(@Mem[0], Source.Size, Channels, SampleRate, output);
+  Samples := stb_vorbis_decode_memory(@Mem[0], Source.Size, Channels, SampleRate, output);
 
   If (Samples<0) Then
     Exit;
@@ -6375,7 +6375,7 @@ Begin
   _Source.Seek(_BaseOffset);
 
   _Info := stb_vorbis_get_info(_Vorbis);
-  _Buffer := AudioBuffer.Create(StreamingAudioSampleCount, _Info.sample_rate, (_Info.Channels = 2));
+  _Buffer := TERRAAudioBuffer.Create(StreamingAudioSampleCount, _Info.sample_rate, (_Info.Channels = 2));
 End;
 
 Function stb_clamp(I,min,max:Integer):Integer;

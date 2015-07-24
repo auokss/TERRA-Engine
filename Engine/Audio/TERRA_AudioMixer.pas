@@ -26,7 +26,7 @@ Type
       _Mixer:TERRAAudioMixer;
 
     Public
-      Function Reset(AFrequency, MaxSamples:Cardinal; Mixer:TERRAAudioMixer):Boolean; Virtual; Abstract;
+      Function Reset(Frequency, MaxSamples:Cardinal; Mixer:TERRAAudioMixer):Boolean; Virtual; Abstract;
       Procedure Update(); Virtual; Abstract;
   End;
 
@@ -35,9 +35,9 @@ Type
     Protected
        _Ready:Boolean;
 
-       _BufferA:AudioBuffer;
-       _BufferB:AudioBuffer;
-       _CurrentBuffer:AudioBuffer;
+       _BufferA:TERRAAudioBuffer;
+       _BufferB:TERRAAudioBuffer;
+       _CurrentBuffer:TERRAAudioBuffer;
 
        _Thread:TERRAThread;
        _Mutex:CriticalSection;
@@ -62,15 +62,12 @@ Type
        Constructor Create(Frequency, MaxSamples:Cardinal);
        Procedure Release(); Override;
 
-       Procedure Start();
-       Procedure Stop();
-
-       Procedure RequestSamples(Dest:AudioBuffer);
+       Procedure RequestSamples(Dest:TERRAAudioBuffer);
 
        Procedure AddSource(Source:SoundSource);
        Procedure RemoveSource(Source:SoundSource);
 
-       Property Buffer:AudioBuffer Read _CurrentBuffer;
+       Property Buffer:TERRAAudioBuffer Read _CurrentBuffer;
   End;
 
   AudioMixerThread = Class(TERRAThread)
@@ -99,8 +96,8 @@ Constructor TERRAAudioMixer.Create(Frequency, MaxSamples:Cardinal);
 Var
   I:Integer;
 Begin
-  _BufferA := AudioBuffer.Create(MaxSamples, Frequency, True);
-  _BufferB := AudioBuffer.Create(MaxSamples, Frequency, True);
+  _BufferA := TERRAAudioBuffer.Create(MaxSamples, Frequency, True);
+  _BufferB := TERRAAudioBuffer.Create(MaxSamples, Frequency, True);
   _CurrentBuffer := _BufferA;
 
   SetLength(_Sources, 8);
@@ -173,18 +170,6 @@ Begin
   _Mutex.Unlock();
 End;
 
-Procedure TERRAAudioMixer.Start;
-Begin
-  _Thread.Resume();
-// ResumeThread(_ThreadHandle);
-End;
-
-procedure TERRAAudioMixer.Stop;
-begin
-  _Thread.Suspend();
-// SuspendThread(_ThreadHandle);
-end;
-
 Procedure TERRAAudioMixer.Update();
 Begin
   Self.Enter();
@@ -241,7 +226,7 @@ Begin
   Self.Leave();
 End;
 
-Procedure TERRAAudioMixer.RequestSamples(Dest:AudioBuffer);
+Procedure TERRAAudioMixer.RequestSamples(Dest:TERRAAudioBuffer);
 Var
   SampleCount, Leftovers, Temp:Integer;
 Begin

@@ -9,7 +9,9 @@ Type
   AudioSample = SmallInt;
   PAudioSample = ^AudioSample;
 
-  AudioBuffer = Class(TERRAObject)
+  { AudioBuffer }
+
+  TERRAAudioBuffer = Class(TERRAObject)
     Protected
       _Samples:Array Of AudioSample;
       _SampleCount:Cardinal;
@@ -28,6 +30,8 @@ Type
 
       Procedure AllocateSamples();
 
+      Procedure SetSampleCount(Const Count:Cardinal);
+
     Public
       Constructor Create(SampleCount, Frequency:Cardinal; Stereo:Boolean);
       Procedure Release(); Override;
@@ -38,13 +42,13 @@ Type
 
       Procedure Upsample(Const CurrentSample:Single; Out SrcSampleLeft, SrcSampleRight:AudioSample; Volume:Single);
 
-      Function MixSamples(DestOffset:Cardinal; Src:AudioBuffer; SrcOffset, SampleTotalToCopy:Cardinal; Volume:Single):Cardinal;
+      Function MixSamples(DestOffset:Cardinal; Src:TERRAAudioBuffer; SrcOffset, SampleTotalToCopy:Cardinal; Volume:Single):Cardinal;
 
       // in milisseconds
       Function GetLength: Cardinal;
 
       Property Samples:Pointer Read GetSamples;
-      Property SampleCount:Cardinal Read _SampleCount;
+      Property SampleCount:Cardinal Read _SampleCount Write SetSampleCount;
       Property Frequency:Cardinal Read _Frequency;
       Property Stereo:Boolean Read _Stereo;
 
@@ -54,7 +58,8 @@ Type
 Implementation
 Uses TERRA_Math;
 
-Constructor AudioBuffer.Create(SampleCount, Frequency: Cardinal; Stereo: Boolean);
+constructor TERRAAudioBuffer.Create(SampleCount, Frequency: Cardinal; Stereo: Boolean
+  );
 Begin
   Self._Frequency := Frequency;
   Self._Stereo := Stereo;
@@ -65,7 +70,7 @@ Begin
   Self.ClearSamples();
 End;
 
-Procedure AudioBuffer.AllocateSamples();
+procedure TERRAAudioBuffer.AllocateSamples;
 Begin
   If _AllocatedSamples = 0 Then
   Begin
@@ -80,7 +85,15 @@ Begin
   SetLength(_Samples, _AllocatedSamples * 2);
 End;
 
-Procedure AudioBuffer.ClearSamples;
+Procedure TERRAAudioBuffer.SetSampleCount(const Count: Cardinal);
+Begin
+     While (Count > Self._SampleCount) Do
+        Self.AllocateSamples();
+
+     _SampleCount := Count;
+End;
+
+procedure TERRAAudioBuffer.ClearSamples;
 Var
   I, TotalSamples:Integer;
 Begin
@@ -92,7 +105,7 @@ Begin
     _Samples[I] := 0;
 End;
 
-Procedure AudioBuffer.Release;
+procedure TERRAAudioBuffer.Release;
 Begin
   If Assigned(_Samples) Then
   Begin
@@ -101,7 +114,7 @@ Begin
   End;
 End;
 
-Function AudioBuffer.GetLength: Cardinal;
+function TERRAAudioBuffer.GetLength: Cardinal;
 Begin
   Result := Trunc((_SampleCount*1000)/ _Frequency);
 End;
@@ -111,12 +124,12 @@ Begin
   Result := Round((Length/1000)*Frequency*Self.SampleSize*Self.Channels);
 End;*)
 
-Function AudioBuffer.GetSamples: Pointer;
+function TERRAAudioBuffer.GetSamples: Pointer;
 Begin
   Result := @(_Samples[0]);
 End;
 
-Function AudioBuffer.GetSampleAt(Offset, Channel: Cardinal): PAudioSample;
+function TERRAAudioBuffer.GetSampleAt(Offset, Channel: Cardinal): PAudioSample;
 Begin
   If (Offset >= _AllocatedSamples) Then
     Self.AllocateSamples();
@@ -130,7 +143,8 @@ Begin
    Result := @(_Samples[Offset]);
 End;
 
-Function AudioBuffer.MixSamples(DestOffset:Cardinal; Src:AudioBuffer; SrcOffset, SampleTotalToCopy:Cardinal; Volume:Single):Cardinal;
+function TERRAAudioBuffer.MixSamples(DestOffset: Cardinal; Src: TERRAAudioBuffer;
+  SrcOffset, SampleTotalToCopy: Cardinal; Volume: Single): Cardinal;
 Var
   SrcBuffer, DestBuffer:PAudioSample;
   SrcSampleLeft, SrcSampleRight:AudioSample;
@@ -199,7 +213,8 @@ End;
 
 //  src     X  X
 //  Dest    XXXXXXX
-Procedure AudioBuffer.Upsample(Const CurrentSample:Single; Out SrcSampleLeft, SrcSampleRight:AudioSample; Volume:Single);
+procedure TERRAAudioBuffer.Upsample(const CurrentSample: Single; out SrcSampleLeft,
+  SrcSampleRight: AudioSample; Volume: Single);
 Var
   Delta:Single;
   SrcData:PAudioSample;
