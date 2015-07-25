@@ -881,8 +881,7 @@ Type
       Function GetBoneCount():Integer; Override;
       Function GetBoneName(BoneID:Integer):TERRAString; Override;
       Function GetBoneParent(BoneID:Integer):Integer; Override;
-      Function GetBonePosition(BoneID:Integer):Vector3D; Override;
-      Function GetBoneRotation(BoneID:Integer):Vector3D; Override;
+      Function GetBoneOffsetMatrix(BoneID:Integer):Matrix4x4; Override;
 
       Function GetAnimationCount():Integer; Override;
       Function GetAnimationName(AnimationID:Integer):TERRAString; Override;
@@ -6157,10 +6156,7 @@ Begin
     Begin
       B := Skeleton.AddBone();
       B.Name := Source.GetBoneName(I);
-      B.StartPosition := Source.GetBonePosition(I);
-      {$IFNDEF NO_ROTS}
-      B.StartRotation := Source.GetBoneRotation(I);
-      {$ENDIF}
+      B.RelativeMatrix := Source.GetBoneOffsetMatrix(I);
     End;
 
     For I:=0 To Pred(Source.GetBoneCount) Do
@@ -6493,18 +6489,9 @@ Begin
     Result := -1;
 End;
 
-Function CustomMeshFilter.GetBonePosition(BoneID: Integer): Vector3D;
+Function CustomMeshFilter.GetBoneOffsetMatrix(BoneID:Integer):Matrix4x4;
 Begin
-  Result := _Mesh.Skeleton.GetBone(BoneID).StartPosition;
-End;
-
-Function CustomMeshFilter.GetBoneRotation(BoneID: Integer): Vector3D;
-Begin
-{$IFNDEF NO_ROTS}
-  Result := _Mesh.Skeleton.GetBone(BoneID).StartRotation;
-{$ELSE}
-  Result := VectorZero;
-{$ENDIF}
+  Result := _Mesh.Skeleton.GetBone(BoneID).RelativeMatrix;
 End;
 
 Function CustomMeshFilter.GetDiffuseColor(GroupID: Integer): Color;

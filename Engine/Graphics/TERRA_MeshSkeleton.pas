@@ -40,9 +40,6 @@ Type
     Color:Color;
     Selected:Boolean;
 
-    StartPosition:Vector3D;
-    StartRotation:Vector3D;
-
     AbsoluteMatrix:Matrix4x4;
     RelativeMatrix:Matrix4x4;
 
@@ -56,6 +53,8 @@ Type
     Procedure Write(Dest:Stream);
 
     Function GetLength():Single;
+
+    Function GetPosition():Vector3D;
   End;
 
   MeshSkeleton = Class(TERRAObject)
@@ -70,6 +69,8 @@ Type
 //      BindPose:Array Of Matrix4x4;
 
       Procedure Release; Override;
+
+      Procedure NormalizeJoints();
 
       Procedure Init();
 
@@ -108,7 +109,7 @@ Begin
     Result := 0
   Else
   Begin
-    P := VectorSubtract(Self.StartPosition, Parent.StartPosition);
+    P := VectorSubtract(Self.GetPosition(), Parent.GetPosition());
     Result := P.Length();
   End;
 End;
@@ -120,8 +121,6 @@ Begin
 
   If (Assigned(Parent)) And (Not Parent.Ready) Then
     Parent.Init;
-
-  RelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(startPosition), Matrix4x4Rotation(startRotation));
 
 	// Each bone's final matrix is its relative matrix concatenated onto its
 	// parent's final matrix (which in turn is ....)
@@ -139,6 +138,7 @@ End;
 Function MeshBone.Read(Source:Stream):TERRAString;
 Var
   I:Integer;
+  StartPosition, StartRotation:Vector3D;
 Begin
   Source.ReadString(Name);
   Source.ReadString(Result);
@@ -147,18 +147,31 @@ Begin
   Source.Read(@StartPosition, SizeOf(Vector3D));
   Source.Read(@StartRotation, SizeOf(Vector3D));
 
+  RelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(startPosition), Matrix4x4Rotation(startRotation));
   Ready := False;
 End;
 
 Procedure MeshBone.Write(Dest:Stream);
+Var
+  StartPosition, StartRotation:Vector3D;
 Begin
   Dest.WriteString(Name);
   If (Assigned(Parent)) Then
     Dest.WriteString(Parent.Name)
   Else
     Dest.WriteString('');
+
+  StartPosition := Self.RelativeMatrix.GetTranslation();
+  StartRotation := Self.RelativeMatrix.GetEulerAngles();
+
   Dest.Write(@StartPosition, SizeOf(StartPosition));
   Dest.Write(@StartRotation, SizeOf(StartRotation));
+End;
+
+Function MeshBone.GetPosition: Vector3D;
+Begin
+  Self.Init();
+  Result := Self.AbsoluteMatrix.Transform(VectorZero);
 End;
 
 { MeshSkeleton }
@@ -306,8 +319,6 @@ Begin
     _BoneList[I].Owner := Self;
     _BoneList[I].Color := Bone.Color;
     _BoneList[I].Selected := Bone.Selected;
-    _BoneList[I].StartPosition := Bone.StartPosition;
-    _BoneList[I].StartRotation := Bone.StartRotation;
     _BoneList[I].Ready := Bone.Ready;
     _BoneList[I].AbsoluteMatrix := Bone.AbsoluteMatrix;
     _BoneList[I].RelativeMatrix := Bone.RelativeMatrix;
@@ -320,5 +331,46 @@ Begin
 End;
 
 
+
+Procedure MeshSkeleton.NormalizeJoints;
+Var
+  I:Integer;
+  Bone:MeshBone;
+  Mat:Matrix4x4;
+Begin
+  For I:=0 To Pred(Self.BoneCount) Do
+  Begin
+    Bone := Self.GetBone(I);
+
+(*    If Assigned(Bone.Parent) Then
+      Bone.StartPosition := VectorSubtract(Bone.AbsoluteMatrix.Transform(VectorZero), Bone.Parent.AbsoluteMatrix.Transform(VectorZero))
+    Else
+      Bone.StartPosition := Bone.AbsoluteMatrix.Transform(VectorZero);
+    Bone.StartRotation := VectorZero;*)
+
+    If Assigned(Bone.Parent) Then
+    Begin
+      Mat := Matrix4x4Multiply4x4(Matrix4x4Inverse(Bone.Parent.RelativeMatrix), Bone.RelativeMatrix)
+    End Else
+      Mat := Bone.AbsoluteMatrix;
+
+(*    Bone.StartPosition := Mat.GetTranslation();
+    Bone.StartRotation := Mat.GetEulerAngles();
+    Bone.StartRotation := VectorZero;
+
+    If Assigned(Bone.Parent) Then
+      Bone.StartPosition := Matrix4x4Inverse(Bone.RelativeMatrix).Transform(VectorZero)
+    Else
+      Bone.StartPosition := Bone.AbsoluteMatrix.Transform(VectorZero);*)
+
+    Bone.Ready := False;
+  End;
+
+  For I:=0 To Pred(Self.BoneCount) Do
+  Begin
+    Bone := Self.GetBone(I);
+    Bone.Init();
+  End;
+End;
 
 End.

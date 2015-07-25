@@ -28,7 +28,7 @@ Unit TERRA_MeshFilter;
 Interface
 
 Uses TERRA_Object, TERRA_String, TERRA_Utils, TERRA_Vector3D, TERRA_Vector2D, TERRA_Vector4D,
-  TERRA_Quaternion, TERRA_Color, TERRA_Stream, TERRA_VertexFormat;
+  TERRA_Quaternion, TERRA_Color, TERRA_Matrix4x4, TERRA_Stream, TERRA_VertexFormat;
 
 Const
   meshGroupHidden       = 1 Shl 0;  // Group is hidden
@@ -121,8 +121,7 @@ Type
       Function GetBoneCount():Integer; Virtual;
       Function GetBoneName(BoneID:Integer):TERRAString; Virtual;
       Function GetBoneParent(BoneID:Integer):Integer; Virtual;
-      Function GetBonePosition(BoneID:Integer):Vector3D; Virtual;
-      Function GetBoneRotation(BoneID:Integer):Vector3D; Virtual;
+      Function GetBoneOffsetMatrix(BoneID:Integer):Matrix4x4; Virtual;
 
       Function GetAnimationCount():Integer; Virtual;
       Function GetAnimationName(AnimationID:Integer):TERRAString; Virtual;
@@ -382,14 +381,9 @@ Begin
   Result := -1;
 End;
 
-Function MeshFilter.GetBonePosition(BoneID: Integer): Vector3D;
+Function MeshFilter.GetBoneOffsetMatrix(BoneID:Integer):Matrix4x4;
 Begin
-  Result := VectorZero;
-End;
-
-Function MeshFilter.GetBoneRotation(BoneID: Integer): Vector3D;
-Begin
-  Result := VectorZero;
+  Result := Matrix4x4Identity;
 End;
 
 Function MeshFilter.GetAnimationFrameRate(AnimationID: Integer): Single;

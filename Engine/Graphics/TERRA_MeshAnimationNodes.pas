@@ -157,7 +157,7 @@ Type
     Procedure Release; Override;
   End;
 
-  AnimationProcessor = Procedure (State:AnimationState; Bone:AnimationBoneState; Var Block:AnimationTransformBlock);
+  AnimationProcessor = Function (State:AnimationState; Bone:AnimationBoneState; Block:AnimationTransformBlock):Matrix4x4;
 
   AnimationState = Class(TERRAObject)
     Protected
@@ -202,6 +202,8 @@ Type
 
       Function GetAbsoluteMatrix(Index:Integer):Matrix4x4;
       Function GetRelativeMatrix(Index:Integer):Matrix4x4;
+
+      Function GetBoneByName(Const Name:TERRAString):AnimationBoneState;
 
       Function Find(Name:TERRAString):Animation;
       Function Play(MyAnimation:Animation; Rescale:Single=0):Boolean;
@@ -516,6 +518,20 @@ Begin
   _LastAnimation := StringLower(_LastAnimation);
 End;
 
+Function AnimationState.GetBoneByName(Const Name:TERRAString):AnimationBoneState;
+Var
+  I:Integer;
+Begin
+  For I:=0 To Pred(Self._BoneCount) Do
+  If (StringEquals(Name, _BoneStates[I]._BoneName)) Then
+  Begin
+    Result := _BoneStates[I];
+    Exit;
+  End;
+
+  Result := Nil;
+End;
+
 { AnimationBoneState }
 Procedure AnimationBoneState.Release;
 Begin
@@ -533,19 +549,20 @@ Begin
     _Parent.UpdateTransform;
 
 
-  If (Assigned(_Owner.Processor)) Then
-    _Owner.Processor(_Owner, Self, _Block);
-
-
   // Now we know the position and rotation for this animation frame.
 	// Let's calculate the transformation matrix (m_final) for this bone...
 
 	// Create a transformation matrix from the position and rotation
 	// m_frame: additional transformation for this frame of the animation
-  _FrameRelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(_Block.Translation), QuaternionMatrix4x4(_Block.Rotation));
+  If (Assigned(_Owner.Processor)) Then
+    _FrameRelativeMatrix := _Owner.Processor(_Owner, Self, _Block)
+  Else
+    _FrameRelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(_Block.Translation), QuaternionMatrix4x4(_Block.Rotation));
 
 	// Add the animation state to the rest position
   _FrameRelativeMatrix := Matrix4x4Multiply4x3(_BindRelativeMatrix, _FrameRelativeMatrix);
+
+//  _FrameRelativeMatrix := _BindRelativeMatrix;
 
 	If (_Parent = nil ) Then					// this is the root node
   Begin
