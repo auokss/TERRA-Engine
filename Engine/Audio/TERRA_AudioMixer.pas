@@ -20,13 +20,10 @@ Type
   TERRAAudioDriver = Class(TERRAObject)
     Protected
       _Name:TERRAString;
-      _Frequency:Cardinal;
-      _OutputBufferSize:Cardinal;
-
       _Mixer:TERRAAudioMixer;
 
     Public
-      Function Reset(Frequency, MaxSamples:Cardinal; Mixer:TERRAAudioMixer):Boolean; Virtual; Abstract;
+      Function Reset(Mixer:TERRAAudioMixer):Boolean; Virtual; Abstract;
       Procedure Update(); Virtual; Abstract;
   End;
 
@@ -63,7 +60,8 @@ Type
        Constructor Create(Frequency, MaxSamples:Cardinal);
        Procedure Release(); Override;
 
-       Procedure RequestSamples(Dest:TERRAAudioBuffer);
+       { Fills a output buffer with data from the current ring buffer. Conversion is not done, so output buffer must be stereo and same sample rate as mixer }
+       Procedure RequestSamples(Dest:PAudioSample; SampleCount:Cardinal);
 
        Procedure AddSource(Source:SoundSource);
        Procedure RemoveSource(Source:SoundSource);
@@ -115,7 +113,7 @@ Begin
   _Driver := SLAudioDriver.Create();
   {$ENDIF}
 
-  _Ready := _Driver.Reset(Frequency, MaxSamples, Self);
+  _Ready := _Driver.Reset(Self);
 
   If Not _Ready Then
   Begin
@@ -231,12 +229,11 @@ Begin
   Self.Leave();
 End;
 
-Procedure TERRAAudioMixer.RequestSamples(Dest:TERRAAudioBuffer);
+Procedure TERRAAudioMixer.RequestSamples(Dest:PAudioSample; SampleCount:Cardinal);
 Var
-  SampleCount, Leftovers, Temp:Integer;
+  Leftovers, Temp:Integer;
+  SrcData:PAudioSample;
 Begin
-  SampleCount := Dest.SampleCount;
-
   If (SampleCount + _CurrentSample > _CurrentBuffer.SampleCount) Then
   Begin
     Temp := SampleCount;
@@ -245,9 +242,11 @@ Begin
   End Else
     Leftovers := 0;
 
-  Dest.ClearSamples();
-  Dest.CopySamples(0, Self._CurrentBuffer, _CurrentSample, SampleCount);
+  //Dest.ClearSamples();
+  SrcData := Self._CurrentBuffer.GetSampleAt(_CurrentSample, 0);
   Inc(_CurrentSample, SampleCount);
+
+  Move(SrcData^, Dest^, SampleCount * SizeOf(AudioSample) * 2);
 End;
 
 Procedure TERRAAudioMixer.SwapBuffers;

@@ -4,15 +4,17 @@ Interface
 
 Uses TERRA_Error, TERRA_String, TERRA_AudioMixer, Alsa;
 
+Const
+  InternalBufferSampleCount = 1024 * 4;
+
 Type
   AlsaAudioDriver = Class(TERRAAudioDriver)
     Protected
       _Handle:snd_pcm_t;
       _Buffer:PAudioSample;
-      _OutputBufferSize:Cardinal;
 
     Public
-      Function Reset(AFrequency, MaxSamples:Cardinal; Mixer:TERRAAudioMixer):Boolean; Override;
+      Function Reset(Mixer:TERRAAudioMixer):Boolean; Override;
       Procedure Release; Override;
 
       Procedure Update(); Override;
@@ -23,15 +25,13 @@ Implementation
 Uses TERRA_Log;
 
 { AlsaAudioDriver }
-Function AlsaAudioDriver.Reset(AFrequency, InitBufferSize:Cardinal; Mixer:TERRAAudioMixer):Boolean;
+Function AlsaAudioDriver.Reset(Mixer:TERRAAudioMixer):Boolean; Override;
 Var
   Status:Integer;
   hw_param:snd_pcm_hw_params_ts;
 Begin
   Result := False;
   Self._Mixer := Mixer;
-  Self._Frequency := AFrequency;
-  Self._OutputBufferSize := InitBufferSize;
 
   Status := snd_pcm_open(@_Handle, 'default', SND_PCM_STREAM_PLAYBACK, 0);
   If (Status<0) Then
@@ -98,8 +98,7 @@ Begin
     Exit;
   End;
 
-  _OutputBufferSize := _Mixer.SampleBufferSize * 4;
-  GetMem(_Buffer, _OutputBufferSize);
+  GetMem(_Buffer, InternalBufferSampleCount * 2 * SizeOf(AudioSample));
 
   Result := True;
 End;
@@ -113,8 +112,8 @@ End;
 
 Procedure AlsaAudioDriver.Update();
 Begin
-  _Mixer.RequestSamples(_Buffer, _OutputBufferSize Shr 2);
-  snd_pcm_writei(_Handle, _Buffer, _OutputBufferSize);
+  _Mixer.RequestSamples(_Buffer, InternalBufferSampleCount);
+  snd_pcm_writei(_Handle, _Buffer, _OutputBufferSize Shl 2);
 End;
 
 End.

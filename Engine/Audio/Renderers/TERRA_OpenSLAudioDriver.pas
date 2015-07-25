@@ -30,7 +30,7 @@ Type
 Type
   SLAudioDriver = Class(TERRAAudioDriver)
     Protected
-      _Buffer:TERRAAudioBuffer;
+      _Buffer:PAudioSample;
       _Handle:OPENSL_STREAM;
 
 (*      _Engine:PSLEngineItf;
@@ -41,7 +41,7 @@ Type
 
     Public
 
-      Function Reset(Frequency, MaxSamples:Cardinal; Mixer:TERRAAudioMixer):Boolean; Override;
+      Function Reset(Mixer:TERRAAudioMixer):Boolean; Override;
       Procedure Release; Override;
 
       Procedure Update(); Override;
@@ -69,7 +69,7 @@ End;*)
 
 
 { SLAudioDriver }
-Function SLAudioDriver.Reset(Frequency, MaxSamples:Cardinal; Mixer:TERRAAudioMixer):Boolean;
+Function SLAudioDriver.Reset(Mixer:TERRAAudioMixer):Boolean;
 (*Var
   I:Integer;
   req:SLBoolean;
@@ -81,7 +81,7 @@ Function SLAudioDriver.Reset(Frequency, MaxSamples:Cardinal; Mixer:TERRAAudioMix
 Begin
   Self._Mixer := Mixer;
 
-  _Buffer := TERRAAudioBuffer.Create(InternalBufferSampleCount, Mixer.Buffer.Frequency, Mixer.Buffer.Stereo);
+  GetMem(_Buffer, InternalBufferSampleCount * SizeOf(AudioSample) * 2);
 
   _Handle := android_OpenAudioDevice(Mixer.Buffer.Frequency, 0, 2, InternalBufferSampleCount);
 
@@ -145,7 +145,8 @@ End;
 Procedure SLAudioDriver.Release;
 Begin
   android_CloseAudioDevice(_Handle);
-  ReleaseObject(_Buffer);
+
+  FreeMem(_Buffer);
 End;
 
 Procedure SLAudioDriver.Update();
@@ -154,9 +155,9 @@ Begin
 
   If Not _Mixer.Active Then
     Exit;
-  
-  _Mixer.RequestSamples(_Buffer);
-  android_AudioOut(_Handle, _Buffer.Samples, _Buffer.SampleCount * 2);
+
+  _Mixer.RequestSamples(_Buffer, InternalBufferSampleCount);
+  android_AudioOut(_Handle, _Buffer, InternalBufferSampleCount * 2);
 End;
 
 End.
