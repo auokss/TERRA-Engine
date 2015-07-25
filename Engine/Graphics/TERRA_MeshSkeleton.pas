@@ -336,32 +336,26 @@ Procedure MeshSkeleton.NormalizeJoints;
 Var
   I:Integer;
   Bone:MeshBone;
-  Mat:Matrix4x4;
+  A, B, C:Matrix4x4;
 Begin
   For I:=0 To Pred(Self.BoneCount) Do
   Begin
     Bone := Self.GetBone(I);
 
 (*    If Assigned(Bone.Parent) Then
-      Bone.StartPosition := VectorSubtract(Bone.AbsoluteMatrix.Transform(VectorZero), Bone.Parent.AbsoluteMatrix.Transform(VectorZero))
+      Bone.RelativeMatrix := Matrix4x4Translation(VectorSubtract(Bone.AbsoluteMatrix.Transform(VectorZero), Bone.Parent.AbsoluteMatrix.Transform(VectorZero)))
     Else
-      Bone.StartPosition := Bone.AbsoluteMatrix.Transform(VectorZero);
-    Bone.StartRotation := VectorZero;*)
+      Bone.RelativeMatrix := Matrix4x4Translation(Bone.AbsoluteMatrix.Transform(VectorZero));
+*)
 
     If Assigned(Bone.Parent) Then
     Begin
-      Mat := Matrix4x4Multiply4x4(Matrix4x4Inverse(Bone.Parent.RelativeMatrix), Bone.RelativeMatrix)
+      A := Bone.AbsoluteMatrix;
+      B := Matrix4x4Inverse(Bone.Parent.AbsoluteMatrix);
+
+      Bone.RelativeMatrix := Matrix4x4Multiply4x4(B, A);
     End Else
-      Mat := Bone.AbsoluteMatrix;
-
-(*    Bone.StartPosition := Mat.GetTranslation();
-    Bone.StartRotation := Mat.GetEulerAngles();
-    Bone.StartRotation := VectorZero;
-
-    If Assigned(Bone.Parent) Then
-      Bone.StartPosition := Matrix4x4Inverse(Bone.RelativeMatrix).Transform(VectorZero)
-    Else
-      Bone.StartPosition := Bone.AbsoluteMatrix.Transform(VectorZero);*)
+      Bone.RelativeMatrix := Bone.AbsoluteMatrix;
 
     Bone.Ready := False;
   End;

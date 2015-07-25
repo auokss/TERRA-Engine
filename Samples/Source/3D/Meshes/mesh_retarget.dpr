@@ -138,7 +138,7 @@ Begin
     OriginalInstance := Nil;
 
   OriginalAnimation := OriginalInstance.Animation.Find('run');
-  OriginalInstance.Animation.Play(OriginalAnimation, RescaleDuration);
+ // OriginalInstance.Animation.Play(OriginalAnimation, RescaleDuration);
 
   ClonedMesh := TERRAMesh.Create(rtDynamic, '');
   ClonedMesh.Clone(MyMesh);
@@ -154,8 +154,8 @@ Begin
   //RetargetedAnimation := OriginalAnimation.Retarget(OriginalInstance.Geometry.Skeleton, ClonedInstance.Geometry.Skeleton);
   RetargetedAnimation := Animation.Create(rtDynamic, ''); RetargetedAnimation.Clone(OriginalAnimation);
 
-  ClonedInstance.Animation.Play(RetargetedAnimation, RescaleDuration);
-  ClonedInstance.Animation.Processor := RetargetAnimation;
+//  ClonedInstance.Animation.Play(RetargetedAnimation, RescaleDuration);
+ // ClonedInstance.Animation.Processor := RetargetAnimation;
 End;
 
 Procedure MyDemo.OnDestroy;
