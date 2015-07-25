@@ -209,8 +209,8 @@ Type
       Function GetAbsoluteMatrix(Index:Integer):Matrix4x4;
       Function GetRelativeMatrix(Index:Integer):Matrix4x4;
 
-      Function Play(Name:TERRAString; Rescale:Single=0):Boolean; Overload;
-      Function Play(MyAnimation:Animation; Rescale:Single=0):Boolean; Overload;
+      Function Find(Name:TERRAString):Animation;
+      Function Play(MyAnimation:Animation; Rescale:Single=0):Boolean;
 
       Function Crossfade(Name:TERRAString; Duration:Cardinal = DefaultCrossfadeDuration):Boolean; Overload;
       Function Crossfade(MyAnimation:Animation; Duration:Cardinal = DefaultCrossfadeDuration):Boolean; Overload;
@@ -296,7 +296,7 @@ Begin
 
   If (_Next<>'') Then
   Begin
-    Self.Play(_Next);
+    Self.Play(Find(_Next));
     _Next := '';
   End;
 
@@ -402,17 +402,17 @@ Begin
   ReleaseObject(_Root);
 End;
 
-Function AnimationState.Play(Name:TERRAString; Rescale:Single):Boolean;
+Function AnimationState.Find(Name:TERRAString):Animation;
 Var
   MyAnimation: Animation;
 Begin
   MyAnimation := AnimationManager.Instance.GetAnimation(_Name + '_' + Name, False);
   If Assigned(MyAnimation) Then
-    Result := Self.Play(MyAnimation, Rescale)
+    Result := MyAnimation
   Else
   Begin
     Log(logWarning, 'Animation', 'Animation not found: '+Name);
-    Result := False;
+    Result := Nil;
   End;
 End;
 
