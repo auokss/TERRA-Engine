@@ -17,7 +17,7 @@ Type
       output_desc:AudioComponentDescription; *)
        outputUnit:AudioUnit;
 
-      sinPhase:Single;
+     // sinPhase:Single;
 
       _Buffer:TERRAAudioBuffer;
 
@@ -49,9 +49,12 @@ Begin
         Driver._Buffer.SampleCount := inNumberFrames;
 
         Driver._Mixer.RequestSamples(Driver._Buffer);
+
+        System.Move(Driver._Buffer.Samples^, ioData.mBuffers[0].mData^, inNumberFrames * 4);
         Result := noErr;
         Exit;
 
+        (*
 	// Get a pointer to the dataBuffer of the AudioBufferList
 	outA := PSmallInt(ioData.mBuffers[0].mData);
 
@@ -91,7 +94,7 @@ Begin
 	// Store the phase for the next callback.
 	Driver.sinPhase := phase;
 
-	Result := noErr;
+	Result := noErr;   *)
 End;
 
 { CoreAudioDriver }
@@ -152,21 +155,15 @@ Begin
 
   Status := AudioUnitSetProperty (outputUnit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, @streamFormat, sizeof(streamFormat));
   If Status<>NoErr Then
-  Begin
       RaiseError('Failed to set audio unit input property.');
- End;
 
   // register render callback
   input.inputProc := renderInput;
   input.inputProcRefCon := Self;
-  Status := AudioUnitSetProperty(outputUnit,
-  									kAudioUnitProperty_SetRenderCallback,
-  									kAudioUnitScope_Input,
-  									0,
-  									@input,
-  									sizeof(input));
+  Status := AudioUnitSetProperty(outputUnit, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input,  0, @input, sizeof(input));
+
   If Status <> NoErr Then
-  RaiseError('AudioUnitSetProperty failed');
+     RaiseError('AudioUnitSetProperty failed');
 
   	// initialize unit
   Status := AudioUnitInitialize(outputUnit);
