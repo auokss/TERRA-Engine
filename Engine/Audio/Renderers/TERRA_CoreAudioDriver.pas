@@ -17,7 +17,6 @@ Type
       output_desc:AudioComponentDescription; *)
 
       _OutputUnit:AudioUnit;
-      _Buffer:PAudioSample;
 
     Public
 
@@ -38,7 +37,7 @@ Begin
 	// Get a reference to the object that was passed with the callback
 	// In this case, the AudioController passed itself so that you can access its data.
 	Driver := CoreAudioDriver(inRefCon);
-  Driver._Mixer.RequestSamples(Driver._Buffer, inNumberFrames);
+  Driver._Mixer.RequestSamples(ioData.mBuffers[0].mData, inNumberFrames);
   Result := noErr;
 End;
 
@@ -65,8 +64,6 @@ Var
 Begin
   Self._Mixer := Mixer;
 
-  GetMem(_Buffer, 1024 * 8 * SizeOf(AudioSample));
-
   //  10.6 and later: generate description that will match out output device (speakers)
   FillChar(outputcd, SizeOf(Outputcd), 0); // 10.6 version
   outputcd.componentType := kAudioUnitType_Output;
@@ -80,7 +77,7 @@ Begin
     Exit;
   End;
 
-  Status := AudioComponentInstanceNew(comp, @_OutputUnit);
+  Status := AudioComponentInstanceNew(comp, _OutputUnit);
   If Status <> noErr Then
   Begin
     RaiseError('Couldnt open component for outputUnit');
@@ -248,10 +245,8 @@ End;
 Procedure CoreAudioDriver.Release;
 Begin
   AudioOutputUnitStop(_OutputUnit);
-  udioUnitUninitialize(_OutputUnit);
+  AudioUnitUninitialize(_OutputUnit);
   AudioComponentInstanceDispose(_OutputUnit);
-
-  FreeMem(_Buffer);
 End;
 
 Procedure CoreAudioDriver.Update();
