@@ -2,7 +2,7 @@ Unit alsa;
 
 Interface
 
-Uses BaseLinux;
+Uses unixtype;
 
 const
   AlsaLib = 'libasound.so';
@@ -330,8 +330,8 @@ type
   snd_pcm_type_t_t = function(pcm:Psnd_pcm_t):snd_pcm_type_t;cdecl;
   snd_pcm_stream_t_t = function(pcm:Psnd_pcm_t):snd_pcm_stream_t;cdecl;
   snd_pcm_poll_descriptors_count_t = function(pcm:Psnd_pcm_t):Cardinal;cdecl;
-  snd_pcm_poll_descriptors_t = function(pcm:Psnd_pcm_t; var pfds:pollfd; space:LongWord):Cardinal;cdecl;
-  snd_pcm_poll_descriptors_revents_t = function(pcm:Psnd_pcm_t; var pfds:pollfd; nfds:LongWord; revents:Pword):Cardinal;cdecl;
+  //snd_pcm_poll_descriptors_t = function(pcm:Psnd_pcm_t; var pfds:pollfd; space:LongWord):Cardinal;cdecl;
+ // snd_pcm_poll_descriptors_revents_t = function(pcm:Psnd_pcm_t; var pfds:pollfd; nfds:LongWord; revents:Pword):Cardinal;cdecl;
   snd_pcm_set_nonblock_t = function(pcm:Psnd_pcm_t; nonblock:Cardinal):Cardinal;cdecl;
 //  snd_async_add_pcm_handler_t = function(var handler:Psnd_async_handler_t; pcm:Psnd_pcm_t; callback:snd_async_callback_t; private_data:pointer):Cardinal;cdecl;
   snd_async_handler_get_pcm_t = function(handler:Psnd_async_handler_t):Psnd_pcm_t;cdecl;
@@ -445,7 +445,7 @@ type
   snd_pcm_hw_params_set_rate_max_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord; dir:PCardinal):Cardinal;cdecl;
   snd_pcm_hw_params_set_rate_minmax_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; min:PLongWord; mindir:PCardinal; max:PLongWord;
                maxdir:PCardinal):Cardinal;cdecl;
-  snd_pcm_hw_params_set_rate_near_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:PCardinal):LongWord;cdecl;
+  snd_pcm_hw_params_set_rate_near_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PCardinal; dir:PCardinal):LongWord;cdecl;
   snd_pcm_hw_params_set_rate_first_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
   snd_pcm_hw_params_set_rate_last_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
   snd_pcm_hw_params_get_period_time_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):Cardinal;cdecl;
@@ -651,9 +651,9 @@ type
     { in bits  }
   snd_pcm_build_linear_format_t = function(width:Cardinal; pwidth:Cardinal; unsignd:Cardinal; big_endian:Cardinal):snd_pcm_format_t;cdecl;
   snd_pcm_format_size_t = function(format:snd_pcm_format_t; samples:size_t):ssize_t;cdecl;
-  snd_pcm_format_silence_t = function(format:snd_pcm_format_t):u_int8_t;cdecl;
-  snd_pcm_format_silence_16_t = function(format:snd_pcm_format_t):u_int16_t;cdecl;
-  snd_pcm_format_silence_32_t = function(format:snd_pcm_format_t):u_int32_t;cdecl;
+  snd_pcm_format_silence_t = function(format:snd_pcm_format_t):Byte;cdecl;
+  snd_pcm_format_silence_16_t = function(format:snd_pcm_format_t):Word;cdecl;
+  snd_pcm_format_silence_32_t = function(format:snd_pcm_format_t):Cardinal;cdecl;
 //  snd_pcm_format_silence_64_t = function(format:snd_pcm_format_t):u_int64_t;cdecl;
   snd_pcm_format_set_silence_t = function(format:snd_pcm_format_t; buf:pointer; samples:LongWord):Cardinal;cdecl;
   snd_pcm_bytes_to_frames_t = function(pcm:Psnd_pcm_t; bytes:ssize_t):snd_pcm_sframes_t;cdecl;
@@ -790,11 +790,11 @@ Implementation
 Uses dynlibs;
 
 Var
-  Libhandle:TLibHandle;
+  LibHandle:TLibHandle;
 
 Initialization
   Libhandle := LoadLibrary(AlsaLib);
-  If Assigned(Libhandle) Then
+  If Libhandle<>0 Then
   Begin
     snd_pcm_close := GetProcedureAddress(Libhandle, 'snd_pcm_close');
     snd_pcm_drop := GetProcedureAddress(Libhandle, 'snd_pcm_drop');
@@ -831,6 +831,6 @@ Initialization
   End;
 
 Finalization
-  If Assigned(Libhandle) Then
+  If Libhandle<>0 Then
     UnloadLibrary(Libhandle);
 End.

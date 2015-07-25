@@ -85,6 +85,7 @@ Implementation
 Uses TERRA_Error, TERRA_Log, TERRA_OS
 {$IFDEF WINDOWS}, TERRA_WinMMAudioDriver{$ENDIF}
 {$IFDEF OSX}, TERRA_CoreAudioDriver{$ENDIF}
+{$IFDEF LINUX}, TERRA_AlsaAudioDriver{$ENDIF}
 {$IFDEF ANDROID}, TERRA_OpenSLAudioDriver {$ENDIF}
 ;
 
@@ -109,11 +110,15 @@ Begin
   _Driver := CoreAudioDriver.Create();
   {$ENDIF}
 
+  {$IFDEF LINUX}
+  _Driver := AlsaAudioDriver.Create();
+  {$ENDIF}
+
   {$IFDEF ANDROID}
   _Driver := SLAudioDriver.Create();
   {$ENDIF}
 
-  _Ready := _Driver.Reset(Self);
+  _Ready := (Assigned(_Driver)) And (_Driver.Reset(Self));
 
   If Not _Ready Then
   Begin
