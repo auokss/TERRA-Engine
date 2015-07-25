@@ -152,10 +152,6 @@ Type
     _FrameRelativeMatrix:Matrix4x4;
     _FrameAbsoluteMatrix:Matrix4x4; // the current matrix for the
 
-    _RetargetMatrix:Matrix4x4;
-    //_RetargetRotation:Quaternion;
-    //_RetargetTranslation:Vector3D;
-
     Procedure UpdateTransform;
 
     Procedure Release; Override;
@@ -259,9 +255,6 @@ Begin
 
   _BoneStates[Pred(_BoneCount)]._BindAbsoluteMatrix := Bone.AbsoluteMatrix;
   _BoneStates[Pred(_BoneCount)]._BindRelativeMatrix := Bone.RelativeMatrix;
-  _BoneStates[Pred(_BoneCount)]._RetargetMatrix := Bone.RelativeMatrix;
-//  _BoneStates[Pred(_BoneCount)]._RetargetRotation := QuaternionZero;
-  //_BoneStates[Pred(_BoneCount)]._RetargetTranslation := VectorZero;
 
   _BoneStates[Pred(_BoneCount)]._Owner := Self;
   _BoneStates[Pred(_BoneCount)]._ID := Pred(_BoneCount);
@@ -552,10 +545,7 @@ Begin
   _FrameRelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(_Block.Translation), QuaternionMatrix4x4(_Block.Rotation));
 
 	// Add the animation state to the rest position
-  _FrameRelativeMatrix := Matrix4x4Multiply4x3(_RetargetMatrix, _FrameRelativeMatrix);
-
-  _FrameRelativeMatrix := Matrix4x4Multiply4x3(_FrameRelativeMatrix, Matrix4x4Inverse(_RetargetMatrix));
-  _FrameRelativeMatrix := Matrix4x4Multiply4x3(_FrameRelativeMatrix, _BindRelativeMatrix);
+  _FrameRelativeMatrix := Matrix4x4Multiply4x3(_BindRelativeMatrix, _FrameRelativeMatrix);
 
 	If (_Parent = nil ) Then					// this is the root node
   Begin
