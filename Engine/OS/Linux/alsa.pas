@@ -5,7 +5,7 @@ Interface
 Uses unixtype;
 
 const
-  AlsaLib = 'libasound.so';
+  AlsaLib = 'libasound.so.2';
 
 type
   Pint16 = ^Word;
@@ -254,7 +254,7 @@ type
      snd_pcm_uframes_t = LongWord;
      Psnd_pcm_uframes_t = ^snd_pcm_uframes_t;
   {  Signed frames quantity  }
-     snd_pcm_sframes_t = Cardinal;
+     snd_pcm_sframes_t = Integer;
      Psnd_pcm_sframes_t = ^snd_pcm_sframes_t;
   {  Timestamp  }
      snd_timestamp_t = timeval;
@@ -323,53 +323,54 @@ const
      Psnd_pcm_scope_t = pointer;
 
 type
-  snd_pcm_open_t = function(var pcm:Psnd_pcm_t; name:PAnsiChar; stream:snd_pcm_stream_t; mode:Cardinal):Cardinal;cdecl;
-  snd_pcm_open_lconf_t = function(var pcm:Psnd_pcm_t; name:PAnsiChar; stream:snd_pcm_stream_t; mode:Cardinal; lconf:Psnd_config_t):Cardinal;cdecl;
-  snd_pcm_close_t = function(pcm:Psnd_pcm_t):Cardinal;cdecl;
+   snd_async_callback_t = Procedure (pcm_callback:Psnd_async_handler_t); Cdecl;
+  snd_pcm_open_t = function(var pcm:Psnd_pcm_t; name:PAnsiChar; stream:snd_pcm_stream_t; mode:Cardinal):Integer;cdecl;
+  snd_pcm_open_lconf_t = function(var pcm:Psnd_pcm_t; name:PAnsiChar; stream:snd_pcm_stream_t; mode:Cardinal; lconf:Psnd_config_t):Integer;cdecl;
+  snd_pcm_close_t = function(pcm:Psnd_pcm_t):Integer;cdecl;
   snd_pcm_name_t = function(pcm:Psnd_pcm_t):PAnsiChar;cdecl;
   snd_pcm_type_t_t = function(pcm:Psnd_pcm_t):snd_pcm_type_t;cdecl;
   snd_pcm_stream_t_t = function(pcm:Psnd_pcm_t):snd_pcm_stream_t;cdecl;
-  snd_pcm_poll_descriptors_count_t = function(pcm:Psnd_pcm_t):Cardinal;cdecl;
-  //snd_pcm_poll_descriptors_t = function(pcm:Psnd_pcm_t; var pfds:pollfd; space:LongWord):Cardinal;cdecl;
- // snd_pcm_poll_descriptors_revents_t = function(pcm:Psnd_pcm_t; var pfds:pollfd; nfds:LongWord; revents:Pword):Cardinal;cdecl;
-  snd_pcm_set_nonblock_t = function(pcm:Psnd_pcm_t; nonblock:Cardinal):Cardinal;cdecl;
-//  snd_async_add_pcm_handler_t = function(var handler:Psnd_async_handler_t; pcm:Psnd_pcm_t; callback:snd_async_callback_t; private_data:pointer):Cardinal;cdecl;
+  snd_pcm_poll_descriptors_count_t = function(pcm:Psnd_pcm_t):Integer;cdecl;
+  //snd_pcm_poll_descriptors_t = function(pcm:Psnd_pcm_t; var pfds:pollfd; space:LongWord):Integer;cdecl;
+ // snd_pcm_poll_descriptors_revents_t = function(pcm:Psnd_pcm_t; var pfds:pollfd; nfds:LongWord; revents:Pword):Integer;cdecl;
+  snd_pcm_set_nonblock_t = function(pcm:Psnd_pcm_t; nonblock:Cardinal):Integer;cdecl;
+  snd_async_add_pcm_handler_t = function(var handler:Psnd_async_handler_t; pcm:Psnd_pcm_t; callback:snd_async_callback_t; private_data:pointer):Integer;cdecl;
   snd_async_handler_get_pcm_t = function(handler:Psnd_async_handler_t):Psnd_pcm_t;cdecl;
-  snd_pcm_info_t = function(pcm:Psnd_pcm_t; info:Psnd_pcm_info_t):Cardinal;cdecl;
-  snd_pcm_hw_params_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t):Cardinal;cdecl;
-  snd_pcm_hw_params_current_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t):Cardinal;cdecl;
-  snd_pcm_hw_free_t = function(pcm:Psnd_pcm_t):Cardinal;cdecl;
-  snd_pcm_sw_params_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t):Cardinal;cdecl;
-  snd_pcm_sw_params_current_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t):Cardinal;cdecl;
-  snd_pcm_prepare_t = function(pcm:Psnd_pcm_t):Cardinal;cdecl;
-  snd_pcm_reset_t = function(pcm:Psnd_pcm_t):Cardinal;cdecl;
-  snd_pcm_status_t = function(pcm:Psnd_pcm_t; status:Psnd_pcm_status_t):Cardinal;cdecl;
-  snd_pcm_start_t_t = function(pcm:Psnd_pcm_t):Cardinal;cdecl;
-  snd_pcm_drop_t = function(pcm:Psnd_pcm_t):Cardinal;cdecl;
-  snd_pcm_drain_t = function(pcm:Psnd_pcm_t):Cardinal;cdecl;
-  snd_pcm_pause_t = function(pcm:Psnd_pcm_t; enable:Cardinal):Cardinal;cdecl;
+  snd_pcm_info_t = function(pcm:Psnd_pcm_t; info:Psnd_pcm_info_t):Integer;cdecl;
+  snd_pcm_hw_params_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t):Integer;cdecl;
+  snd_pcm_hw_params_current_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t):Integer;cdecl;
+  snd_pcm_hw_free_t = function(pcm:Psnd_pcm_t):Integer;cdecl;
+  snd_pcm_sw_params_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t):Integer;cdecl;
+  snd_pcm_sw_params_current_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t):Integer;cdecl;
+  snd_pcm_prepare_t = function(pcm:Psnd_pcm_t):Integer;cdecl;
+  snd_pcm_reset_t = function(pcm:Psnd_pcm_t):Integer;cdecl;
+  snd_pcm_status_t = function(pcm:Psnd_pcm_t; status:Psnd_pcm_status_t):Integer;cdecl;
+  snd_pcm_start_t_t = function(pcm:Psnd_pcm_t):Integer;cdecl;
+  snd_pcm_drop_t = function(pcm:Psnd_pcm_t):Integer;cdecl;
+  snd_pcm_drain_t = function(pcm:Psnd_pcm_t):Integer;cdecl;
+  snd_pcm_pause_t = function(pcm:Psnd_pcm_t; enable:Cardinal):Integer;cdecl;
   snd_pcm_state_t_t = function(pcm:Psnd_pcm_t):snd_pcm_state_t;cdecl;
-  snd_pcm_hwsync_t = function(pcm: Psnd_pcm_t):Cardinal;cdecl;
-  snd_pcm_delay_t = function(pcm:Psnd_pcm_t; delayp:Psnd_pcm_sframes_t):Cardinal;cdecl;
-  snd_pcm_resume_t = function(pcm:Psnd_pcm_t):Cardinal;cdecl;
+  snd_pcm_hwsync_t = function(pcm: Psnd_pcm_t):Integer;cdecl;
+  snd_pcm_delay_t = function(pcm:Psnd_pcm_t; delayp:Psnd_pcm_sframes_t):Integer;cdecl;
+  snd_pcm_resume_t = function(pcm:Psnd_pcm_t):Integer;cdecl;
   snd_pcm_avail_update_t = function(pcm:Psnd_pcm_t):snd_pcm_sframes_t;cdecl;
   snd_pcm_rewind_t = function(pcm:Psnd_pcm_t; frames:snd_pcm_uframes_t):snd_pcm_sframes_t;cdecl;
   snd_pcm_writei_t = function(pcm:Psnd_pcm_t; buffer:pointer; size:snd_pcm_uframes_t):snd_pcm_sframes_t;cdecl;
   snd_pcm_readi_t = function(pcm:Psnd_pcm_t; buffer:pointer; size:snd_pcm_uframes_t):snd_pcm_sframes_t;cdecl;
   snd_pcm_writen_t = function(pcm:Psnd_pcm_t; bufs:Ppointer; size:snd_pcm_uframes_t):snd_pcm_sframes_t;cdecl;
   snd_pcm_readn_t = function(pcm:Psnd_pcm_t; bufs:Ppointer; size:snd_pcm_uframes_t):snd_pcm_sframes_t;cdecl;
-  snd_pcm_wait_t = function(pcm:Psnd_pcm_t; timeout:Cardinal):Cardinal;cdecl;
-  snd_pcm_link_t = function(pcm1:Psnd_pcm_t; pcm2:Psnd_pcm_t):Cardinal;cdecl;
-  snd_pcm_unlink_t = function(pcm:Psnd_pcm_t):Cardinal;cdecl;
+  snd_pcm_wait_t = function(pcm:Psnd_pcm_t; timeout:Cardinal):Integer;cdecl;
+  snd_pcm_link_t = function(pcm1:Psnd_pcm_t; pcm2:Psnd_pcm_t):Integer;cdecl;
+  snd_pcm_unlink_t = function(pcm:Psnd_pcm_t):Integer;cdecl;
 
   snd_pcm_info_sizeof_t = function:size_t;cdecl;
-  snd_pcm_info_malloc_t = function(var obj:Psnd_pcm_info_t):Cardinal;cdecl;
+  snd_pcm_info_malloc_t = function(var obj:Psnd_pcm_info_t):Integer;cdecl;
   snd_pcm_info_free_t = procedure(obj:Psnd_pcm_info_t);cdecl;
   snd_pcm_info_copy_t = procedure(dst:Psnd_pcm_info_t; src:Psnd_pcm_info_t);cdecl;
   snd_pcm_info_get_device_t = function(obj:Psnd_pcm_info_t):LongWord;cdecl;
   snd_pcm_info_get_subdevice_t = function(obj:Psnd_pcm_info_t):LongWord;cdecl;
   snd_pcm_info_get_stream_t = function(obj:Psnd_pcm_info_t):snd_pcm_stream_t;cdecl;
-  snd_pcm_info_get_card_t = function(obj:Psnd_pcm_info_t):Cardinal;cdecl;
+  snd_pcm_info_get_card_t = function(obj:Psnd_pcm_info_t):Integer;cdecl;
   snd_pcm_info_get_id_t = function(obj:Psnd_pcm_info_t):PAnsiChar;cdecl;
   snd_pcm_info_get_name_t = function(obj:Psnd_pcm_info_t):PAnsiChar;cdecl;
   snd_pcm_info_get_subdevice_name_t = function(obj:Psnd_pcm_info_t):PAnsiChar;cdecl;
@@ -385,216 +386,216 @@ type
        Hardware Parameters
        See the \ref pcm page for more details.
     }
-  snd_pcm_hw_params_any_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t):Cardinal;cdecl;
-  snd_pcm_hw_params_can_mmap_sample_resolution_t = function(params:Psnd_pcm_hw_params_t):Cardinal;cdecl;
-  snd_pcm_hw_params_is_double_t = function(params:Psnd_pcm_hw_params_t):Cardinal;cdecl;
-  snd_pcm_hw_params_is_batch_t = function(params:Psnd_pcm_hw_params_t):Cardinal;cdecl;
-  snd_pcm_hw_params_is_block_transfer_t = function(params:Psnd_pcm_hw_params_t):Cardinal;cdecl;
-  snd_pcm_hw_params_can_overrange_t = function(params:Psnd_pcm_hw_params_t):Cardinal;cdecl;
-  snd_pcm_hw_params_can_pause_t = function(params:Psnd_pcm_hw_params_t):Cardinal;cdecl;
-  snd_pcm_hw_params_can_resume_t = function(params:Psnd_pcm_hw_params_t):Cardinal;cdecl;
-  snd_pcm_hw_params_is_half_duplex_t = function(params:Psnd_pcm_hw_params_t):Cardinal;cdecl;
-  snd_pcm_hw_params_is_joint_duplex_t = function(params:Psnd_pcm_hw_params_t):Cardinal;cdecl;
-  snd_pcm_hw_params_can_sync_start_t = function(params:Psnd_pcm_hw_params_t):Cardinal;cdecl;
-  snd_pcm_hw_params_get_rate_numden_t = function(params:Psnd_pcm_hw_params_t; rate_num:PLongWord; rate_den:PLongWord):Cardinal;cdecl;
-  snd_pcm_hw_params_get_sbits_t = function(params:Psnd_pcm_hw_params_t):Cardinal;cdecl;
-  snd_pcm_hw_params_get_fifo_size_t = function(params:Psnd_pcm_hw_params_t):Cardinal;cdecl;
+  snd_pcm_hw_params_any_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t):Integer;cdecl;
+  snd_pcm_hw_params_can_mmap_sample_resolution_t = function(params:Psnd_pcm_hw_params_t):Integer;cdecl;
+  snd_pcm_hw_params_is_double_t = function(params:Psnd_pcm_hw_params_t):Integer;cdecl;
+  snd_pcm_hw_params_is_batch_t = function(params:Psnd_pcm_hw_params_t):Integer;cdecl;
+  snd_pcm_hw_params_is_block_transfer_t = function(params:Psnd_pcm_hw_params_t):Integer;cdecl;
+  snd_pcm_hw_params_can_overrange_t = function(params:Psnd_pcm_hw_params_t):Integer;cdecl;
+  snd_pcm_hw_params_can_pause_t = function(params:Psnd_pcm_hw_params_t):Integer;cdecl;
+  snd_pcm_hw_params_can_resume_t = function(params:Psnd_pcm_hw_params_t):Integer;cdecl;
+  snd_pcm_hw_params_is_half_duplex_t = function(params:Psnd_pcm_hw_params_t):Integer;cdecl;
+  snd_pcm_hw_params_is_joint_duplex_t = function(params:Psnd_pcm_hw_params_t):Integer;cdecl;
+  snd_pcm_hw_params_can_sync_start_t = function(params:Psnd_pcm_hw_params_t):Integer;cdecl;
+  snd_pcm_hw_params_get_rate_numden_t = function(params:Psnd_pcm_hw_params_t; rate_num:PLongWord; rate_den:PLongWord):Integer;cdecl;
+  snd_pcm_hw_params_get_sbits_t = function(params:Psnd_pcm_hw_params_t):Integer;cdecl;
+  snd_pcm_hw_params_get_fifo_size_t = function(params:Psnd_pcm_hw_params_t):Integer;cdecl;
 
   snd_pcm_hw_params_sizeof_t = function:size_t;cdecl;
-  snd_pcm_hw_params_malloc_t = function(var obj:Psnd_pcm_hw_params_t):Cardinal;cdecl;
+  snd_pcm_hw_params_malloc_t = function(Out obj:Psnd_pcm_hw_params_t):Integer;cdecl;
   snd_pcm_hw_params_free_t = procedure(obj:Psnd_pcm_hw_params_t);cdecl;
   snd_pcm_hw_params_copy_t = procedure(dst:Psnd_pcm_hw_params_t; src:Psnd_pcm_hw_params_t);cdecl;
-  snd_pcm_hw_params_get_access_t = function(params:Psnd_pcm_hw_params_t):Cardinal;cdecl;
-  snd_pcm_hw_params_test_access_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_access_t):Cardinal;cdecl;
-  snd_pcm_hw_params_set_access_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_access_t):Cardinal;cdecl;
+  snd_pcm_hw_params_get_access_t = function(params:Psnd_pcm_hw_params_t):Integer;cdecl;
+  snd_pcm_hw_params_test_access_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_access_t):Integer;cdecl;
+  snd_pcm_hw_params_set_access_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_access_t):Integer;cdecl;
   snd_pcm_hw_params_set_access_first_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t):snd_pcm_access_t;cdecl;
   snd_pcm_hw_params_set_access_last_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t):snd_pcm_access_t;cdecl;
-  snd_pcm_hw_params_set_access_mask_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; mask:Psnd_pcm_access_mask_t):Cardinal;cdecl;
+  snd_pcm_hw_params_set_access_mask_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; mask:Psnd_pcm_access_mask_t):Integer;cdecl;
   snd_pcm_hw_params_get_access_mask_t = procedure(params:Psnd_pcm_hw_params_t; mask:Psnd_pcm_access_mask_t);cdecl;
-  snd_pcm_hw_params_get_format_t = function(params:Psnd_pcm_hw_params_t):Cardinal;cdecl;
-  snd_pcm_hw_params_test_format_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_format_t):Cardinal;cdecl;
-  snd_pcm_hw_params_set_format_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_format_t):Cardinal;cdecl;
+  snd_pcm_hw_params_get_format_t = function(params:Psnd_pcm_hw_params_t):Integer;cdecl;
+  snd_pcm_hw_params_test_format_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_format_t):Integer;cdecl;
+  snd_pcm_hw_params_set_format_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_format_t):Integer;cdecl;
   snd_pcm_hw_params_set_format_first_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t):snd_pcm_format_t;cdecl;
   snd_pcm_hw_params_set_format_last_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t):snd_pcm_format_t;cdecl;
-  snd_pcm_hw_params_set_format_mask_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; mask:Psnd_pcm_format_mask_t):Cardinal;cdecl;
+  snd_pcm_hw_params_set_format_mask_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; mask:Psnd_pcm_format_mask_t):Integer;cdecl;
   snd_pcm_hw_params_get_format_mask_t = procedure(params:Psnd_pcm_hw_params_t; mask:Psnd_pcm_format_mask_t);cdecl;
-  snd_pcm_hw_params_test_subformat_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_subformat_t):Cardinal;cdecl;
-  snd_pcm_hw_params_get_subformat_t = function(params:Psnd_pcm_hw_params_t):Cardinal;cdecl;
-  snd_pcm_hw_params_set_subformat_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_subformat_t):Cardinal;cdecl;
+  snd_pcm_hw_params_test_subformat_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_subformat_t):Integer;cdecl;
+  snd_pcm_hw_params_get_subformat_t = function(params:Psnd_pcm_hw_params_t):Integer;cdecl;
+  snd_pcm_hw_params_set_subformat_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_subformat_t):Integer;cdecl;
   snd_pcm_hw_params_set_subformat_first_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t):snd_pcm_subformat_t;cdecl;
   snd_pcm_hw_params_set_subformat_last_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t):snd_pcm_subformat_t;cdecl;
-  snd_pcm_hw_params_set_subformat_mask_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; mask:Psnd_pcm_subformat_mask_t):Cardinal;cdecl;
+  snd_pcm_hw_params_set_subformat_mask_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; mask:Psnd_pcm_subformat_mask_t):Integer;cdecl;
   snd_pcm_hw_params_get_subformat_mask_t = procedure(params:Psnd_pcm_hw_params_t; mask:Psnd_pcm_subformat_mask_t);cdecl;
-  snd_pcm_hw_params_get_channels_t = function(params:Psnd_pcm_hw_params_t):Cardinal;cdecl;
+  snd_pcm_hw_params_get_channels_t = function(params:Psnd_pcm_hw_params_t):Integer;cdecl;
   snd_pcm_hw_params_get_channels_min_t = function(params:Psnd_pcm_hw_params_t):LongWord;cdecl;
   snd_pcm_hw_params_get_channels_max_t = function(params:Psnd_pcm_hw_params_t):LongWord;cdecl;
-  snd_pcm_hw_params_test_channels_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord):Cardinal;cdecl;
-  snd_pcm_hw_params_set_channels_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord):Cardinal;cdecl;
-  snd_pcm_hw_params_set_channels_min_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord):Cardinal;cdecl;
-  snd_pcm_hw_params_set_channels_max_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord):Cardinal;cdecl;
-  snd_pcm_hw_params_set_channels_minmax_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; min:PLongWord; max:PLongWord):Cardinal;cdecl;
+  snd_pcm_hw_params_test_channels_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord):Integer;cdecl;
+  snd_pcm_hw_params_set_channels_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord):Integer;cdecl;
+  snd_pcm_hw_params_set_channels_min_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord):Integer;cdecl;
+  snd_pcm_hw_params_set_channels_max_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord):Integer;cdecl;
+  snd_pcm_hw_params_set_channels_minmax_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; min:PLongWord; max:PLongWord):Integer;cdecl;
   snd_pcm_hw_params_set_channels_near_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord):LongWord;cdecl;
   snd_pcm_hw_params_set_channels_first_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t):LongWord;cdecl;
   snd_pcm_hw_params_set_channels_last_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t):LongWord;cdecl;
-  snd_pcm_hw_params_get_rate_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):Cardinal;cdecl;
+  snd_pcm_hw_params_get_rate_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):Integer;cdecl;
   snd_pcm_hw_params_get_rate_min_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
   snd_pcm_hw_params_get_rate_max_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
-  snd_pcm_hw_params_test_rate_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:Cardinal):Cardinal;cdecl;
-  snd_pcm_hw_params_set_rate_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:Cardinal):Cardinal;cdecl;
-  snd_pcm_hw_params_set_rate_min_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord; dir:PCardinal):Cardinal;cdecl;
-  snd_pcm_hw_params_set_rate_max_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord; dir:PCardinal):Cardinal;cdecl;
+  snd_pcm_hw_params_test_rate_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:Cardinal):Integer;cdecl;
+  snd_pcm_hw_params_set_rate_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:Cardinal):Integer;cdecl;
+  snd_pcm_hw_params_set_rate_min_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord; dir:PCardinal):Integer;cdecl;
+  snd_pcm_hw_params_set_rate_max_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord; dir:PCardinal):Integer;cdecl;
   snd_pcm_hw_params_set_rate_minmax_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; min:PLongWord; mindir:PCardinal; max:PLongWord;
-               maxdir:PCardinal):Cardinal;cdecl;
+               maxdir:PCardinal):Integer;cdecl;
   snd_pcm_hw_params_set_rate_near_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PCardinal; dir:PCardinal):LongWord;cdecl;
   snd_pcm_hw_params_set_rate_first_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
   snd_pcm_hw_params_set_rate_last_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
-  snd_pcm_hw_params_get_period_time_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):Cardinal;cdecl;
+  snd_pcm_hw_params_get_period_time_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):Integer;cdecl;
   snd_pcm_hw_params_get_period_time_min_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
   snd_pcm_hw_params_get_period_time_max_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
-  snd_pcm_hw_params_test_period_time_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:Cardinal):Cardinal;cdecl;
-  snd_pcm_hw_params_set_period_time_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:Cardinal):Cardinal;cdecl;
-  snd_pcm_hw_params_set_period_time_min_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord; dir:PCardinal):Cardinal;cdecl;
-  snd_pcm_hw_params_set_period_time_max_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord; dir:PCardinal):Cardinal;cdecl;
+  snd_pcm_hw_params_test_period_time_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:Cardinal):Integer;cdecl;
+  snd_pcm_hw_params_set_period_time_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:Cardinal):Integer;cdecl;
+  snd_pcm_hw_params_set_period_time_min_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord; dir:PCardinal):Integer;cdecl;
+  snd_pcm_hw_params_set_period_time_max_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord; dir:PCardinal):Integer;cdecl;
   snd_pcm_hw_params_set_period_time_minmax_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; min:PLongWord; mindir:PCardinal; max:PLongWord;
-               maxdir:PCardinal):Cardinal;cdecl;
+               maxdir:PCardinal):Integer;cdecl;
   snd_pcm_hw_params_set_period_time_near_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:PCardinal):LongWord;cdecl;
   snd_pcm_hw_params_set_period_time_first_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
   snd_pcm_hw_params_set_period_time_last_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
   snd_pcm_hw_params_get_period_size_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):snd_pcm_sframes_t;cdecl;
   snd_pcm_hw_params_get_period_size_min_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):snd_pcm_uframes_t;cdecl;
   snd_pcm_hw_params_get_period_size_max_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):snd_pcm_uframes_t;cdecl;
-  snd_pcm_hw_params_test_period_size_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_uframes_t; dir:Cardinal):Cardinal;cdecl;
-  snd_pcm_hw_params_set_period_size_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_uframes_t; dir:Cardinal):Cardinal;cdecl;
-  snd_pcm_hw_params_set_period_size_min_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:Psnd_pcm_uframes_t; dir:PCardinal):Cardinal;cdecl;
-  snd_pcm_hw_params_set_period_size_max_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:Psnd_pcm_uframes_t; dir:PCardinal):Cardinal;cdecl;
+  snd_pcm_hw_params_test_period_size_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_uframes_t; dir:Cardinal):Integer;cdecl;
+  snd_pcm_hw_params_set_period_size_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_uframes_t; dir:Cardinal):Integer;cdecl;
+  snd_pcm_hw_params_set_period_size_min_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:Psnd_pcm_uframes_t; dir:PCardinal):Integer;cdecl;
+  snd_pcm_hw_params_set_period_size_max_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:Psnd_pcm_uframes_t; dir:PCardinal):Integer;cdecl;
   snd_pcm_hw_params_set_period_size_minmax_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; min:Psnd_pcm_uframes_t; mindir:PCardinal; max:Psnd_pcm_uframes_t;
-               maxdir:PCardinal):Cardinal;cdecl;
-  snd_pcm_hw_params_set_period_size_near_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_uframes_t; dir:PCardinal):snd_pcm_uframes_t;cdecl;
+               maxdir:PCardinal):Integer;cdecl;
+  snd_pcm_hw_params_set_period_size_near_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:Psnd_pcm_uframes_t; dir:PCardinal):snd_pcm_uframes_t;cdecl;
   snd_pcm_hw_params_set_period_size_first_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; dir:PCardinal):snd_pcm_uframes_t;cdecl;
   snd_pcm_hw_params_set_period_size_last_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; dir:PCardinal):snd_pcm_uframes_t;cdecl;
-  snd_pcm_hw_params_set_period_size_integer_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t):Cardinal;cdecl;
-  snd_pcm_hw_params_get_periods_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):Cardinal;cdecl;
+  snd_pcm_hw_params_set_period_size_integer_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t):Integer;cdecl;
+  snd_pcm_hw_params_get_periods_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):Integer;cdecl;
   snd_pcm_hw_params_get_periods_min_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
   snd_pcm_hw_params_get_periods_max_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
-  snd_pcm_hw_params_test_periods_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:Cardinal):Cardinal;cdecl;
-  snd_pcm_hw_params_set_periods_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:Cardinal):Cardinal;cdecl;
-  snd_pcm_hw_params_set_periods_min_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord; dir:PCardinal):Cardinal;cdecl;
-  snd_pcm_hw_params_set_periods_max_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord; dir:PCardinal):Cardinal;cdecl;
+  snd_pcm_hw_params_test_periods_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:Cardinal):Integer;cdecl;
+  snd_pcm_hw_params_set_periods_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:Cardinal):Integer;cdecl;
+  snd_pcm_hw_params_set_periods_min_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord; dir:PCardinal):Integer;cdecl;
+  snd_pcm_hw_params_set_periods_max_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord; dir:PCardinal):Integer;cdecl;
   snd_pcm_hw_params_set_periods_minmax_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; min:PLongWord; mindir:PCardinal; max:PLongWord;
-               maxdir:PCardinal):Cardinal;cdecl;
+               maxdir:PCardinal):Integer;cdecl;
   snd_pcm_hw_params_set_periods_near_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:PCardinal):LongWord;cdecl;
   snd_pcm_hw_params_set_periods_first_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
   snd_pcm_hw_params_set_periods_last_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
-  snd_pcm_hw_params_set_periods_integer_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t):Cardinal;cdecl;
-  snd_pcm_hw_params_get_buffer_time_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):Cardinal;cdecl;
+  snd_pcm_hw_params_set_periods_integer_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t):Integer;cdecl;
+  snd_pcm_hw_params_get_buffer_time_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):Integer;cdecl;
   snd_pcm_hw_params_get_buffer_time_min_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
   snd_pcm_hw_params_get_buffer_time_max_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
-  snd_pcm_hw_params_test_buffer_time_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:Cardinal):Cardinal;cdecl;
-  snd_pcm_hw_params_set_buffer_time_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:Cardinal):Cardinal;cdecl;
-  snd_pcm_hw_params_set_buffer_time_min_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord; dir:PCardinal):Cardinal;cdecl;
-  snd_pcm_hw_params_set_buffer_time_max_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord; dir:PCardinal):Cardinal;cdecl;
+  snd_pcm_hw_params_test_buffer_time_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:Cardinal):Integer;cdecl;
+  snd_pcm_hw_params_set_buffer_time_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:Cardinal):Integer;cdecl;
+  snd_pcm_hw_params_set_buffer_time_min_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord; dir:PCardinal):Integer;cdecl;
+  snd_pcm_hw_params_set_buffer_time_max_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord; dir:PCardinal):Integer;cdecl;
   snd_pcm_hw_params_set_buffer_time_minmax_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; min:PLongWord; mindir:PCardinal; max:PLongWord;
-               maxdir:PCardinal):Cardinal;cdecl;
+               maxdir:PCardinal):Integer;cdecl;
   snd_pcm_hw_params_set_buffer_time_near_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:PCardinal):LongWord;cdecl;
   snd_pcm_hw_params_set_buffer_time_first_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
   snd_pcm_hw_params_set_buffer_time_last_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
-  snd_pcm_hw_params_get_buffer_size_t = function(params:Psnd_pcm_hw_params_t):snd_pcm_sframes_t;cdecl;
+  snd_pcm_hw_params_get_buffer_size_t = function(params:Psnd_pcm_hw_params_t; frames:Psnd_pcm_sframes_t):LongWord;cdecl;
   snd_pcm_hw_params_get_buffer_size_min_t = function(params:Psnd_pcm_hw_params_t):snd_pcm_uframes_t;cdecl;
   snd_pcm_hw_params_get_buffer_size_max_t = function(params:Psnd_pcm_hw_params_t):snd_pcm_uframes_t;cdecl;
-  snd_pcm_hw_params_test_buffer_size_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_uframes_t):Cardinal;cdecl;
-  snd_pcm_hw_params_set_buffer_size_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_uframes_t):Cardinal;cdecl;
-  snd_pcm_hw_params_set_buffer_size_min_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:Psnd_pcm_uframes_t):Cardinal;cdecl;
-  snd_pcm_hw_params_set_buffer_size_max_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:Psnd_pcm_uframes_t):Cardinal;cdecl;
-  snd_pcm_hw_params_set_buffer_size_minmax_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; min:Psnd_pcm_uframes_t; max:Psnd_pcm_uframes_t):Cardinal;cdecl;
-  snd_pcm_hw_params_set_buffer_size_near_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_uframes_t):snd_pcm_uframes_t;cdecl;
+  snd_pcm_hw_params_test_buffer_size_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_uframes_t):Integer;cdecl;
+  snd_pcm_hw_params_set_buffer_size_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:snd_pcm_uframes_t):Integer;cdecl;
+  snd_pcm_hw_params_set_buffer_size_min_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:Psnd_pcm_uframes_t):Integer;cdecl;
+  snd_pcm_hw_params_set_buffer_size_max_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:Psnd_pcm_uframes_t):Integer;cdecl;
+  snd_pcm_hw_params_set_buffer_size_minmax_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; min:Psnd_pcm_uframes_t; max:Psnd_pcm_uframes_t):Integer;cdecl;
+  snd_pcm_hw_params_set_buffer_size_near_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:Psnd_pcm_uframes_t):snd_pcm_uframes_t;cdecl;
   snd_pcm_hw_params_set_buffer_size_first_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t):snd_pcm_uframes_t;cdecl;
   snd_pcm_hw_params_set_buffer_size_last_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t):snd_pcm_uframes_t;cdecl;
-  snd_pcm_hw_params_get_tick_time_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):Cardinal;cdecl;
+  snd_pcm_hw_params_get_tick_time_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):Integer;cdecl;
   snd_pcm_hw_params_get_tick_time_min_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
   snd_pcm_hw_params_get_tick_time_max_t = function(params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
-  snd_pcm_hw_params_test_tick_time_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:Cardinal):Cardinal;cdecl;
-  snd_pcm_hw_params_set_tick_time_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:Cardinal):Cardinal;cdecl;
-  snd_pcm_hw_params_set_tick_time_min_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord; dir:PCardinal):Cardinal;cdecl;
-  snd_pcm_hw_params_set_tick_time_max_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord; dir:PCardinal):Cardinal;cdecl;
+  snd_pcm_hw_params_test_tick_time_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:Cardinal):Integer;cdecl;
+  snd_pcm_hw_params_set_tick_time_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:Cardinal):Integer;cdecl;
+  snd_pcm_hw_params_set_tick_time_min_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord; dir:PCardinal):Integer;cdecl;
+  snd_pcm_hw_params_set_tick_time_max_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:PLongWord; dir:PCardinal):Integer;cdecl;
   snd_pcm_hw_params_set_tick_time_minmax_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; min:PLongWord; mindir:PCardinal; max:PLongWord;
-               maxdir:PCardinal):Cardinal;cdecl;
+               maxdir:PCardinal):Integer;cdecl;
   snd_pcm_hw_params_set_tick_time_near_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; val:LongWord; dir:PCardinal):LongWord;cdecl;
   snd_pcm_hw_params_set_tick_time_first_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
   snd_pcm_hw_params_set_tick_time_last_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_hw_params_t; dir:PCardinal):LongWord;cdecl;
     { New function added in alsa-lib-0.9.0-rc5 }
-  snd_pcm_hw_params_get_min_align_t = function(params: Psnd_pcm_hw_params_t; var val: snd_pcm_uframes_t):Cardinal;cdecl;
+  snd_pcm_hw_params_get_min_align_t = function(params: Psnd_pcm_hw_params_t; var val: snd_pcm_uframes_t):Integer;cdecl;
 
     {
        Software Parameters
     }
-    // function snd_pcm_sw_params_current(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t):Cardinal;cdecl;external asoundlib_name;
+    // function snd_pcm_sw_params_current(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t):Integer;cdecl;external asoundlib_name;
   snd_pcm_sw_params_sizeof_t = function:size_t;cdecl;
-  snd_pcm_sw_params_malloc_t = function(var obj:Psnd_pcm_sw_params_t):Cardinal;cdecl;
+  snd_pcm_sw_params_malloc_t = function(Out obj:Psnd_pcm_sw_params_t):Integer;cdecl;
   snd_pcm_sw_params_free_t = procedure(obj:Psnd_pcm_sw_params_t);cdecl;
   snd_pcm_sw_params_copy_t = procedure(dst:Psnd_pcm_sw_params_t; src:Psnd_pcm_sw_params_t);cdecl;
-  snd_pcm_sw_params_set_tstamp_mode_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t; val:snd_pcm_tstamp_t):Cardinal;cdecl;
+  snd_pcm_sw_params_set_tstamp_mode_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t; val:snd_pcm_tstamp_t):Integer;cdecl;
   snd_pcm_sw_params_get_tstamp_mode_t = function(params:Psnd_pcm_sw_params_t):snd_pcm_tstamp_t;cdecl;
 
-  snd_pcm_sw_params_set_sleep_min_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t; val:LongWord):Cardinal;cdecl;
+  snd_pcm_sw_params_set_sleep_min_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t; val:LongWord):Integer;cdecl;
   snd_pcm_sw_params_get_sleep_min_t = function(params:Psnd_pcm_sw_params_t):LongWord;cdecl;
-  snd_pcm_sw_params_set_avail_min_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t; val:snd_pcm_uframes_t):Cardinal;cdecl;
+  snd_pcm_sw_params_set_avail_min_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t; val:snd_pcm_uframes_t):Integer;cdecl;
   snd_pcm_sw_params_get_avail_min_t = function(params:Psnd_pcm_sw_params_t):snd_pcm_uframes_t;cdecl;
-  snd_pcm_sw_params_set_xfer_align_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t; val:snd_pcm_uframes_t):Cardinal;cdecl;
+  snd_pcm_sw_params_set_xfer_align_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t; val:snd_pcm_uframes_t):Integer;cdecl;
   snd_pcm_sw_params_get_xfer_align_t = function(params:Psnd_pcm_sw_params_t):snd_pcm_uframes_t;cdecl;
-  snd_pcm_sw_params_set_start_threshold_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t; val:snd_pcm_uframes_t):Cardinal;cdecl;
+  snd_pcm_sw_params_set_start_threshold_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t; val:snd_pcm_uframes_t):Integer;cdecl;
   snd_pcm_sw_params_get_start_threshold_t = function(params:Psnd_pcm_sw_params_t):snd_pcm_uframes_t;cdecl;
-  snd_pcm_sw_params_set_stop_threshold_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t; val:snd_pcm_uframes_t):Cardinal;cdecl;
+  snd_pcm_sw_params_set_stop_threshold_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t; val:snd_pcm_uframes_t):Integer;cdecl;
   snd_pcm_sw_params_get_stop_threshold_t = function(params:Psnd_pcm_sw_params_t):snd_pcm_uframes_t;cdecl;
 
-  snd_pcm_sw_params_set_silence_threshold_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t; val:snd_pcm_uframes_t):Cardinal;cdecl;
+  snd_pcm_sw_params_set_silence_threshold_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t; val:snd_pcm_uframes_t):Integer;cdecl;
   snd_pcm_sw_params_get_silence_threshold_t = function(params:Psnd_pcm_sw_params_t):snd_pcm_uframes_t;cdecl;
-  snd_pcm_sw_params_set_silence_size_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t; val:snd_pcm_uframes_t):Cardinal;cdecl;
+  snd_pcm_sw_params_set_silence_size_t = function(pcm:Psnd_pcm_t; params:Psnd_pcm_sw_params_t; val:snd_pcm_uframes_t):Integer;cdecl;
   snd_pcm_sw_params_get_silence_size_t = function(params:Psnd_pcm_sw_params_t):snd_pcm_uframes_t;cdecl;
 
     {
        Access Mask Functions
     }
   snd_pcm_access_mask_sizeof_t = function:size_t;cdecl;
-  snd_pcm_access_mask_malloc_t = function(var obj:Psnd_pcm_access_mask_t):Cardinal;cdecl;
+  snd_pcm_access_mask_malloc_t = function(var obj:Psnd_pcm_access_mask_t):Integer;cdecl;
   snd_pcm_access_mask_free_t = procedure(obj:Psnd_pcm_access_mask_t);cdecl;
   snd_pcm_access_mask_copy_t = procedure(dst:Psnd_pcm_access_mask_t; src:Psnd_pcm_access_mask_t);cdecl;
   snd_pcm_access_mask_none_t = procedure(mask:Psnd_pcm_access_mask_t);cdecl;
   snd_pcm_access_mask_any_t = procedure(mask:Psnd_pcm_access_mask_t);cdecl;
-  snd_pcm_access_mask_test_t = function(mask:Psnd_pcm_access_mask_t; val:snd_pcm_access_t):Cardinal;cdecl;
-  snd_pcm_access_mask_empty_t = function(mask:Psnd_pcm_access_mask_t):Cardinal;cdecl;
+  snd_pcm_access_mask_test_t = function(mask:Psnd_pcm_access_mask_t; val:snd_pcm_access_t):Integer;cdecl;
+  snd_pcm_access_mask_empty_t = function(mask:Psnd_pcm_access_mask_t):Integer;cdecl;
   snd_pcm_access_mask_set_t = procedure(mask:Psnd_pcm_access_mask_t; val:snd_pcm_access_t);cdecl;
   snd_pcm_access_mask_reset_t = procedure(mask:Psnd_pcm_access_mask_t; val:snd_pcm_access_t);cdecl;
     {
        Format Mask Functions
     }
   snd_pcm_format_mask_sizeof_t = function:size_t;cdecl;
-  snd_pcm_format_mask_malloc_t = function(var obj:Psnd_pcm_format_mask_t):Cardinal;cdecl;
+  snd_pcm_format_mask_malloc_t = function(var obj:Psnd_pcm_format_mask_t):Integer;cdecl;
   snd_pcm_format_mask_free_t = procedure(obj:Psnd_pcm_format_mask_t);cdecl;
   snd_pcm_format_mask_copy_t = procedure(dst:Psnd_pcm_format_mask_t; src:Psnd_pcm_format_mask_t);cdecl;
   snd_pcm_format_mask_none_t = procedure(mask:Psnd_pcm_format_mask_t);cdecl;
   snd_pcm_format_mask_any_t = procedure(mask:Psnd_pcm_format_mask_t);cdecl;
-  snd_pcm_format_mask_test_t = function(mask:Psnd_pcm_format_mask_t; val:snd_pcm_format_t):Cardinal;cdecl;
-  snd_pcm_format_mask_empty_t = function(mask:Psnd_pcm_format_mask_t):Cardinal;cdecl;
+  snd_pcm_format_mask_test_t = function(mask:Psnd_pcm_format_mask_t; val:snd_pcm_format_t):Integer;cdecl;
+  snd_pcm_format_mask_empty_t = function(mask:Psnd_pcm_format_mask_t):Integer;cdecl;
   snd_pcm_format_mask_set_t = procedure(mask:Psnd_pcm_format_mask_t; val:snd_pcm_format_t);cdecl;
   snd_pcm_format_mask_reset_t = procedure(mask:Psnd_pcm_format_mask_t; val:snd_pcm_format_t);cdecl;
     {
        Subformat Mask Functions
     }
   snd_pcm_subformat_mask_sizeof_t = function:size_t;cdecl;
-  snd_pcm_subformat_mask_malloc_t = function(var obj:Psnd_pcm_subformat_mask_t):Cardinal;cdecl;
+  snd_pcm_subformat_mask_malloc_t = function(var obj:Psnd_pcm_subformat_mask_t):Integer;cdecl;
   snd_pcm_subformat_mask_free_t = procedure(obj:Psnd_pcm_subformat_mask_t);cdecl;
   snd_pcm_subformat_mask_copy_t = procedure(dst:Psnd_pcm_subformat_mask_t; src:Psnd_pcm_subformat_mask_t);cdecl;
   snd_pcm_subformat_mask_none_t = procedure(mask:Psnd_pcm_subformat_mask_t);cdecl;
   snd_pcm_subformat_mask_any_t = procedure(mask:Psnd_pcm_subformat_mask_t);cdecl;
-  snd_pcm_subformat_mask_test_t = function(mask:Psnd_pcm_subformat_mask_t; val:snd_pcm_subformat_t):Cardinal;cdecl;
-  snd_pcm_subformat_mask_empty_t = function(mask:Psnd_pcm_subformat_mask_t):Cardinal;cdecl;
+  snd_pcm_subformat_mask_test_t = function(mask:Psnd_pcm_subformat_mask_t; val:snd_pcm_subformat_t):Integer;cdecl;
+  snd_pcm_subformat_mask_empty_t = function(mask:Psnd_pcm_subformat_mask_t):Integer;cdecl;
   snd_pcm_subformat_mask_set_t = procedure(mask:Psnd_pcm_subformat_mask_t; val:snd_pcm_subformat_t);cdecl;
   snd_pcm_subformat_mask_reset_t = procedure(mask:Psnd_pcm_subformat_mask_t; val:snd_pcm_subformat_t);cdecl;
     {
        Status Functions
     }
   snd_pcm_status_sizeof_t = function:size_t;cdecl;
-  snd_pcm_status_malloc_t = function(var obj:Psnd_pcm_status_t):Cardinal;cdecl;
+  snd_pcm_status_malloc_t = function(var obj:Psnd_pcm_status_t):Integer;cdecl;
   snd_pcm_status_free_t = procedure(obj:Psnd_pcm_status_t);cdecl;
   snd_pcm_status_copy_t = procedure(dst:Psnd_pcm_status_t; src:Psnd_pcm_status_t);cdecl;
   snd_pcm_status_get_state_t = function(obj:Psnd_pcm_status_t):snd_pcm_state_t;cdecl;
@@ -619,17 +620,17 @@ type
     {
        Debug Functions
     }
-  snd_pcm_dump_t = function(pcm:Psnd_pcm_t; mout:Psnd_output_t):Cardinal;cdecl;
-  snd_pcm_dump_hw_setup_t = function(pcm:Psnd_pcm_t; mout:Psnd_output_t):Cardinal;cdecl;
-  snd_pcm_dump_sw_setup_t = function(pcm:Psnd_pcm_t; mout:Psnd_output_t):Cardinal;cdecl;
-  snd_pcm_dump_setup_t = function(pcm:Psnd_pcm_t; mout:Psnd_output_t):Cardinal;cdecl;
-  snd_pcm_hw_params_dump_t = function(params:Psnd_pcm_hw_params_t; mout:Psnd_output_t):Cardinal;cdecl;
-  snd_pcm_sw_params_dump_t = function(params:Psnd_pcm_sw_params_t; mout:Psnd_output_t):Cardinal;cdecl;
-  snd_pcm_status_dump_t = function(status:Psnd_pcm_status_t; mout:Psnd_output_t):Cardinal;cdecl;
+  snd_pcm_dump_t = function(pcm:Psnd_pcm_t; mout:Psnd_output_t):Integer;cdecl;
+  snd_pcm_dump_hw_setup_t = function(pcm:Psnd_pcm_t; mout:Psnd_output_t):Integer;cdecl;
+  snd_pcm_dump_sw_setup_t = function(pcm:Psnd_pcm_t; mout:Psnd_output_t):Integer;cdecl;
+  snd_pcm_dump_setup_t = function(pcm:Psnd_pcm_t; mout:Psnd_output_t):Integer;cdecl;
+  snd_pcm_hw_params_dump_t = function(params:Psnd_pcm_hw_params_t; mout:Psnd_output_t):Integer;cdecl;
+  snd_pcm_sw_params_dump_t = function(params:Psnd_pcm_sw_params_t; mout:Psnd_output_t):Integer;cdecl;
+  snd_pcm_status_dump_t = function(status:Psnd_pcm_status_t; mout:Psnd_output_t):Integer;cdecl;
     {
        Direct Access (MMAP) Functions
     }
-  snd_pcm_mmap_begin_t = function(pcm:Psnd_pcm_t; var areas:Psnd_pcm_channel_area_t; offset:Psnd_pcm_uframes_t; frames:Psnd_pcm_uframes_t):Cardinal;cdecl;
+  snd_pcm_mmap_begin_t = function(pcm:Psnd_pcm_t; var areas:Psnd_pcm_channel_area_t; offset:Psnd_pcm_uframes_t; frames:Psnd_pcm_uframes_t):Integer;cdecl;
   snd_pcm_mmap_commit_t = function(pcm:Psnd_pcm_t; offset:snd_pcm_uframes_t; frames:snd_pcm_uframes_t):snd_pcm_sframes_t;cdecl;
   snd_pcm_mmap_writei_t = function(pcm:Psnd_pcm_t; buffer:pointer; size:snd_pcm_uframes_t):snd_pcm_sframes_t;cdecl;
   snd_pcm_mmap_readi_t = function(pcm:Psnd_pcm_t; buffer:pointer; size:snd_pcm_uframes_t):snd_pcm_sframes_t;cdecl;
@@ -638,34 +639,34 @@ type
     {
        Helper Functions
     }
-  snd_pcm_format_signed_t = function(format:snd_pcm_format_t):Cardinal;cdecl;
-  snd_pcm_format_unsigned_t = function(format:snd_pcm_format_t):Cardinal;cdecl;
-  snd_pcm_format_linear_t = function(format:snd_pcm_format_t):Cardinal;cdecl;
-  snd_pcm_format_is_float_t = function(format:snd_pcm_format_t):Cardinal;cdecl;
-  snd_pcm_format_little_endian_t = function(format:snd_pcm_format_t):Cardinal;cdecl;
-  snd_pcm_format_big_endian_t = function(format:snd_pcm_format_t):Cardinal;cdecl;
-  snd_pcm_format_cpu_endian_t = function(format:snd_pcm_format_t):Cardinal;cdecl;
-  snd_pcm_format_width_t = function(format:snd_pcm_format_t):Cardinal;cdecl;
+  snd_pcm_format_signed_t = function(format:snd_pcm_format_t):Integer;cdecl;
+  snd_pcm_format_unsigned_t = function(format:snd_pcm_format_t):Integer;cdecl;
+  snd_pcm_format_linear_t = function(format:snd_pcm_format_t):Integer;cdecl;
+  snd_pcm_format_is_float_t = function(format:snd_pcm_format_t):Integer;cdecl;
+  snd_pcm_format_little_endian_t = function(format:snd_pcm_format_t):Integer;cdecl;
+  snd_pcm_format_big_endian_t = function(format:snd_pcm_format_t):Integer;cdecl;
+  snd_pcm_format_cpu_endian_t = function(format:snd_pcm_format_t):Integer;cdecl;
+  snd_pcm_format_width_t = function(format:snd_pcm_format_t):Integer;cdecl;
     { in bits  }
-  snd_pcm_format_physical_width_t = function(format:snd_pcm_format_t):Cardinal;cdecl;
+  snd_pcm_format_physical_width_t = function(format:snd_pcm_format_t):Integer;cdecl;
     { in bits  }
   snd_pcm_build_linear_format_t = function(width:Cardinal; pwidth:Cardinal; unsignd:Cardinal; big_endian:Cardinal):snd_pcm_format_t;cdecl;
   snd_pcm_format_size_t = function(format:snd_pcm_format_t; samples:size_t):ssize_t;cdecl;
   snd_pcm_format_silence_t = function(format:snd_pcm_format_t):Byte;cdecl;
   snd_pcm_format_silence_16_t = function(format:snd_pcm_format_t):Word;cdecl;
-  snd_pcm_format_silence_32_t = function(format:snd_pcm_format_t):Cardinal;cdecl;
+  snd_pcm_format_silence_32_t = function(format:snd_pcm_format_t):Integer;cdecl;
 //  snd_pcm_format_silence_64_t = function(format:snd_pcm_format_t):u_int64_t;cdecl;
-  snd_pcm_format_set_silence_t = function(format:snd_pcm_format_t; buf:pointer; samples:LongWord):Cardinal;cdecl;
+  snd_pcm_format_set_silence_t = function(format:snd_pcm_format_t; buf:pointer; samples:LongWord):Integer;cdecl;
   snd_pcm_bytes_to_frames_t = function(pcm:Psnd_pcm_t; bytes:ssize_t):snd_pcm_sframes_t;cdecl;
   snd_pcm_frames_to_bytes_t = function(pcm:Psnd_pcm_t; frames:snd_pcm_sframes_t):ssize_t;cdecl;
-  snd_pcm_bytes_to_samples_t = function(pcm:Psnd_pcm_t; bytes:ssize_t):Cardinal;cdecl;
+  snd_pcm_bytes_to_samples_t = function(pcm:Psnd_pcm_t; bytes:ssize_t):Integer;cdecl;
   snd_pcm_samples_to_bytes_t = function(pcm:Psnd_pcm_t; samples:Cardinal):ssize_t;cdecl;
-  snd_pcm_area_silence_t = function(dst_channel:Psnd_pcm_channel_area_t; dst_offset:snd_pcm_uframes_t; samples:LongWord; format:snd_pcm_format_t):Cardinal;cdecl;
-  snd_pcm_areas_silence_t = function(dst_channels:Psnd_pcm_channel_area_t; dst_offset:snd_pcm_uframes_t; channels:LongWord; frames:snd_pcm_uframes_t; format:snd_pcm_format_t):Cardinal;cdecl;
+  snd_pcm_area_silence_t = function(dst_channel:Psnd_pcm_channel_area_t; dst_offset:snd_pcm_uframes_t; samples:LongWord; format:snd_pcm_format_t):Integer;cdecl;
+  snd_pcm_areas_silence_t = function(dst_channels:Psnd_pcm_channel_area_t; dst_offset:snd_pcm_uframes_t; channels:LongWord; frames:snd_pcm_uframes_t; format:snd_pcm_format_t):Integer;cdecl;
   snd_pcm_area_copy_t = function(dst_channel:Psnd_pcm_channel_area_t; dst_offset:snd_pcm_uframes_t; src_channel:Psnd_pcm_channel_area_t; src_offset:snd_pcm_uframes_t; samples:LongWord;
-               format:snd_pcm_format_t):Cardinal;cdecl;
+               format:snd_pcm_format_t):Integer;cdecl;
   snd_pcm_areas_copy_t = function(dst_channels:Psnd_pcm_channel_area_t; dst_offset:snd_pcm_uframes_t; src_channels:Psnd_pcm_channel_area_t; src_offset:snd_pcm_uframes_t; channels:LongWord;
-               frames:snd_pcm_uframes_t; format:snd_pcm_format_t):Cardinal;cdecl;
+               frames:snd_pcm_uframes_t; format:snd_pcm_format_t):Integer;cdecl;
     {
        Hook Extension
     }
@@ -683,21 +684,21 @@ type
     {  PCM hook container  }
        Psnd_pcm_hook_t = pointer;
     {  PCM hook callback function  }
-       snd_pcm_hook_func_t = function (hook:Psnd_pcm_hook_t):Cardinal;cdecl;
+       snd_pcm_hook_func_t = function (hook:Psnd_pcm_hook_t):Integer;cdecl;
 type
 
   snd_pcm_hook_get_pcm_t = function(hook:Psnd_pcm_hook_t):Psnd_pcm_t;cdecl;
   snd_pcm_hook_get_private_t = function(hook:Psnd_pcm_hook_t):pointer;cdecl;
   snd_pcm_hook_set_private_t = procedure(hook:Psnd_pcm_hook_t; private_data:pointer);cdecl;
-  snd_pcm_hook_add_t = function(var hookp:Psnd_pcm_hook_t; pcm:Psnd_pcm_t; _type:snd_pcm_hook_type_t; func:snd_pcm_hook_func_t; private_data:pointer):Cardinal;cdecl;
-  snd_pcm_hook_remove_t = function(hook:Psnd_pcm_hook_t):Cardinal;cdecl;
+  snd_pcm_hook_add_t = function(var hookp:Psnd_pcm_hook_t; pcm:Psnd_pcm_t; _type:snd_pcm_hook_type_t; func:snd_pcm_hook_func_t; private_data:pointer):Integer;cdecl;
+  snd_pcm_hook_remove_t = function(hook:Psnd_pcm_hook_t):Integer;cdecl;
     {
        Scope Plugin Extension
     }
 type
     {  #SND_PCM_TYPE_METER scope functions  }
        _snd_pcm_scope_ops = record
-            enable : function (scope:Psnd_pcm_scope_t):Cardinal;cdecl; {  Enable and prepare it using current params  }
+            enable : function (scope:Psnd_pcm_scope_t):Integer;cdecl; {  Enable and prepare it using current params  }
             disable : procedure (scope:Psnd_pcm_scope_t);             {  Disable  }
             start : procedure (scope:Psnd_pcm_scope_t);               {  PCM has been started  }
             stop : procedure (scope:Psnd_pcm_scope_t);                {  PCM has been stopped  }
@@ -713,37 +714,50 @@ type
   snd_pcm_meter_get_rate_t = function(pcm:Psnd_pcm_t):LongWord;cdecl;
   snd_pcm_meter_get_now_t = function(pcm:Psnd_pcm_t):snd_pcm_uframes_t;cdecl;
   snd_pcm_meter_get_boundary_t = function(pcm:Psnd_pcm_t):snd_pcm_uframes_t;cdecl;
-  snd_pcm_meter_add_scope_t = function(pcm:Psnd_pcm_t; scope:Psnd_pcm_scope_t):Cardinal;cdecl;
+  snd_pcm_meter_add_scope_t = function(pcm:Psnd_pcm_t; scope:Psnd_pcm_scope_t):Integer;cdecl;
   snd_pcm_meter_search_scope_t = function(pcm:Psnd_pcm_t; name:PAnsiChar):Psnd_pcm_scope_t;cdecl;
-  snd_pcm_scope_malloc_t = function(var ptr:Psnd_pcm_scope_t):Cardinal;cdecl;
+  snd_pcm_scope_malloc_t = function(var ptr:Psnd_pcm_scope_t):Integer;cdecl;
   snd_pcm_scope_set_ops_t = procedure(scope:Psnd_pcm_scope_t; val:Psnd_pcm_scope_ops_t);cdecl;
   snd_pcm_scope_set_name_t = procedure(scope:Psnd_pcm_scope_t; val:PAnsiChar);cdecl;
   snd_pcm_scope_get_name_t = function(scope:Psnd_pcm_scope_t):PAnsiChar;cdecl;
   snd_pcm_scope_get_callback_private_t = function(scope:Psnd_pcm_scope_t):pointer;cdecl;
   snd_pcm_scope_set_callback_private_t = procedure(scope:Psnd_pcm_scope_t; val:pointer);cdecl;
-  snd_pcm_scope_s16_open_t = function(pcm:Psnd_pcm_t; name:PAnsiChar; var scopep:Psnd_pcm_scope_t):Cardinal;cdecl;
+  snd_pcm_scope_s16_open_t = function(pcm:Psnd_pcm_t; name:PAnsiChar; var scopep:Psnd_pcm_scope_t):Integer;cdecl;
   snd_pcm_scope_s16_get_channel_buffer_t = function(scope:Psnd_pcm_scope_t; channel:LongWord):Pint16;cdecl;
 
+  snd_strerror_t = Function (errnum:Integer):PAnsiChar; Cdecl;
 var
 
   snd_pcm_close : snd_pcm_close_t;
   snd_pcm_drop : snd_pcm_drop_t;
   snd_pcm_drain : snd_pcm_drain_t;
+  snd_pcm_wait: snd_pcm_wait_t;
+  snd_pcm_avail_update:snd_pcm_avail_update_t;
   snd_pcm_hw_params_malloc : snd_pcm_hw_params_malloc_t;
   snd_pcm_hw_params_any : snd_pcm_hw_params_any_t;
   snd_pcm_hw_params_get_periods : snd_pcm_hw_params_get_periods_t;
   snd_pcm_hw_params_get_period_size : snd_pcm_hw_params_get_period_size_t;
   snd_pcm_hw_params_get_rate : snd_pcm_hw_params_get_rate_t;
+  snd_pcm_hw_params_get_buffer_size: snd_pcm_hw_params_get_buffer_size_t;
   snd_pcm_hw_params_set_access : snd_pcm_hw_params_set_access_t;
   snd_pcm_hw_params_set_buffer_size : snd_pcm_hw_params_set_buffer_size_t;
   snd_pcm_hw_params_set_buffer_size_near : snd_pcm_hw_params_set_buffer_size_near_t;
   snd_pcm_hw_params_set_channels : snd_pcm_hw_params_set_channels_t;
   snd_pcm_hw_params_set_format : snd_pcm_hw_params_set_format_t;
+  snd_pcm_hw_params_set_periods:snd_pcm_hw_params_set_periods_t;
   snd_pcm_hw_params_set_period_size_near : snd_pcm_hw_params_set_period_size_near_t;
   snd_pcm_hw_params_set_periods_near : snd_pcm_hw_params_set_periods_near_t;
   snd_pcm_hw_params_set_rate_near : snd_pcm_hw_params_set_rate_near_t;
   snd_pcm_hw_params : snd_pcm_hw_params_t;
   snd_pcm_hw_params_free : snd_pcm_hw_params_free_t;
+
+  snd_pcm_sw_params:snd_pcm_sw_params_t;
+  snd_pcm_sw_params_malloc:snd_pcm_sw_params_malloc_t;
+  snd_pcm_sw_params_free:snd_pcm_sw_params_free_t;
+  snd_pcm_sw_params_current: snd_pcm_sw_params_current_t;
+  snd_pcm_sw_params_set_avail_min:snd_pcm_sw_params_set_avail_min_t;
+  snd_pcm_sw_params_set_start_threshold:snd_pcm_sw_params_set_start_threshold_t;
+
   snd_pcm_info_get_device : snd_pcm_info_get_device_t;
   snd_pcm_info_get_name : snd_pcm_info_get_name_t;
   snd_pcm_info_set_device : snd_pcm_info_set_device_t;
@@ -758,6 +772,10 @@ var
   snd_pcm_state : snd_pcm_state_t_t;
   snd_pcm_stream : snd_pcm_stream_t_t;
   snd_pcm_writei : snd_pcm_writei_t;
+
+  snd_async_add_pcm_handler:snd_async_add_pcm_handler_t;
+
+  snd_strerror:snd_strerror_t;
 
 // Mixer types
 
@@ -799,21 +817,33 @@ Initialization
     snd_pcm_close := GetProcedureAddress(Libhandle, 'snd_pcm_close');
     snd_pcm_drop := GetProcedureAddress(Libhandle, 'snd_pcm_drop');
     snd_pcm_drain := GetProcedureAddress(Libhandle, 'snd_pcm_drain');
+    snd_pcm_wait := GetProcedureAddress(Libhandle, 'snd_pcm_wait');
+    snd_pcm_avail_update := GetProcedureAddress(Libhandle, 'snd_pcm_avail_update');
     snd_pcm_hw_params_malloc := GetProcedureAddress(Libhandle, 'snd_pcm_hw_params_malloc');
     snd_pcm_hw_params_any := GetProcedureAddress(Libhandle, 'snd_pcm_hw_params_any');
     snd_pcm_hw_params_get_periods := GetProcedureAddress(Libhandle, 'snd_pcm_hw_params_get_periods');
     snd_pcm_hw_params_get_period_size := GetProcedureAddress(Libhandle, 'snd_pcm_hw_params_get_period_size');
     snd_pcm_hw_params_get_rate := GetProcedureAddress(Libhandle, 'snd_pcm_hw_params_get_rate');
+    snd_pcm_hw_params_get_buffer_size := GetProcedureAddress(Libhandle, 'snd_pcm_hw_params_get_buffer_size');
     snd_pcm_hw_params_set_access := GetProcedureAddress(Libhandle, 'snd_pcm_hw_params_set_access');
     snd_pcm_hw_params_set_buffer_size := GetProcedureAddress(Libhandle, 'snd_pcm_hw_params_set_buffer_size');
     snd_pcm_hw_params_set_buffer_size_near := GetProcedureAddress(Libhandle, 'snd_pcm_hw_params_set_buffer_size_near');
     snd_pcm_hw_params_set_channels := GetProcedureAddress(Libhandle, 'snd_pcm_hw_params_set_channels');
     snd_pcm_hw_params_set_format := GetProcedureAddress(Libhandle, 'snd_pcm_hw_params_set_format');
     snd_pcm_hw_params_set_period_size_near := GetProcedureAddress(Libhandle, 'snd_pcm_hw_params_set_period_size_near');
+    snd_pcm_hw_params_set_periods := GetProcedureAddress(Libhandle, 'snd_pcm_hw_params_set_periods');
     snd_pcm_hw_params_set_periods_near := GetProcedureAddress(Libhandle, 'snd_pcm_hw_params_set_periods_near');
     snd_pcm_hw_params_set_rate_near := GetProcedureAddress(Libhandle, 'snd_pcm_hw_params_set_rate_near');
     snd_pcm_hw_params := GetProcedureAddress(Libhandle, 'snd_pcm_hw_params');
     snd_pcm_hw_params_free := GetProcedureAddress(Libhandle, 'snd_pcm_hw_params_free');
+
+    snd_pcm_sw_params := GetProcedureAddress(Libhandle, 'snd_pcm_sw_params');
+    snd_pcm_sw_params_malloc  := GetProcedureAddress(Libhandle, 'snd_pcm_sw_params_malloc');
+    snd_pcm_sw_params_free  := GetProcedureAddress(Libhandle, 'snd_pcm_sw_params_free');
+    snd_pcm_sw_params_current := GetProcedureAddress( Libhandle, 'snd_pcm_sw_params_current');
+    snd_pcm_sw_params_set_avail_min := GetProcedureAddress( Libhandle, 'snd_pcm_sw_params_set_avail_min');
+    snd_pcm_sw_params_set_start_threshold := GetProcedureAddress( Libhandle, 'snd_pcm_sw_params_set_start_threshold');
+
     snd_pcm_info_get_device := GetProcedureAddress(Libhandle, 'snd_pcm_info_get_device');
     snd_pcm_info_get_name := GetProcedureAddress(Libhandle, 'snd_pcm_info_get_name');
     snd_pcm_info_set_device := GetProcedureAddress(Libhandle, 'snd_pcm_info_set_device');
@@ -828,6 +858,10 @@ Initialization
     snd_pcm_state := GetProcedureAddress(Libhandle, 'snd_pcm_state');
     snd_pcm_stream := GetProcedureAddress(Libhandle, 'snd_pcm_stream');
     snd_pcm_writei := GetProcedureAddress(Libhandle, 'snd_pcm_writei');
+
+    snd_async_add_pcm_handler := GetProcedureAddress(Libhandle, 'snd_async_add_pcm_handler');
+
+    snd_strerror  := GetProcedureAddress(Libhandle, 'snd_strerror');
   End;
 
 Finalization

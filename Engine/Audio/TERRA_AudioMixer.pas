@@ -61,7 +61,7 @@ Type
        Procedure Release(); Override;
 
        { Fills a output buffer with data from the current ring buffer. Conversion is not done, so output buffer must be stereo and same sample rate as mixer }
-       Procedure RequestSamples(Dest:PAudioSample; SampleCount:Cardinal);
+       Function RequestSamples(Dest:PAudioSample; SampleCount:Cardinal):Cardinal;
 
        Procedure AddSource(Source:SoundSource);
        Procedure RemoveSource(Source:SoundSource);
@@ -234,7 +234,7 @@ Begin
   Self.Leave();
 End;
 
-Procedure TERRAAudioMixer.RequestSamples(Dest:PAudioSample; SampleCount:Cardinal);
+Function TERRAAudioMixer.RequestSamples(Dest:PAudioSample; SampleCount:Cardinal):Cardinal;
 Var
   Leftovers, Temp:Integer;
   SrcData:PAudioSample;
@@ -247,11 +247,12 @@ Begin
   End Else
     Leftovers := 0;
 
-  //Dest.ClearSamples();
   SrcData := Self._CurrentBuffer.GetSampleAt(_CurrentSample, 0);
   Inc(_CurrentSample, SampleCount);
 
   Move(SrcData^, Dest^, SampleCount * SizeOf(AudioSample) * 2);
+
+  Result := SampleCount;
 End;
 
 Procedure TERRAAudioMixer.SwapBuffers;
@@ -300,4 +301,4 @@ Begin
   End;
 End;
 
-End.
+End.

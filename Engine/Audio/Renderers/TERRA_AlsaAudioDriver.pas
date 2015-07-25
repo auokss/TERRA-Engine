@@ -2,16 +2,21 @@ Unit TERRA_AlsaAudioDriver;
 
 Interface
 
-Uses TERRA_Error, TERRA_String, TERRA_AudioMixer, TERRA_AudioBuffer, Alsa;
+Uses TERRA_Error, TERRA_Utils, TERRA_String, TERRA_AudioMixer, TERRA_AudioBuffer, Alsa;
 
 Const
-  InternalBufferSampleCount = 1024 * 4;
+  DefaultAlsaPeriods = 4;
+  DefaultAlsaPeriodSize = 2048;
+  InternalBufferSampleCount = 4096 * 2;
 
 Type
   AlsaAudioDriver = Class(TERRAAudioDriver)
     Protected
       _Handle:Psnd_pcm_t;
       _Buffer:PAudioSample;
+      _Callback:Psnd_async_handler_t;
+
+      Procedure Fill();
 
     Public
       Function Reset(Mixer:TERRAAudioMixer):Boolean; Override;
@@ -24,82 +29,105 @@ Type
 Implementation
 Uses TERRA_Log;
 
-//snd_strerror(Status)
+Var
+   _Driver:AlsaAudioDriver;
+
+Function CheckStatus(Status:Integer; ErrorMsg:TERRAString):Boolean;
+Begin
+     Result := (Status>=0);
+     If Result Then
+        Exit;
+
+     ErrorMsg := ErrorMsg+ ' ' + snd_strerror(Status);
+     Log(logError, 'ALSA', ErrorMsg);
+End;
+
+
+(*Procedure AlsaCallback(pcm_callback:Psnd_async_handler_t); CDecl;
+Begin
+     _Driver.Fill();
+End;*)
+
 { AlsaAudioDriver }
 Function AlsaAudioDriver.Reset(Mixer:TERRAAudioMixer):Boolean;
 Var
-  Status:Integer;
   hw_params:Psnd_pcm_hw_params_t;
+  sw_params:Psnd_pcm_sw_params_t;
+
+  periods:Integer;
+  buffer_size:snd_pcm_uframes_t;
+  period_size:snd_pcm_uframes_t;
+
   Freq:Cardinal;
 Begin
   Result := False;
   Self._Mixer := Mixer;
+  _Driver := Self;
 
-  Status := snd_pcm_open(_Handle, 'default', SND_PCM_STREAM_PLAYBACK, 0);
-  If (Status<0) Then
-  Begin
-    Log(logError, 'ALSA', 'Cannot open sound device...');
+  If Not CheckStatus( snd_pcm_open(_Handle, 'default', SND_PCM_STREAM_PLAYBACK, SND_PCM_ASYNC), 'Cannot open sound device...') Then
     Exit;
-  End;
 
-  Status := snd_pcm_hw_params_malloc(hw_params);
-  If (Status < 0) Then
-  Begin
-    Log(logError, 'ALSA', 'Cannot allocate hardware parameter structure ...');
+  If Not CheckStatus( snd_pcm_hw_params_malloc(hw_params),  'Cannot allocate hardware parameter structure ...') Then
     Exit;
-  End;
 
-  Status := snd_pcm_hw_params_any (_Handle, hw_params);
-  If (Status < 0) Then
-  Begin
-    Log(logError, 'ALSA', 'Cannot initialize hardware parameter structure  ...');
+  If Not CheckStatus( snd_pcm_hw_params_any (_Handle, hw_params), 'Cannot initialize hardware parameter structure  ...') Then
     Exit;
-  End;
 
-  Status := snd_pcm_hw_params_set_access (_Handle, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED);
-  If (Status < 0) Then
-  Begin
-    Log(logError, 'ALSA', 'Cannot set access type...');
+  If Not CheckStatus( snd_pcm_hw_params_set_access (_Handle, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED),   'Cannot set access type...') Then
     Exit;
-  End;
 
-  Status := snd_pcm_hw_params_set_format (_Handle, hw_params, SND_PCM_FORMAT_S16);
-  If (Status < 0) Then
-  Begin
-    Log(logError, 'ALSA', 'Cannot set sample format ...');
+  If Not CheckStatus( snd_pcm_hw_params_set_format (_Handle, hw_params, SND_PCM_FORMAT_S16), 'Cannot set sample format ...') Then
     Exit;
-  End;
 
   Freq := _Mixer.Buffer.Frequency;
-  Status := snd_pcm_hw_params_set_rate_near(_Handle, hw_params, @Freq, Nil);
-  If (Status < 0) Then
-  Begin
-    Log(logError, 'ALSA', 'Cannot set sample rate ...');
+  If Not CheckStatus( snd_pcm_hw_params_set_rate_near(_Handle, hw_params, @Freq, Nil), 'Cannot set sample rate ...') Then
     Exit;
-  End;
 
-  Status := snd_pcm_hw_params_set_channels (_Handle, hw_params, 2);
-  If (Status < 0) Then
-  Begin
-    Log(logError, 'ALSA', 'Cannot set channel count ...');
+  If Not CheckStatus( snd_pcm_hw_params_set_channels (_Handle, hw_params, 2),  'Cannot set channel count ...') Then
     Exit;
-  End;
 
-  Status := snd_pcm_hw_params (_Handle, hw_params);
-  If (Status < 0) Then
-  Begin
-    Log(logError, 'ALSA', 'Cannot set parameters...');
+  periods := DefaultAlsaPeriods;
+  period_size := DefaultAlsaPeriodSize;
+  buffer_size := period_size * periods * 4;
+  If Not CheckStatus( snd_pcm_hw_params_set_periods(_Handle, hw_params, periods, 0), 'Cannot set ALSA period') Then
+     Exit;
+
+  If Not CheckStatus( snd_pcm_hw_params_set_period_size_near(_Handle, hw_params, @period_size, Nil), 'Cannot set ALSA period size') Then
+     Exit;
+
+  If Not CheckStatus( snd_pcm_hw_params_set_buffer_size_near(_Handle, hw_params, @buffer_size), 'Cannot set ALSA buffer size ') Then
     Exit;
-  End;
+
+
+  If Not CheckStatus( snd_pcm_hw_params (_Handle, hw_params),  'Cannot set hardware parameters...') Then
+    Exit;
 
   snd_pcm_hw_params_free (hw_params);
 
-  Status := snd_pcm_prepare (_Handle);
-  If (Status < 0) Then
-  Begin
-    Log(logError, 'ALSA', 'Cannot prepare audio interface for use...');
+
+  // tell ALSA to wake us up whenever 4096 or more frames of playback data can be delivered.
+  // Also, tell ALSA that we'll start the device ourselves.
+
+  If Not CheckStatus(snd_pcm_sw_params_malloc(sw_params), 'cannot allocate software parameters structure') Then
     Exit;
-  End;
+
+  If Not CheckStatus(snd_pcm_sw_params_current(_Handle, sw_params), 'cannot initialize software parameters structure') Then
+     Exit;
+
+(*  If Not CheckStatus(snd_pcm_sw_params_set_avail_min(_Handle, sw_params, 1024), 'cannot set minimum available count') Then
+    Exit;*)
+
+  If Not CheckStatus(snd_pcm_sw_params_set_start_threshold(_Handle, sw_params, 0), 'cannot set start mode') Then
+     Exit;
+
+  If Not CheckStatus(snd_pcm_sw_params(_Handle, sw_params), 'cannot set software parameters') Then
+    Exit;
+
+(*  If Not CheckStatus(snd_async_add_pcm_handler(_callback, _Handle, AlsaCallback, Nil), 'failed registering alsa callback') Then
+    Exit;*)
+
+  If Not CheckStatus( snd_pcm_prepare (_Handle), 'Cannot prepare audio interface for use...') Then
+    Exit;
 
   GetMem(_Buffer, InternalBufferSampleCount * 2 * SizeOf(AudioSample));
 
@@ -108,18 +136,42 @@ End;
 
 Procedure AlsaAudioDriver.Release;
 Begin
-  snd_pcm_drain(_Handle);
+//  snd_pcm_drain(_Handle);
+  snd_pcm_drop(_Handle);
   snd_pcm_close(_Handle);
   FreeMem(_Buffer);
 End;
 
 Procedure AlsaAudioDriver.Update();
 Begin
-  If Not _Mixer.Active Then
-     Exit;
+(*  If Not _Mixer.Active Then
+     Exit;*)
 
-  _Mixer.RequestSamples(_Buffer, InternalBufferSampleCount);
-  snd_pcm_writei(_Handle, _Buffer, InternalBufferSampleCount);
+  Self.Fill();
+End;
+
+Procedure AlsaAudioDriver.Fill();
+Var
+   Count, Written, avail:snd_pcm_sframes_t;
+Begin
+  //snd_pcm_wait(_Handle, 1000);
+
+  avail := snd_pcm_avail_update(_Handle);
+  While Avail>0 Do
+  Begin
+       Count := Avail;
+       If (Count > InternalBufferSampleCount) Then
+          Count := InternalBufferSampleCount;
+
+       Written := _Mixer.RequestSamples(_Buffer, Count);
+       If Written>0 Then
+       Begin
+          If snd_pcm_writei(_Handle, _Buffer, Written)<0 Then
+                    snd_pcm_prepare (_Handle);
+          Dec(Avail, Count);
+       End;
+
+  End;
 End;
 
 End.
