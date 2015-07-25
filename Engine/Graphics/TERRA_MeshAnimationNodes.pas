@@ -161,7 +161,7 @@ Type
     Procedure Release; Override;
   End;
 
-  AnimationProcessor = Procedure (State:AnimationState);
+  AnimationProcessor = Procedure (State:AnimationState; Bone:AnimationBoneState; Var Block:AnimationTransformBlock);
 
   AnimationState = Class(TERRAObject)
     Protected
@@ -196,8 +196,6 @@ Type
 
       Constructor Create(TargetSkeleton:MeshSkeleton);
       Procedure Release; Override;
-
-      Procedure Retarget(ThisSkeleton, OtherSkeleton:MeshSkeleton);
 
       Procedure Update;
 
@@ -300,7 +298,6 @@ Begin
     _Next := '';
   End;
 
-
   _UpdateID := GraphicsManager.Instance.FrameID;
 
 {  If (Assigned(_QueueAnimation)) And ((Not Assigned(_Root)) Or (_Root Is AnimationCrossfader) And (AnimationCrossfader(_Root).Alpha >=1)) Then
@@ -343,44 +340,10 @@ Begin
   For I:=0 To Pred(_BoneCount) Do
     _BoneStates[I].UpdateTransform();
 
-(*  For I:=0 To Pred(_BoneCount) Do
-    Transforms[Succ(I)] := _BoneStates[I]._FrameAbsoluteMatrix;
-
-  If Assigned(Processor) Then
-    Processor(Self);*)
-
   For I:=1 To _BoneCount Do
   Begin
     BoneState := _BoneStates[Pred(I)];
-
-    //M := Matrix4x4Scale(VectorConstant(2.0));
-(*    M := Matrix4x4Rotation(0, 45*RAD, 0);
-    If Odd(I) Then
-      M := Matrix4x4Identity;
-
-    M := BoneState._FrameRelativeMatrix;
-//    M := Matrix4x4Multiply4x3(BoneState._BindRelativeMatrix, M);
-
-
-    M := Matrix4x4Multiply4x3(M, BoneState._BindAbsoluteMatrix);
-
-
-    M := Matrix4x4Multiply4x3(Matrix4x4Inverse(BoneState._BindAbsoluteMatrix), M);
-
-
-   //M := Matrix4x4Multiply4x3(BoneState._BindAbsoluteMatrix, M);
-
-    Transforms[I] := M;*)
-
-    //Transforms[I] := Matrix4x4Multiply4x3(BoneState._FrameAbsoluteMatrix, Matrix4x4Inverse(BoneState._BindAbsoluteMatrix));
-
     Transforms[I] := Matrix4x4Multiply4x3(BoneState._FrameAbsoluteMatrix, Matrix4x4Inverse(BoneState._BindAbsoluteMatrix));
-
-(*    Transforms[I] := Matrix4x4Identity;
-    If (I=4) Then
-      Transforms[I] := Matrix4x4Rotation(0, 90*RAD, 0);*)
-
-
   End;
 End;
 
@@ -560,65 +523,6 @@ Begin
   _LastAnimation := StringLower(_LastAnimation);
 End;
 
-Procedure AnimationState.Retarget(ThisSkeleton, OtherSkeleton: MeshSkeleton);
-Var
-  I:Integer;
-  A,B:Matrix4x4;
-  ThisBone, OtherBone:MeshBone;
-  T:Vector3D;
-  QFinal, QInitial:Quaternion;
-Begin
-  If OtherSkeleton = Nil Then
-    Exit;
-
-  For I:=0 To Pred(Self._BoneCount) Do
-  Begin
-    If I = 11 Then
-      IntToString(2);
-    ThisBone := ThisSkeleton.GetBone(Self._BoneStates[I]._BoneName);
-    OtherBone := OtherSkeleton.GetBone(Self._BoneStates[I]._BoneName);
-
-    If (ThisBone = Nil) Then
-    Begin
-      Log(logDebug, 'Bone', Self._BoneStates[I]._BoneName);
-      Continue;
-    End;
-
-    If (OtherBone = Nil) And (Assigned(Self._BoneStates[I]._Parent)) Then
-    Begin
-      OtherBone := OtherSkeleton.GetBone(Self._BoneStates[I]._Parent._BoneName);
-    End;
-
-    If (OtherBone = Nil) Then
-    Begin
-      Log(logDebug, 'Bone', Self._BoneStates[I]._BoneName);
-      Continue;
-    End;
-
-    QInitial := QuaternionRotation(OtherBone.StartRotation);
-    QFinal := QuaternionRotation(ThisBone.StartRotation);
-
-    //QInitial := QuaternionRotation(ThisBone.AbsoluteMatrix.GetEulerAngles());
-  //  QFinal := QuaternionRotation(OtherBone.AbsoluteMatrix.GetEulerAngles());
-
-    //Self._BoneStates[I]._RetargetRotation := QuaternionMultiply(QFinal, QuaternionConjugate(QInitial));
-//    Self._BoneStates[I]._RetargetTranslation := VectorSubtract(ThisBone.StartPosition, OtherBone.StartPosition);
-
-(*    A := _BoneStates[I]._BindAbsoluteMatrix;
-    B := OtherBone.RelativeMatrix;
-    //M := (_BoneStates[I]._BindRelativeMatrix);
-//
-    //M := Matrix4x4Multiply4x3(Matrix4x4Inverse(OtherBone.RelativeMatrix), M);
-
-    //Self._BoneStates[I]._BindAbsoluteMatrix := OtherBone.AbsoluteMatrix;*)
-
-//    _BoneStates[I]._BindRelativeMatrix := OtherBone.RelativeMatrix;
-  //  _BoneStates[I]._BindAbsoluteMatrix := OtherBone.AbsoluteMatrix;
-
-    Self._BoneStates[I]._RetargetMatrix := OtherBone.RelativeMatrix;
-  End;
-End;
-
 { AnimationBoneState }
 Procedure AnimationBoneState.Release;
 Begin
@@ -634,6 +538,11 @@ Begin
 
   If (Assigned(_Parent)) And (Not _Parent._Ready) Then
     _Parent.UpdateTransform;
+
+
+  If (Assigned(_Owner.Processor)) Then
+    _Owner.Processor(_Owner, Self, _Block);
+
 
   // Now we know the position and rotation for this animation frame.
 	// Let's calculate the transformation matrix (m_final) for this bone...
