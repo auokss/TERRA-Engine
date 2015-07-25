@@ -157,7 +157,7 @@ Const
 Implementation
 Uses TERRA_Vector2D, TERRA_Vector3D, TERRA_SpriteManager, TERRA_SoundManager,
   TERRA_Widgets, TERRA_Texture, TERRA_Application, TERRA_OS, TERRA_FileManager,
-  TERRA_Stream;
+  TERRA_SoundSource, TERRA_Stream;
 
 Var
   _KeyboardLayouts:Array Of KeyboardLayout;

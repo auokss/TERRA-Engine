@@ -9,8 +9,29 @@ Type
   AudioSample = SmallInt;
   PAudioSample = ^AudioSample;
 
-  { AudioBuffer }
+  StereoAudioSampleDouble = Record
+    Left : Double;
+    Right : Double;
+  End;
 
+  StereoAudioSample16 = packed record
+    Left, Right : AudioSample;
+  End;
+
+  MonoAudioArray16 = Array[0..100000] Of AudioSample;
+  PMonoAudioArray16 = ^MonoAudioArray16;
+
+  StereoAudioArray16 = Array[0..100000] Of StereoAudioSample16;
+  PStereoAudioArray16 = ^StereoAudioArray16;
+
+
+  MonoAudioArrayDouble = Array[0..100000] Of Double;
+  PMonoAudioArrayDouble = ^MonoAudioArrayDouble;
+
+  StereoAudioArrayDouble = Array[0..100000] Of StereoAudioSampleDouble;
+  PStereoAudioArrayDouble = ^StereoAudioArrayDouble;
+
+  { TERRAAudioBuffer }
   TERRAAudioBuffer = Class(TERRAObject)
     Protected
       _Samples:Array Of AudioSample;
@@ -40,9 +61,9 @@ Type
 
       Procedure ClearSamples();
 
-      Procedure Upsample(Const CurrentSample:Single; Out SrcSampleLeft, SrcSampleRight:AudioSample; Volume:Single);
+      Procedure Upsample(Const CurrentSample:Single; Out SrcSampleLeft, SrcSampleRight:AudioSample);
 
-      Function MixSamples(DestOffset:Cardinal; Src:TERRAAudioBuffer; SrcOffset, SampleTotalToCopy:Cardinal; Volume:Single):Cardinal;
+      Function MixSamples(DestOffset:Cardinal; Src:TERRAAudioBuffer; SrcOffset, SampleTotalToCopy:Cardinal; Const VolumeLeft, VolumeRight:Single):Cardinal;
 
       // in milisseconds
       Function GetLength: Cardinal;
@@ -58,8 +79,8 @@ Type
 Implementation
 Uses TERRA_Math;
 
-constructor TERRAAudioBuffer.Create(SampleCount, Frequency: Cardinal; Stereo: Boolean
-  );
+{ TERRAAudioBuffer }
+Constructor TERRAAudioBuffer.Create(SampleCount, Frequency: Cardinal; Stereo: Boolean);
 Begin
   Self._Frequency := Frequency;
   Self._Stereo := Stereo;
@@ -143,8 +164,8 @@ Begin
    Result := @(_Samples[Offset]);
 End;
 
-function TERRAAudioBuffer.MixSamples(DestOffset: Cardinal; Src: TERRAAudioBuffer;
-  SrcOffset, SampleTotalToCopy: Cardinal; Volume: Single): Cardinal;
+Function TERRAAudioBuffer.MixSamples(DestOffset: Cardinal; Src: TERRAAudioBuffer;
+  SrcOffset, SampleTotalToCopy: Cardinal; Const VolumeLeft, VolumeRight:Single): Cardinal;
 Var
   SrcBuffer, DestBuffer:PAudioSample;
   SrcSampleLeft, SrcSampleRight:AudioSample;
@@ -175,19 +196,23 @@ Begin
   While SampleTotalToCopy>0 Do
   Begin
     If SampleIncr < 1.0 Then
-      Src.Upsample(CurrentSample, SrcSampleLeft, SrcSampleRight, Volume)
-    Else
     Begin
-      SrcSampleLeft := Trunc((SrcBuffer^) * Volume);
+      Src.Upsample(CurrentSample, SrcSampleLeft, SrcSampleRight);
+    End Else
+    Begin
+      SrcSampleLeft := SrcBuffer^;
       If Src.Stereo Then
       Begin
         Inc(SrcBuffer);
-        SrcSampleRight := Trunc((SrcBuffer^) * Volume);
-      End  Else
+        SrcSampleRight := SrcBuffer^;
+      End Else
         SrcSampleRight := SrcSampleLeft;
 
       Inc(SrcBuffer);
     End;
+
+    SrcSampleLeft := Trunc(SrcSampleLeft * VolumeLeft);
+    SrcSampleRight := Trunc(SrcSampleRight * VolumeRight);
 
     CurrentValue := DestBuffer^ + SrcSampleLeft;
     If (CurrentValue>High(AudioSample)) Then
@@ -213,8 +238,7 @@ End;
 
 //  src     X  X
 //  Dest    XXXXXXX
-procedure TERRAAudioBuffer.Upsample(const CurrentSample: Single; out SrcSampleLeft,
-  SrcSampleRight: AudioSample; Volume: Single);
+procedure TERRAAudioBuffer.Upsample(Const CurrentSample:Single; Out SrcSampleLeft, SrcSampleRight: AudioSample);
 Var
   Delta:Single;
   SrcData:PAudioSample;
@@ -236,7 +260,7 @@ Begin
   SampleA := Trunc(SampleA * 0.5);
   SampleB := Trunc(SampleB * 0.5);
 
-  SrcSampleLeft := Trunc((SampleA * (1.0 - Delta) + SampleB * Delta) * Volume);
+  SrcSampleLeft := Trunc(SampleA * (1.0 - Delta) + SampleB * Delta);
   //SrcSampleLeft := Trunc(CubicInterpolate(SampleA, SampleA, SampleB, SampleB, Delta));
 
 (*  SrcSampleLeft := SrcData^;

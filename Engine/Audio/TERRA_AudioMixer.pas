@@ -241,7 +241,7 @@ Begin
     Leftovers := 0;
 
   Dest.ClearSamples();
-  Dest.MixSamples(0, Self._CurrentBuffer, _CurrentSample, SampleCount, 1.0);
+  Dest.MixSamples(0, Self._CurrentBuffer, _CurrentSample, SampleCount, 1.0, 1.0);
   Inc(_CurrentSample, SampleCount);
 End;
 
@@ -285,7 +285,7 @@ Begin
   While Not _Mixer._ThreadTerminated DO
   Begin
     _Mixer.Update();
-    Application.Sleep(50);
+    //Application.Sleep(50);
   End;
 End;
 

@@ -55,24 +55,27 @@ Type
       _CurrentSample:Cardinal;
 
       _Pitch:Single;
-      _Volume:Single;
       _Loop:Boolean;
 
+      _OverallVolume:Single;
+      _VolumeLeft:Single;
+      _VolumeRight:Single;
+
       _Position:Vector3D;
-      _Velocity:Vector3D;
 
       _Callback:SoundSourceCallback;
 
-      Procedure SetPitch(Value:Single);
-      Procedure SetVolume(Value:Single);
+      Procedure SetPitch(Const Value:Single);
+      Procedure SetVolume(Const Value:Single);
       Procedure SetLoop(Value:Boolean);
-      Procedure SetPosition(Position:Vector3D);
-      Procedure SetVelocity(Velocity:Vector3D);
+      Procedure SetPosition(Const Position:Vector3D);
 
       Procedure RequestMoreSamples(); Virtual;
 
+      Procedure CalculatePositionalVolume();
+
     Public
-      Constructor Create(Mode:SoundSourceMode);
+      Constructor Create();
       Procedure Release; Override;
 
       Procedure SetCallback(Callback:SoundSourceCallback);
@@ -82,11 +85,10 @@ Type
       Property Status:SoundSourceStatus Read _Status;
 
       Property Pitch:Single Read _Pitch Write SetPitch;
-      Property Volume:Single Read _Volume Write SetVolume;
+      Property Volume:Single Read _OverallVolume Write SetVolume;
       Property Loop:Boolean Read _Loop Write SetLoop;
 
       Property Position:Vector3D Read _Position Write SetPosition;
-      Property Velocity:Vector3D Read _Velocity Write SetVelocity;
   End;
 
   ResourceSoundSource = Class(SoundSource)
@@ -94,7 +96,7 @@ Type
       _Sound:Sound;
 
     Public
-      Constructor Create(Mode:SoundSourceMode; MySound:Sound);
+      Constructor Create(MySound:Sound);
       Procedure Release; Override;
 
       Procedure RenderSamples(Dest:TERRAAudioBuffer); Override;
@@ -106,20 +108,21 @@ Implementation
 Uses TERRA_GraphicsManager, TERRA_SoundManager, TERRA_Log;
 
 { SoundSource }
-Constructor SoundSource.Create(Mode:SoundSourceMode);
+Constructor SoundSource.Create();
 Begin
-  _Volume := 1.0;
+  _OverallVolume := -0.0;
   _Pitch := 1.0;
 
   _Position := VectorZero; //GraphicsManager.Instance().MainViewport.Camera.Position;
-  _Velocity := VectorZero;
   _Loop := False;
 
   _Status := soundSource_Finished;
-  _Mode := Mode;
+  _Mode := soundSource_Static;
+
+  Self.SetVolume(1.0);
 End;
 
-Procedure SoundSource.SetPitch(Value: Single);
+Procedure SoundSource.SetPitch(Const Value: Single);
 Begin
   If (Value=_Pitch) Then
     Exit;
@@ -127,12 +130,18 @@ Begin
   _Pitch := Value;
 End;
 
-Procedure SoundSource.SetVolume(Value:Single);
+Procedure SoundSource.SetVolume(Const Value:Single);
 Begin
-  If (_Volume=Value) Then
+  If (_OverallVolume = Value) Then
     Exit;
 
-  _Volume := Value;
+  _OverallVolume := Value;
+
+  If (_Mode = soundSource_Static) Then
+  Begin
+    _VolumeLeft := _OverallVolume;
+    _VolumeRight := _OverallVolume;
+  End;
 End;
 
 Procedure SoundSource.SetLoop(Value:Boolean);
@@ -140,15 +149,14 @@ Begin
   _Loop := Value;
 End;
 
-Procedure SoundSource.SetPosition(Position: Vector3D);
+Procedure SoundSource.SetPosition(Const Position:Vector3D);
 Begin
   _Position := Position;
+
+  _Mode := soundSource_Dynamic;
+  CalculatePositionalVolume();
 End;
 
-Procedure SoundSource.SetVelocity(Velocity: Vector3D);
-Begin
-  _Velocity := Velocity;
-End;
 
 Procedure SoundSource.SetCallback(Callback: SoundSourceCallback);
 Begin
@@ -180,7 +188,7 @@ Begin
   End Else
     Leftovers := 0;
 
-  CopyTotal := Dest.MixSamples(0, _Buffer, _CurrentSample, SampleCount, 0.5);
+  CopyTotal := Dest.MixSamples(0, _Buffer, _CurrentSample, SampleCount, _VolumeLeft * _OverallVolume, _VolumeRight * _OverallVolume);
   Inc(_CurrentSample, CopyTotal);
 
   If (Leftovers>0) Then
@@ -189,7 +197,7 @@ Begin
 
     If (_Status = soundSource_Playing) Then
     Begin
-      CopyTotal := Dest.MixSamples(SampleCount, _Buffer, _CurrentSample, Leftovers, 0.5);
+      CopyTotal := Dest.MixSamples(SampleCount, _Buffer, _CurrentSample, Leftovers, _VolumeLeft * _OverallVolume, _VolumeRight * _OverallVolume);
       Inc(_CurrentSample, CopyTotal);
     End;
   End;
@@ -206,10 +214,37 @@ Begin
     _Status := soundSource_Finished;
 End;
 
-{ ResourceSoundSource }
-Constructor ResourceSoundSource.Create(Mode:SoundSourceMode; MySound:Sound);
+Procedure SoundSource.CalculatePositionalVolume;
 Begin
-  Inherited Create(Mode);
+  If (_Position.X >= 0.0) And (_Position.X<=1.0) Then
+  Begin
+    _VolumeLeft := (1.0 - _Position.X);
+    _VolumeRight := _Position.X;
+  End Else
+  If (_Position.X<0.0) Then
+  Begin
+    If _Position.X >-1 Then
+      _VolumeLeft := (1.0 + _Position.X)
+    Else
+      _VolumeLeft := 0;
+
+    _VolumeRight := 0.0;
+  End Else
+  If (_Position.X<0.0) Then
+  Begin
+    If _Position.X <2 Then
+      _VolumeRight := 1.0 - (_Position.X - 1.0)
+    Else
+      _VolumeRight := 0;
+
+    _VolumeLeft := 0.0;
+  End;
+End;
+
+{ ResourceSoundSource }
+Constructor ResourceSoundSource.Create(MySound:Sound);
+Begin
+  Inherited Create();
 
   If (Not Assigned(MySound)) Then
     Exit;

@@ -105,7 +105,7 @@ End;
 //  SoundStreamer
 Constructor SoundStream.Create(Mode:SoundSourceMode; Source:Stream);
 Begin
-  Inherited Create(Mode);
+  Inherited Create();
 
   _Source := Source;
 

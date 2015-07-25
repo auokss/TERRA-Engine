@@ -6,7 +6,7 @@ Uses Windows, Messages, MMSystem, TERRA_Utils, TERRA_Sound, TERRA_AudioMixer, TE
 
 Const
   WaveBufferCount = 4;
-  InternalBufferSampleCount = 1024 * 2;
+  InternalBufferSampleCount = 1024;
 
 Type
   WindowsAudioDriver = Class(TERRAAudioDriver)
@@ -15,7 +15,9 @@ Type
        _WaveHandle:Cardinal;
        _WaveOutHandle:Cardinal;
        _WaveHandler:Array[0..Pred(WaveBufferCount)] Of TWAVEHDR;
-       _Buffers:Array[0..Pred(WaveBufferCount)] Of AudioBuffer;
+       _Buffers:Array[0..Pred(WaveBufferCount)] Of TERRAAudioBuffer;
+
+       Function QueueBuffer():Boolean;
 
     Public
       Function Reset(Frequency, MaxSamples:Cardinal; Mixer:TERRAAudioMixer):Boolean; Override;
@@ -58,7 +60,7 @@ Begin
 
     //GetMem(_WaveHandler[I].lpData, _OutputBufferSize);
 
-    _Buffers[I] := AudioBuffer.Create(InternalBufferSampleCount, Frequency, True);
+    _Buffers[I] := TERRAAudioBuffer.Create(InternalBufferSampleCount, Frequency, True);
     _WaveHandler[I].lpData := _Buffers[I].Samples;
 
     _WaveHandler[I].dwBufferLength := _Buffers[I].SizeInBytes;
@@ -70,6 +72,9 @@ Begin
     waveOutPrepareHeader(_WaveOutHandle, @_WaveHandler[I], SizeOf(TWAVEHDR));
     _WaveHandler[I].dwFlags := _WaveHandler[I].dwFlags Or WHDR_DONE;
   End;
+
+  For I:=1 To WaveBufferCount Div 2 Do
+    Self.QueueBuffer();
 
   Result := True;
 End;
@@ -95,10 +100,14 @@ Begin
 End;
 
 Procedure WindowsAudioDriver.Update();
-Var
-  I, Count:Integer;
 Begin
-  Count := 0;
+  While Self.QueueBuffer() Do;
+End;
+
+Function WindowsAudioDriver.QueueBuffer():Boolean;
+Var
+  I:Integer;
+Begin
   For I:=0 To Pred(WaveBufferCount) Do
   If (_WaveHandler[I].dwFlags And WHDR_DONE)<>0 Then
   Begin
@@ -109,11 +118,12 @@ Begin
       //waveOutPrepareHeader(_WaveOutHandle, _WaveHandler[I], SizeOf(TWAVEHDR));
       waveOutWrite(_WaveOutHandle, @_WaveHandler[I], SizeOf(TWAVEHDR));
 
-      Inc(Count);
-      If Count>=2 Then
-        Break;
+      Result := True;
+      Exit;
     End;
   End;
+
+  Result := False;
 End;
 
 End.

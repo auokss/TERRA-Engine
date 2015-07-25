@@ -50,7 +50,6 @@ Type
       Function Play(MySound:Sound):SoundSource; Overload;
       Function Play(Const Name:TERRAString):SoundSource; Overload;
 
-      Function Spawn(MySound:Sound; Position:Vector3D; Volume:Single=1.0):SoundSource;
       Procedure Delete(Source:SoundSource);
 
       Function GetSound(Name:TERRAString; ValidateError:Boolean = True):Sound;
@@ -150,7 +149,21 @@ Begin
   ReleaseObject(Source);
 End;
 
-Function SoundManager.Play(MySound: Sound): SoundSource;
+Function SoundManager.Play(Const Name:TERRAString): SoundSource;
+Var
+  Snd:Sound;
+Begin
+  Snd := Self.GetSound(Name, False);
+  If Snd = Nil Then
+  Begin
+    Result := Nil;
+    Exit;
+  End;
+
+  Result := Self.Play(Snd);
+End;
+
+Function SoundManager.Play(MySound:Sound): SoundSource;
 Begin
   {$IFDEF DISABLESOUND}
   Result := Nil;
@@ -173,7 +186,7 @@ Begin
 
   MySound.Prefetch();
 
-  Result := ResourceSoundSource.Create(soundSource_Static, MySound);
+  Result := ResourceSoundSource.Create(MySound);
 
   Log(logDebug, 'Sound', 'Setting '+MySound.Name+' position');
 
@@ -188,29 +201,6 @@ Begin
   //TODO
 End;
 
-Function SoundManager.Spawn(MySound:Sound; Position:Vector3D; Volume:Single): SoundSource;
-Begin
-  Result := Self.Play(MySound);
-  If Assigned(Result) Then
-  Begin
-    Result.Position := Position;
-    Result.Volume := Volume;
-  End;
-End;
-
-Function SoundManager.Play(Const Name:TERRAString): SoundSource;
-Var
-  Snd:Sound;
-Begin
-  Snd := Self.GetSound(Name, False);
-  If Snd = Nil Then
-  Begin
-    Result := Nil;
-    Exit;
-  End;
-
-  Result := Self.Play(Snd);
-End;
 
 Procedure SoundManager.SetEnabled(const Value: Boolean);
 Var

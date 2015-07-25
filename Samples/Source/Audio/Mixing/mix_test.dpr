@@ -4,7 +4,8 @@
 Uses TERRA_Application, TERRA_Scene, TERRA_GraphicsManager, TERRA_Viewport,
   TERRA_ResourceManager, TERRA_Color, TERRA_Texture, TERRA_OS, TERRA_PNG,
   TERRA_SpriteManager, TERRA_FileManager, TERRA_Math, TERRA_Vector3D, TERRA_Vector2D,
-  TERRA_Renderer, TERRA_InputManager, TERRA_SoundManager, TERRA_Sound, TERRA_WAVE, TERRA_OGG;
+  TERRA_Renderer, TERRA_InputManager,
+  TERRA_SoundManager, TERRA_Sound, TERRA_SoundSource, TERRA_WAVE, TERRA_OGG;
 
 
 Type
@@ -25,6 +26,8 @@ Type
 Var
   Tex:Texture = Nil;
 
+  GhostPos:Vector3D;
+
 { Game }
 Procedure Demo.OnCreate;
 Begin
@@ -43,20 +46,27 @@ End;
 
 // OnIdle is called once per frame, put your game logic here
 Procedure Demo.OnIdle;
+Var
+  Sound:SoundSource;
 Begin
   If InputManager.Instance.Keys.WasPressed(keyEscape) Then
     Application.Instance.Terminate;
 
+  Sound := Nil;
+
   If InputManager.Instance.Keys.WasPressed(keyEnter) Then
-  Begin
-    SoundManager.Instance.Play('sfx_beep3');
-  End;
+    Sound := SoundManager.Instance.Play('ghost2');
 
   If InputManager.Instance.Keys.WasPressed(keyX) Then
-    SoundManager.Instance.Play('attack');
+    Sound := SoundManager.Instance.Play('attack');
 
   If InputManager.Instance.Keys.WasPressed(keyC) Then
-    SoundManager.Instance.Play('ghost2');
+    Sound := SoundManager.Instance.Play('sfx_beep');
+
+  If Assigned(Sound) Then
+  Begin
+    Sound.Position := GhostPos;
+  End;
 End;
 
 { MyScene }
@@ -69,16 +79,11 @@ Begin
   If (Tex = Nil) Then
     Exit;
 
-  // This is how sprite rendering works with TERRA.
-  // 1st we ask the Renderer to create a new sprite, using a Tex and position.
-  // Note that this sprite instance is only valid during the frame its created.
-  // If needed we can configure the sprite properties.
+  GhostPos.X := Sin(Application.GetTime()/4000);
+  GhostPos.Y := 0.5;
+  GhostPos.Z := 0;
 
-  // Note - The third argument of VectorCreate is the sprite Layer, should be a value between 0 and 100
-  //        Sprites with higher layer values appear below the others
-
-  // Create a simple fliped sprite
-  S := SpriteManager.Instance.DrawSprite(Sin(Application.GetTime()/4000) *  960 , 200, 50, Tex);
+  S := SpriteManager.Instance.DrawSprite(GhostPos.X * 960,  GhostPos.Y * 640, 50, Tex);
   S.SetScale(2.0);
 End;
 
