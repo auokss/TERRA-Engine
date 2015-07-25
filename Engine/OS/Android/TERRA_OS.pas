@@ -174,7 +174,6 @@ Begin
   Java_CacheClass(Env, ActivityClassPath);
   Java_CacheClass(Env, UtilsClassPath);
   Java_CacheClass(Env, JavaMusicPlayerClassName);
-  Java_CacheClass(Env, AudioTrackJavaClass);
   Java_CacheClass(Env, FacebookClassPath);
   Java_CacheClass(Env, FileIOClassPath);
 End;

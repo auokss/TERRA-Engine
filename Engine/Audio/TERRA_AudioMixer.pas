@@ -82,13 +82,9 @@ Type
 Implementation
 
 Uses TERRA_Error, TERRA_Log, TERRA_OS
-{$IFDEF WINDOWS}
-, TERRA_WinMMAudioDriver
-{$ENDIF}
-
-{$IFDEF OSX}
-, TERRA_CoreAudioDriver
-{$ENDIF}
+{$IFDEF WINDOWS}, TERRA_WinMMAudioDriver{$ENDIF}
+{$IFDEF OSX}, TERRA_CoreAudioDriver{$ENDIF}
+{$IFDEF ANDROID}, TERRA_OpenSLAudioDriver {$ENDIF}
 ;
 
 { TERRAAudioMixer }
@@ -110,6 +106,10 @@ Begin
 
   {$IFDEF OSX}
   _Driver := CoreAudioDriver.Create();
+  {$ENDIF}
+
+  {$IFDEF ANDROID}
+  _Driver := SLAudioDriver.Create();
   {$ENDIF}
 
   _Ready := _Driver.Reset(Frequency, MaxSamples, Self);
