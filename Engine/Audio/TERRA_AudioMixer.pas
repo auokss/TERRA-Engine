@@ -34,6 +34,7 @@ Type
   TERRAAudioMixer = Class(TERRAObject)
     Protected
        _Ready:Boolean;
+       _Active:Boolean;
 
        _BufferA:TERRAAudioBuffer;
        _BufferB:TERRAAudioBuffer;
@@ -68,6 +69,8 @@ Type
        Procedure RemoveSource(Source:SoundSource);
 
        Property Buffer:TERRAAudioBuffer Read _CurrentBuffer;
+
+       Property Active:Boolean Read _Active;
   End;
 
   AudioMixerThread = Class(TERRAThread)
@@ -195,6 +198,8 @@ Begin
     SetLength(_Sources, Length(_Sources) * 2);
   _Sources[Pred(_SourceCount)] := Source;
 
+  _Active := True;
+
   Self.Leave();
 End;
 
@@ -241,7 +246,7 @@ Begin
     Leftovers := 0;
 
   Dest.ClearSamples();
-  Dest.MixSamples(0, Self._CurrentBuffer, _CurrentSample, SampleCount, 1.0, 1.0);
+  Dest.CopySamples(0, Self._CurrentBuffer, _CurrentSample, SampleCount);
   Inc(_CurrentSample, SampleCount);
 End;
 
@@ -270,6 +275,8 @@ Begin
     _Sources[I].RenderSamples(Self._CurrentBuffer);
     Inc(I);
   End;
+
+  _Active := (_SourceCount>0);
 End;
 
 { AudioMixerThread }

@@ -152,8 +152,11 @@ Procedure SLAudioDriver.Update();
 Begin
   //_PlayerBufferQueue.Enqueue(_PlayerBufferQueue,  _Buffer.Samples, _Buffer.SizeInBytes);
 
+  If Not _Mixer.Active Then
+    Exit;
+  
   _Mixer.RequestSamples(_Buffer);
-  android_AudioOut(_Handle, _Buffer.Samples, _Buffer.SizeInBytes);
+  android_AudioOut(_Handle, _Buffer.Samples, _Buffer.SampleCount * 2);
 End;
 
 End.

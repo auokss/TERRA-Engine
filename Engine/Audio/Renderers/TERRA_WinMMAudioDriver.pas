@@ -101,6 +101,9 @@ End;
 
 Procedure WindowsAudioDriver.Update();
 Begin
+  If Not _Mixer.Active Then
+    Exit;
+
   While Self.QueueBuffer() Do;
 End;
 

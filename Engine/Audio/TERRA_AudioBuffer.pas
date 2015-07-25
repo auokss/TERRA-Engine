@@ -53,17 +53,23 @@ Type
 
       Procedure SetSampleCount(Const Count:Cardinal);
 
+      Procedure MixMonoSamplesWithShifting(Const SrcOffset:Cardinal; Src:TERRAAudioBuffer; DestBuffer:PAudioSample; SampleTotalToCopy:Cardinal; Const SampleIncr, VolumeLeft, VolumeRight:Single);
+      Procedure MixStereoSamplesWithShifting(Const SrcOffset:Cardinal; Src:TERRAAudioBuffer; DestBuffer:PAudioSample; SampleTotalToCopy:Cardinal; Const SampleIncr, VolumeLeft, VolumeRight:Single);
+
+      Procedure MixSamplesDirectMonoToStereo(SrcBuffer, DestBuffer:PAudioSample; SampleTotalToCopy:Cardinal; Const VolumeLeft, VolumeRight:Single);
+      Procedure MixSamplesDirectStereoToStereo(SrcBuffer, DestBuffer:PAudioSample; SampleTotalToCopy:Cardinal; Const VolumeLeft, VolumeRight:Single);
+
     Public
       Constructor Create(SampleCount, Frequency:Cardinal; Stereo:Boolean);
       Procedure Release(); Override;
 
       Function GetSampleAt(Offset, Channel:Cardinal):PAudioSample;
 
+      Procedure FillSamples(Offset, Count:Cardinal);
       Procedure ClearSamples();
 
-      Procedure Upsample(Const CurrentSample:Single; Out SrcSampleLeft, SrcSampleRight:AudioSample);
-
       Function MixSamples(DestOffset:Cardinal; Src:TERRAAudioBuffer; SrcOffset, SampleTotalToCopy:Cardinal; Const VolumeLeft, VolumeRight:Single):Cardinal;
+      Function CopySamples(DestOffset:Cardinal; Src:TERRAAudioBuffer; SrcOffset, SampleTotalToCopy:Cardinal):Cardinal;
 
       // in milisseconds
       Function GetLength: Cardinal;
@@ -114,16 +120,26 @@ Begin
      _SampleCount := Count;
 End;
 
-procedure TERRAAudioBuffer.ClearSamples;
+Procedure TERRAAudioBuffer.FillSamples(Offset, Count:Cardinal);
 Var
-  I, TotalSamples:Integer;
+  I:Integer;
+  DestSample:PAudioSample;
 Begin
-  TotalSamples := _SampleCount;
   If Self.Stereo Then
-    TotalSamples := TotalSamples Shl 1;
+    Count := Count Shl 1;
 
-  For I:=0 To Pred(TotalSamples) Do
-    _Samples[I] := 0;
+  DestSample := Self.GetSampleAt(Offset, 0);
+  While Count>0 Do
+  Begin
+    DestSample^ := 0;
+    Inc(DestSample);
+    Dec(Count);
+  End;
+End;
+
+Procedure TERRAAudioBuffer.ClearSamples;
+Begin
+  FillSamples(0, _SampleCount);
 End;
 
 procedure TERRAAudioBuffer.Release;
@@ -164,13 +180,10 @@ Begin
    Result := @(_Samples[Offset]);
 End;
 
-Function TERRAAudioBuffer.MixSamples(DestOffset: Cardinal; Src: TERRAAudioBuffer;
-  SrcOffset, SampleTotalToCopy: Cardinal; Const VolumeLeft, VolumeRight:Single): Cardinal;
+Function TERRAAudioBuffer.MixSamples(DestOffset: Cardinal; Src: TERRAAudioBuffer; SrcOffset, SampleTotalToCopy: Cardinal; Const VolumeLeft, VolumeRight:Single): Cardinal;
 Var
   SrcBuffer, DestBuffer:PAudioSample;
-  SrcSampleLeft, SrcSampleRight:AudioSample;
-  CurrentValue:Integer;
-  CurrentSample, SampleIncr:Single;
+  SampleIncr:Single;
 Begin
   If (Src.Frequency < Self.Frequency) Then
   Begin
@@ -182,34 +195,133 @@ Begin
     SampleIncr := 1.0;
   End;
 
-  If (SrcOffset + SampleTotalToCopy > Src.SampleCount) Then
+  If (VolumeLeft<0.0) And (VolumeRight<=0.0) Then
+    Exit;
+
+  If (SrcOffset + Result > Src.SampleCount) Then
     SampleTotalToCopy := Src.SampleCount  - SrcOffset;
 
-  If (DestOffset + SampleTotalToCopy > Self.SampleCount) Then
+  If (DestOffset + Result > Self.SampleCount) Then
     SampleTotalToCopy := Self.SampleCount - DestOffset;
 
-
   DestBuffer := Self.GetSampleAt(DestOffset, 0);
-  SrcBuffer := Src.GetSampleAt(SrcOffset, 0);
 
-  CurrentSample := SrcOffset;
+  If SampleIncr < 1.0 Then
+  Begin
+    If Src.Stereo Then
+      Self.MixStereoSamplesWithShifting(SrcOffset, Src, DestBuffer, SampleTotalToCopy, SampleIncr, VolumeLeft, VolumeRight)
+    Else
+      Self.MixMonoSamplesWithShifting(SrcOffset, Src, DestBuffer, SampleTotalToCopy, SampleIncr, VolumeLeft, VolumeRight);
+  End Else
+  Begin
+    SrcBuffer := Src.GetSampleAt(SrcOffset, 0);
+
+    If Src.Stereo Then
+      Self.MixSamplesDirectStereoToStereo(SrcBuffer, DestBuffer, SampleTotalToCopy, VolumeLeft, VolumeRight)
+    Else
+      Self.MixSamplesDirectMonoToStereo(SrcBuffer, DestBuffer, SampleTotalToCopy, VolumeLeft, VolumeRight);
+  End;
+End;
+
+
+Procedure TERRAAudioBuffer.MixSamplesDirectMonoToStereo(SrcBuffer, DestBuffer:PAudioSample; SampleTotalToCopy:Cardinal; Const VolumeLeft, VolumeRight:Single);
+Var
+  SrcSampleLeft, SrcSampleRight:AudioSample;
+  CurrentValue:Integer;
+Begin
   While SampleTotalToCopy>0 Do
   Begin
-    If SampleIncr < 1.0 Then
-    Begin
-      Src.Upsample(CurrentSample, SrcSampleLeft, SrcSampleRight);
-    End Else
-    Begin
-      SrcSampleLeft := SrcBuffer^;
-      If Src.Stereo Then
-      Begin
-        Inc(SrcBuffer);
-        SrcSampleRight := SrcBuffer^;
-      End Else
-        SrcSampleRight := SrcSampleLeft;
+    SrcSampleLeft := SrcBuffer^;
+    SrcSampleRight := SrcSampleLeft;
 
-      Inc(SrcBuffer);
+    Inc(SrcBuffer);
+
+    SrcSampleLeft := Trunc(SrcSampleLeft * VolumeLeft);
+    SrcSampleRight := Trunc(SrcSampleRight * VolumeRight);
+
+    CurrentValue := DestBuffer^ + SrcSampleLeft;
+    If (CurrentValue>High(AudioSample)) Then
+      CurrentValue := High(AudioSample);
+
+    DestBuffer^ := CurrentValue;
+    Inc(DestBuffer);
+
+    If (Self.Stereo) Then
+    Begin
+      CurrentValue := DestBuffer^ + SrcSampleRight;
+      If (CurrentValue>High(AudioSample)) Then
+        CurrentValue := High(AudioSample);
+
+      DestBuffer^ := CurrentValue;
+      Inc(DestBuffer);
     End;
+
+    Dec(SampleTotalToCopy);
+  End;
+End;
+
+Procedure TERRAAudioBuffer.MixSamplesDirectStereoToStereo(SrcBuffer, DestBuffer:PAudioSample; SampleTotalToCopy:Cardinal; Const VolumeLeft, VolumeRight:Single);
+Var
+  CurrentValue:Integer;
+  SrcSampleLeft, SrcSampleRight:AudioSample;
+Begin
+  While SampleTotalToCopy>0 Do
+  Begin
+    SrcSampleLeft := SrcBuffer^;
+    Inc(SrcBuffer);
+
+    SrcSampleRight := SrcBuffer^;
+    Inc(SrcBuffer);
+
+    SrcSampleLeft := Trunc(SrcSampleLeft * VolumeLeft);
+    SrcSampleRight := Trunc(SrcSampleRight * VolumeRight);
+
+    CurrentValue := DestBuffer^ + SrcSampleLeft;
+    If (CurrentValue>High(AudioSample)) Then
+      CurrentValue := High(AudioSample);
+
+    DestBuffer^ := CurrentValue;
+    Inc(DestBuffer);
+
+    If (Self.Stereo) Then
+    Begin
+      CurrentValue := DestBuffer^ + SrcSampleRight;
+      If (CurrentValue>High(AudioSample)) Then
+        CurrentValue := High(AudioSample);
+
+      DestBuffer^ := CurrentValue;
+      Inc(DestBuffer);
+    End;
+
+    Dec(SampleTotalToCopy);
+  End;
+End;
+
+Procedure TERRAAudioBuffer.MixMonoSamplesWithShifting(const SrcOffset:Cardinal; Src:TERRAAudioBuffer; DestBuffer:PAudioSample; SampleTotalToCopy:Cardinal; const SampleIncr, VolumeLeft, VolumeRight: Single);
+Var
+  CurrentSample:Single;
+  CurrentValue:Integer;
+  SrcSampleLeft, SrcSampleRight:AudioSample;
+  TargetOffset:Cardinal;
+
+  SrcData:PAudioSample;
+  Delta:Single;
+  SampleA, SampleB, Value:AudioSample;
+Begin
+  CurrentSample := SrcOffset;
+
+  While SampleTotalToCopy>0 Do
+  Begin
+    TargetOffset := Trunc(CurrentSample);
+    Delta := Frac(CurrentSample);
+    SrcData := Src.GetSampleAt(TargetOffset, 0);
+
+    SampleA := SrcData^;
+    Inc(SrcData);
+    SampleB := SrcData^;
+
+    SrcSampleLeft := Trunc(SampleA * (1.0 - Delta) + SampleB * Delta);
+    SrcSampleRight := SrcSampleLeft;
 
     SrcSampleLeft := Trunc(SrcSampleLeft * VolumeLeft);
     SrcSampleRight := Trunc(SrcSampleRight * VolumeRight);
@@ -236,43 +348,93 @@ Begin
   End;
 End;
 
-//  src     X  X
-//  Dest    XXXXXXX
-procedure TERRAAudioBuffer.Upsample(Const CurrentSample:Single; Out SrcSampleLeft, SrcSampleRight: AudioSample);
+Procedure TERRAAudioBuffer.MixStereoSamplesWithShifting(const SrcOffset:Cardinal; Src:TERRAAudioBuffer; DestBuffer:PAudioSample; SampleTotalToCopy:Cardinal; const SampleIncr, VolumeLeft, VolumeRight: Single);
 Var
-  Delta:Single;
+  CurrentSample:Single;
+  CurrentValue:Integer;
+  SrcSampleLeft, SrcSampleRight:AudioSample;
+  TargetOffset:Cardinal;
+
   SrcData:PAudioSample;
+  Delta:Single;
   SampleA, SampleB, Value:AudioSample;
-  LeftOffset, RightOffset, CenterOffset:Cardinal;
 Begin
-  Delta := Frac(CurrentSample);
-  LeftOffset := Trunc(CurrentSample);
-  If (LeftOffset < (Self._SampleCount - 2)) Then
-    RightOffset := Succ(LeftOffset)
-  Else
-    RightOffset := LeftOffset;
+  CurrentSample := SrcOffset;
 
-  SrcData := Self.GetSampleAt(LeftOffset, 0);
-
-  SampleA := SrcData^;
-  SampleB := SrcData^;
-
-  SampleA := Trunc(SampleA * 0.5);
-  SampleB := Trunc(SampleB * 0.5);
-
-  SrcSampleLeft := Trunc(SampleA * (1.0 - Delta) + SampleB * Delta);
-  //SrcSampleLeft := Trunc(CubicInterpolate(SampleA, SampleA, SampleB, SampleB, Delta));
-
-(*  SrcSampleLeft := SrcData^;
-
-  If Self.Stereo Then
+  While SampleTotalToCopy>0 Do
   Begin
-    Inc(SrcData);
-    SrcSampleRight := SrcData^;
-  End Else*)
-    SrcSampleRight := SrcSampleLeft;
+    TargetOffset := Trunc(CurrentSample);
+    Delta := Frac(CurrentSample);
+    SrcData := Src.GetSampleAt(TargetOffset, 0);
+
+    SampleA := SrcData^;
+    Inc(SrcData, 2);
+    SampleB := SrcData^;
+
+    SrcSampleLeft := Trunc(SampleA * (1.0 - Delta) + SampleB * Delta);
+
+    Dec(SrcData);
+    SampleA := SrcData^;
+    Inc(SrcData, 2);
+    SampleB := SrcData^;
+    SrcSampleRight := Trunc(SampleA * (1.0 - Delta) + SampleB * Delta);
+
+    SrcSampleLeft := Trunc(SrcSampleLeft * VolumeLeft);
+    SrcSampleRight := Trunc(SrcSampleRight * VolumeRight);
+
+    CurrentValue := DestBuffer^ + SrcSampleLeft;
+    If (CurrentValue>High(AudioSample)) Then
+      CurrentValue := High(AudioSample);
+
+    DestBuffer^ := CurrentValue;
+    Inc(DestBuffer);
+
+    If (Self.Stereo) Then
+    Begin
+      CurrentValue := DestBuffer^ + SrcSampleRight;
+      If (CurrentValue>High(AudioSample)) Then
+        CurrentValue := High(AudioSample);
+
+      DestBuffer^ := CurrentValue;
+      Inc(DestBuffer);
+    End;
+
+    CurrentSample := CurrentSample + SampleIncr;
+    Dec(SampleTotalToCopy);
+  End;
 End;
 
+Function TERRAAudioBuffer.CopySamples(DestOffset: Cardinal; Src: TERRAAudioBuffer; SrcOffset, SampleTotalToCopy: Cardinal): Cardinal;
+Var
+  SrcBuffer, DestBuffer:PAudioSample;
+  SrcSampleLeft, SrcSampleRight:AudioSample;
+  CurrentValue:Integer;
+  CurrentSample, SampleIncr:Single;
+Begin
+  If (Src.Frequency <> Self.Frequency) Or (Src.Stereo <> Self.Stereo) Then
+  Begin
+    Self.FillSamples(DestOffset, SampleTotalToCopy);
+    Result := Self.MixSamples(DestOffset, Src, SrcOffset, SampleTotalToCopy, 1.0, 1.0);
+    Exit;
+  End;
+
+  If (SrcOffset + SampleTotalToCopy > Src.SampleCount) Then
+    SampleTotalToCopy := Src.SampleCount  - SrcOffset;
+
+  If (DestOffset + SampleTotalToCopy > Self.SampleCount) Then
+    SampleTotalToCopy := Self.SampleCount - DestOffset;
+
+
+  DestBuffer := Self.GetSampleAt(DestOffset, 0);
+  SrcBuffer := Src.GetSampleAt(SrcOffset, 0);
+
+  Result := SampleTotalToCopy;
+
+  If (Self.Stereo) Then
+    SampleTotalToCopy := SampleTotalToCopy Shl 1;
+
+  Move(SrcBuffer^, DestBuffer^, SampleTotalToCopy * SizeOf(AudioSample));
+End;
 
 
 End.

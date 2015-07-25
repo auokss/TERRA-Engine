@@ -55,7 +55,10 @@ Begin
   Sound := Nil;
 
   If InputManager.Instance.Keys.WasPressed(keyEnter) Then
-    Sound := SoundManager.Instance.Play('ghost2');
+    Sound := SoundManager.Instance.Play('ghost');
+
+  If InputManager.Instance.Keys.WasPressed(keyZ) Then
+    Sound := SoundManager.Instance.Play('ghost3');
 
   If InputManager.Instance.Keys.WasPressed(keyX) Then
     Sound := SoundManager.Instance.Play('attack');
