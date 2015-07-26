@@ -50,6 +50,10 @@ Type
     Procedure Add(Const B:Quaternion);
     Procedure Subtract(Const B:Quaternion);
 
+    Function Mult(Const B:Quaternion):Quaternion;
+
+    Function Inverse:Quaternion;
+
     Function Length:Single;
   End;
 
@@ -80,6 +84,7 @@ Function QuaternionSlerpSSE(A,B:Quaternion; Const T:Single):Quaternion;
 
 // Returns the conjugate of a Quaternion
 Function QuaternionConjugate(Const Q:Quaternion):Quaternion;
+Function QuaternionInverse(Const Q:Quaternion):Quaternion;
 
 // Returns the norm of a Quaternion
 Function QuaternionNorm(Const Q:Quaternion):Single;
@@ -144,6 +149,16 @@ Begin
   Result := (Self.X=B.X) And (Self.Y=B.Y) And(Self.Z=B.Z) And(Self.W=B.W);
 End;
 
+Function Quaternion.Inverse:Quaternion;
+Begin
+  Result := QuaternionInverse(Self);
+End;
+
+Function Quaternion.Mult(Const B:Quaternion):Quaternion;
+Begin
+  Result := QuaternionMultiply(Self, B);
+End;
+
 Function QuaternionDot(Const A,B:Quaternion):Single; {$IFDEF FPC}Inline;{$ENDIF}
 Begin
   {$IFDEF NEON_FPU}
@@ -181,16 +196,6 @@ Begin
 End;
 
 Function QuaternionFromToRotation(Const Src,Dest:Vector3D):Quaternion;
-{Var
-  Temp:Vector3D;
-Begin
-  Temp := VectorCross(A, B);
-  Result.X := Temp.X;
-  Result.Y := Temp.Y;
-  Result.Z := Temp.Z;
-  Result.W := Sqrt(Sqr(A.Length) * Sqr(B.Length)) + VectorDot(A, B);
-  Result.Normalize();
-End;}
 Var
   D,S,Invs:Single;
   axis, v0,v1,c:Vector3D;
@@ -465,6 +470,23 @@ Begin
   Result.Y := -Q.Y;
   Result.Z := -Q.Z;
   Result.W := Q.W;
+End;
+
+Function QuaternionInverse(Const Q:Quaternion):Quaternion;
+Var
+  C:Quaternion;
+  N:Single;
+Begin
+  C := QuaternionConjugate(Q);
+  N := Sqr(QuaternionNorm(Q));
+
+  If N<>0 Then
+  Begin
+    Result.X := C.X/N;
+    Result.Y := C.Y/N;
+    Result.Z := C.Z/N;
+    Result.W := C.W/N;
+  End;
 End;
 
 Function QuaternionNorm(Const Q:Quaternion):Single;

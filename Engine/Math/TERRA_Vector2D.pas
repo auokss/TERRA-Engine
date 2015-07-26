@@ -60,6 +60,7 @@ Type
     Procedure Normalize;
 
     Function Length:Single;
+    Function LengthSquared:Single;
     Function Distance(Const N:Vector2D):Single;
 
     Function Dot(B:Vector2D):Single;
@@ -71,7 +72,9 @@ Type
   End;
 
 Function VectorCreate2D(Const X,Y:Single):Vector2D; 
+
 Function VectorCross2D(Const A,B:Vector2D):Single;
+Function VectorDot2D(Const A,B:Vector2D):Single;
 
 Function VectorAdd2D(Const A,B:Vector2D):Vector2D;
 Function VectorSubtract2D(Const A,B:Vector2D):Vector2D;
@@ -92,6 +95,11 @@ End;
 Function VectorCross2D(Const A,B:Vector2D):Single; {$IFDEF FPC} Inline;{$ENDIF}
 Begin
   Result := (A.X * B.Y) - (A.Y * B.X);
+End;
+
+Function VectorDot2D(Const A,B:Vector2D):Single; {$IFDEF FPC} Inline;{$ENDIF}
+Begin
+  Result := (A.X * B.X) + (A.Y * B.Y);
 End;
 
 Function Vector2D.Equals(Const B:Vector2D):Boolean; {$IFDEF FPC} Inline;{$ENDIF}
@@ -213,11 +221,17 @@ End;
 {$IFNDEF SSE}
 Function Vector2D.Length:Single;
 Begin
+  Result := Self.LengthSquared;
     {$IFDEF OXYGENE}
-  Result := System.Math.Sqrt((X*X)+(Y*Y));
+  Result := System.Math.Sqrt(Result);
     {$ELSE}
-  Result := Sqrt(Sqr(X)+Sqr(Y));
+  Result := Sqrt(Result);
     {$ENDIF}
+End;
+
+Function Vector2D.LengthSquared:Single;
+Begin
+  Result := Sqr(X)+Sqr(Y);
 End;
 
 Function Vector2D.Distance(Const N:Vector2D):Single;

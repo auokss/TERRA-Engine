@@ -35,6 +35,8 @@ Type
     Function Transform(Const P:Vector2D):Vector2D; Overload;
     Function Transform(Const P:Vector3D):Vector3D; Overload;
 
+    Function GetTranslation():Vector2D;
+
     Procedure Init(Const M:Matrix4x4);
   End;
 
@@ -70,8 +72,14 @@ Uses Math{$IFDEF NEON_FPU},TERRA_NEON{$ENDIF};
 
 Function Matrix3x3.Transform(Const P:Vector2D):Vector2D;
 Begin
-  Result.X := P.X * V[0] + P.Y * V[1] + V[2];
-  Result.Y := P.X * V[3] + P.Y * V[4] + V[5];
+  Result.X := P.X * V[0] + P.Y * V[3] + V[6];
+  Result.Y := P.X * V[1] + P.Y * V[4] + V[7];
+End;
+
+Function Matrix3x3.GetTranslation():Vector2D;
+Begin
+  Result.X := Self.V[6];
+  Result.Y := Self.V[7];
 End;
 
 Procedure Matrix3x3.Init(Const M: Matrix4x4);
@@ -91,8 +99,8 @@ End;
 
 Function Matrix3x3.Transform(Const P:Vector3D):Vector3D;
 Begin
-  Result.X := P.X * V[0] + P.Y * V[1] + V[2];
-  Result.Y := P.X * V[3] + P.Y * V[4] + V[5];
+  Result.X := P.X * V[0] + P.Y * V[3] + V[6];
+  Result.Y := P.X * V[1] + P.Y * V[4] + V[7];
   Result.Z := P.Z;
 End;
 
@@ -183,12 +191,14 @@ Function MatrixTranslation2D(Const X,Y:Single):Matrix3x3;  {$IFDEF FPC}Inline;{$
 Begin
   Result.V[0] := 1.0;
   Result.V[1] := 0.0;
-  Result.V[2] := X;
+  Result.V[2] := 0.0;
+
   Result.V[3] := 0.0;
   Result.V[4] := 1.0;
-  Result.V[5] := Y;
-  Result.V[6] := 0.0;
-  Result.V[7] := 0.0;
+  Result.V[5] := 0.0;
+
+  Result.V[6] := X;
+  Result.V[7] := Y;
   Result.V[8] := 1.0;
 End;
 
@@ -207,9 +217,11 @@ Begin
   Result.V[0] := X;
   Result.V[1] := 0.0;
   Result.V[2] := 0.0;
+
   Result.V[3] := 0.0;
   Result.V[4] := Y;
   Result.V[5] := 0.0;
+
   Result.V[6] := 0.0;
   Result.V[7] := 0.0;
   Result.V[8] := 1.0;
@@ -228,15 +240,15 @@ Begin
 {$ELSE}
 	Result.V[0] := A.V[0]*B.V[0] + A.V[3]*B.V[1] + A.V[6]*B.V[2];
 	Result.V[1] := A.V[1]*B.V[0] + A.V[4]*B.V[1] + A.V[7]*B.V[2];
-	Result.V[2] := A.V[2]*B.V[0] + A.V[5]*B.V[1] + A.V[8]*B.V[2];
+	Result.V[2] := 0.0; //A.V[2]*B.V[0] + A.V[5]*B.V[1] + A.V[8]*B.V[2];
 
 	Result.V[3] := A.V[0]*B.V[3] + A.V[3]*B.V[4] + A.V[6]*B.V[5];
 	Result.V[4] := A.V[1]*B.V[3] + A.V[4]*B.V[4] + A.V[7]*B.V[5];
-	Result.V[5] := A.V[2]*B.V[3] + A.V[5]*B.V[4] + A.V[8]*B.V[5];
+	Result.V[5] := 0.0; //A.V[2]*B.V[3] + A.V[5]*B.V[4] + A.V[8]*B.V[5];
 
 	Result.V[6] := A.V[0]*B.V[6] + A.V[3]*B.V[7] + A.V[6]*B.V[8];
 	Result.V[7] := A.V[1]*B.V[6] + A.V[4]*B.V[7] + A.V[7]*B.V[8];
-	Result.V[8] := A.V[2]*B.V[6] + A.V[5]*B.V[7] + A.V[8]*B.V[8];
+	Result.V[8] := 1.0; //A.V[2]*B.V[6] + A.V[5]*B.V[7] + A.V[8]*B.V[8];
 {$ENDIF}
 End;
 
