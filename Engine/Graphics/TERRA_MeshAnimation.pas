@@ -797,8 +797,6 @@ Exit;
     TargetBone := TargetSkeleton.GetBoneByName(_Bones[I].Name);
     TargetParent := TargetBone.Parent;
 
-    SourceBone.Init();
-
     Result._Bones[I].Positions.Count := 0;
     Result._Bones[I].Scales.count := 0;
 

@@ -23,7 +23,7 @@ Type
 
 
 Const
-  RescaleDuration = 4000;
+  RescaleDuration = 2000;
 
 Var
   ClonedInstance:MeshInstance;
@@ -126,7 +126,7 @@ Begin
   ReleaseObject(ClonedInstance);
 End;
 
-Procedure DrawAxis(V:TERRAViewport; Bone:MeshBone; Transform:Matrix4x4; State:AnimationState);
+(*Procedure DrawAxis(V:TERRAViewport; Bone:MeshBone; Transform:Matrix4x4; State:AnimationState);
 Var
   P, N, T, B:Vector3D;
   Temp:AnimationBoneState;
@@ -141,12 +141,12 @@ Begin
 
   N := M.TransformNormal(Bone.GetNormal());
   T := M.TransformNormal(Bone.GetTangent());
-  B := M.TransformNormal(Bone.GetBiTangent());
+  B := M.TransformNormal(Bone.GetBiTangent())
 
   DrawRay(V, RayCreate(P, N), ColorRed, 1, 5);
   DrawRay(V, RayCreate(P, T), ColorBlue, 1, 5);
   DrawRay(V, RayCreate(P, B), ColorGreen, 1, 5);
-End;
+End;*)
 
 Procedure MyDemo.OnRender(V:TERRAViewport);
 Var

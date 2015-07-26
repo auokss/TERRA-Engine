@@ -32,35 +32,48 @@ Type
   MeshSkeleton = Class;
 
   MeshBone = Class(TERRAObject)
-    Index:Integer;
-    Parent:MeshBone;
-    Owner:MeshSkeleton;
+    Protected
+      _Index:Integer;
+      _Parent:MeshBone;
+      _Owner:MeshSkeleton;
 
-    Color:Color;
-    Selected:Boolean;
+      _Normal:Vector3D;
+      _Length:Single;
+      _Orientation:Quaternion;
 
-    AbsoluteMatrix:Matrix4x4;
-    RelativeMatrix:Matrix4x4;
+      _AbsoluteMatrix:Matrix4x4;
+      _RelativeMatrix:Matrix4x4;
 
-    Ready:Boolean;
+      _Ready:Boolean;
 
-    Procedure Init;
+      Procedure Init;
 
-    Procedure Release; Override;
+      Function GetLength():Single;
 
-    Function Read(Source:Stream):TERRAString;
-    Procedure Write(Dest:Stream);
+      Function GetRelativePosition():Vector3D;
+      Function GetAbsolutePosition():Vector3D;
 
-    Function GetLength():Single;
+      Function GetOrientation:Quaternion;
 
-    Function GetRelativePosition():Vector3D;
-    Function GetAbsolutePosition():Vector3D;
+    Public
+      Procedure Release; Override;
 
-    Function GetNormal():Vector3D;
-    Function GetTangent():Vector3D;
-    Function GetBiTangent():Vector3D;
+      Function Read(Source:Stream):TERRAString;
+      Procedure Write(Dest:Stream);
 
-    Function GetBasisMatrix():Matrix4x4;
+      Property Index:Integer Read _Index;
+      Property Parent:MeshBone Read _Parent;
+      Property Owner:MeshSkeleton Read _Owner;
+
+      Property Normal:Vector3D Read _Normal;
+      Property Length:Single Read GetLength;
+      Property Orientation:Quaternion Read GetOrientation;
+
+      Property AbsoluteMatrix:Matrix4x4 Read _AbsoluteMatrix;
+      Property RelativeMatrix:Matrix4x4 Read _RelativeMatrix;
+
+      Property RelativePosition:Vector3D Read GetRelativePosition;
+      Property AbsolutePosition:Vector3D Read GetAbsolutePosition;
   End;
 
   MeshSkeleton = Class(TERRAObject)
@@ -86,7 +99,7 @@ Type
       Procedure Write(Dest:Stream);
 
       Function AddBone():MeshBone;
-      
+
       Function GetBoneByIndex(Index:Integer):MeshBone;
       Function GetBoneByName(Const Name:TERRAString):MeshBone;
 
@@ -123,23 +136,23 @@ End;
 
 Procedure MeshBone.Init;
 Begin
-  If (Ready) Then
+  If (_Ready) Then
     Exit;
 
-  If (Assigned(Parent)) And (Not Parent.Ready) Then
+  If (Assigned(Parent)) And (Not Parent._Ready) Then
     Parent.Init;
 
 	// Each bone's final matrix is its relative matrix concatenated onto its
 	// parent's final matrix (which in turn is ....)
 	If ( Parent = nil ) Then					// this is the root node
   Begin
-    AbsoluteMatrix := RelativeMatrix;
+    _AbsoluteMatrix := _RelativeMatrix;
   End Else									// not the root node
 	Begin
-    AbsoluteMatrix := Matrix4x4Multiply4x3(Parent.AbsoluteMatrix, RelativeMatrix);
+    _AbsoluteMatrix := Matrix4x4Multiply4x3(Parent.AbsoluteMatrix, _RelativeMatrix);
 	End;
 
-  Ready := True;
+  _Ready := True;
 End;
 
 Function MeshBone.Read(Source:Stream):TERRAString;
@@ -149,13 +162,13 @@ Var
 Begin
   Source.ReadString(_ObjectName);
   Source.ReadString(Result);
-  Parent := Nil;
+  _Parent := Nil;
 
   Source.Read(@StartPosition, SizeOf(Vector3D));
   Source.Read(@StartRotation, SizeOf(Vector3D));
 
-  RelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(startPosition), Matrix4x4Rotation(startRotation));
-  Ready := False;
+  _RelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(startPosition), Matrix4x4Rotation(startRotation));
+  _Ready := False;
 End;
 
 Procedure MeshBone.Write(Dest:Stream);
@@ -187,88 +200,9 @@ Begin
   Result := Self.AbsoluteMatrix.Transform(VectorZero);
 End;
 
-Function MeshBone.GetNormal():Vector3D;
-Var
-  P:Vector3D;
+Function MeshBone.GetOrientation: Quaternion;
 Begin
-  Self.Init();
-
-  If (Self.Parent=Nil) Then
-    Result := Self.RelativeMatrix.TransformNormal(VectorCreate(0, 0, 1))
-  Else
-    Result := VectorSubtract(Self.GetAbsolutePosition(), Parent.GetAbsolutePosition());
-
-  Result.Normalize();
-End;
-
-Function MeshBone.GetTangent():Vector3D;
-Var
-  N:Vector3D;
-  D:Single;
-Begin
-  If (Self.Parent = Nil) Then
-  Begin
-    Result := Self.RelativeMatrix.TransformNormal(VectorCreate(1, 0, 0));
-  End Else
-  Begin
-    N := Self.GetNormal();
-    D := VectorDot(N, VectorUp);
-    If Abs(D)<=0.01 Then
-      Result := VectorCross(N, VectorCreate(0.05, 0.95, 0))
-    Else
-      Result := VectorCross(N, VectorUp);
-    Result.Normalize();
-  End;
-End;
-
-Function MeshBone.GetBiTangent():Vector3D;
-Begin
-  Result := VectorCross(Self.GetNormal(), Self.GetTangent());
-  Result.Normalize();
-End;
-
-Function MeshBone.GetBasisMatrix: Matrix4x4;
-Var
-  Normal, Tangent, BiTangent:Vector3D;
-Begin
-  Normal := Self.GetNormal();
-  Tangent := Self.GetTangent();
-  Bitangent := Self.GetBiTangent();
-
-  Result.V[0] := Tangent.X;
-  Result.V[1] := Tangent.Y;
-  Result.V[2] := Tangent.Z;
-  Result.V[3] := 0.0;
-
-  Result.V[4] := BiTangent.X;
-  Result.V[5] := BiTangent.Y;
-  Result.V[6] := BiTangent.Z;
-  Result.V[7] := 0.0;
-
-  Result.V[8] := Normal.X;
-  Result.V[9] := Normal.Y;
-  Result.V[10] := Normal.Z;
-  Result.V[11] := 0.0;
-
-(*  Result.V[0] := Normal.X;
-  Result.V[1] := Tangent.X;
-  Result.V[2] := BiTangent.X;
-  Result.V[3] := 0.0;
-
-  Result.V[4] := Normal.Y;
-  Result.V[5] := Tangent.Y;
-  Result.V[6] := BiTangent.Y;
-  Result.V[7] := 0.0;
-
-  Result.V[8] := Normal.Z;
-  Result.V[9] := Tangent.Z;
-  Result.V[10] := BiTangent.Z;
-  Result.V[11] := 0.0;*)
-
-  Result.V[12] := 0.0;
-  Result.V[13] := 0.0;
-  Result.V[14] := 0.0;
-  Result.V[15] := 1.0;
+  Result := QuaternionFromAxisAngle(_Normal, 0.0);
 End;
 
 { MeshSkeleton }
@@ -278,8 +212,6 @@ Begin
   SetLength(_BoneList, _BoneCount);
   Result := MeshBone.Create;
   _BoneList[ Pred(_BoneCount)] := Result;
-  Result.Color := ColorWhite;
-  Result.Selected := False;
 End;
 
 Function MeshSkeleton.GetBoneByIndex(Index:Integer):MeshBone;
@@ -318,16 +250,14 @@ Begin
   For I:=0 To Pred(_BoneCount) Do
   Begin
     _BoneList[I] := MeshBone.Create;
-    _BoneList[I].Index := I;
-    _BoneList[I].Owner := Self;
-    _BoneList[I].Ready := False;
-    _BoneList[I].Color := ColorWhite;
-    _BoneList[I].Selected := False;
+    _BoneList[I]._Index := I;
+    _BoneList[I]._Owner := Self;
+    _BoneList[I]._Ready := False;
     Parents[I] := _BoneList[I].Read(Source);
   End;
 
   For I:=0 To Pred(_BoneCount) Do
-    _BoneList[I].Parent := Self.GetBoneByName(Parents[I]);
+    _BoneList[I]._Parent := Self.GetBoneByName(Parents[I]);
 
   Self.Init();
 End;
@@ -337,7 +267,7 @@ Var
   I:Integer;
 Begin
   For I:=0 To Pred(_BoneCount) Do
-    _BoneList[I].Ready := False;
+    _BoneList[I]._Ready := False;
 
   For I:=0 To Pred(_BoneCount) Do
     _BoneList[I].Init();
@@ -412,18 +342,16 @@ Begin
     Bone := Other.GetBoneByIndex(I);
     _BoneList[I] := MeshBone.Create;
     _BoneList[I].Name := Bone.Name;
-    _BoneList[I].Index := I;
-    _BoneList[I].Owner := Self;
-    _BoneList[I].Color := Bone.Color;
-    _BoneList[I].Selected := Bone.Selected;
-    _BoneList[I].Ready := Bone.Ready;
-    _BoneList[I].AbsoluteMatrix := Bone.AbsoluteMatrix;
-    _BoneList[I].RelativeMatrix := Bone.RelativeMatrix;
+    _BoneList[I]._Index := I;
+    _BoneList[I]._Owner := Self;
+    _BoneList[I]._Ready := Bone._Ready;
+    _BoneList[I]._AbsoluteMatrix := Bone.AbsoluteMatrix;
+    _BoneList[I]._RelativeMatrix := Bone.RelativeMatrix;
 
     If Assigned(Bone.Parent) Then
-      _BoneList[I].Parent := Self.GetBoneByName(Bone.Parent.Name)
+      _BoneList[I]._Parent := Self.GetBoneByName(Bone.Parent.Name)
     Else
-      _BoneList[I].Parent := Nil;
+      _BoneList[I]._Parent := Nil;
   End;
 End;
 
@@ -440,26 +368,11 @@ Begin
     Bone := Self.GetBoneByIndex(I);
 
     If Assigned(Bone.Parent) Then
-      Bone.RelativeMatrix := Matrix4x4Translation(VectorSubtract(Bone.AbsoluteMatrix.Transform(VectorZero), Bone.Parent.AbsoluteMatrix.Transform(VectorZero)))
+      Bone._RelativeMatrix := Matrix4x4Translation(VectorSubtract(Bone.AbsoluteMatrix.Transform(VectorZero), Bone.Parent.AbsoluteMatrix.Transform(VectorZero)))
     Else
-      Bone.RelativeMatrix := Matrix4x4Translation(Bone.AbsoluteMatrix.Transform(VectorZero));
+      Bone._RelativeMatrix := Matrix4x4Translation(Bone.AbsoluteMatrix.Transform(VectorZero));
 
-    (*If Assigned(Bone.Parent) Then
-    Begin
-      OldRel -> OldKeyFram
-      NewRel -> (NewKeyFrame)
-
-      A := Matrix4x4Translation(Bone.AbsoluteMatrix.GetTranslation());
-      B := Matrix4x4Translation(Matrix4x4Inverse(Bone.Parent.AbsoluteMatrix).GetTranslation());
-
-      Bone.RelativeMatrix := Matrix4x4Multiply4x4(A, B);
-
-      //Bone.RelativeMatrix := Matrix4x4Translation(VectorSubtract(Bone.AbsoluteMatrix.Transform(VectorZero), Bone.Parent.AbsoluteMatrix.Transform(VectorZero)))
-    End Else
-      //Bone.RelativeMatrix := Matrix4x4Translation(Bone.AbsoluteMatrix.Transform(VectorZero));
-      Bone.RelativeMatrix := Bone.AbsoluteMatrix;*)
-
-    Bone.Ready := False;
+    Bone._Ready := False;
   End;
 
   For I:=0 To Pred(Self.BoneCount) Do

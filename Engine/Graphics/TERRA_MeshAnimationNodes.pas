@@ -248,8 +248,6 @@ Begin
   SetLength(_BoneStates, _BoneCount);
   SetLength(Transforms, Succ(_BoneCount));
 
-  Bone.Init();  
-
   _BoneStates[Pred(_BoneCount)] := AnimationBoneState.Create;
   _BoneStates[Pred(_BoneCount)]._BoneName := Bone.Name;
 

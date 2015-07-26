@@ -6150,7 +6150,7 @@ Begin
       _Groups[N].CalculateTangents;
   End;
 
-  If (Source.GetBoneCount>0) Then
+(*  If (Source.GetBoneCount>0) Then
   Begin
     For I:=0 To Pred(Source.GetBoneCount) Do
     Begin
@@ -6164,7 +6164,7 @@ Begin
       B := Skeleton.GetBoneByIndex(I);
       B.Parent := Skeleton.GetBoneByIndex(Source.GetBoneParent(I));
     End;
-  End;
+  End;*)
 
   Self.Update;
 End;
