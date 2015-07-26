@@ -41,6 +41,7 @@ Procedure DrawPolygon2D(View:TERRAViewport; Poly:Polygon2D; LineColor:Color; Lin
 // 3d drawing
 Procedure DrawPoint3D(View:TERRAViewport; Const P:Vector3D; FillColor:Color; Radius:Single = 2.0);
 Procedure DrawLine3D(View:TERRAViewport; Const A,B:Vector3D; LineColor:Color; LineWidth:Single = 1.0);
+Procedure DrawSphere(View:TERRAViewport; Const P:Vector3D; Radius:Single; LineColor:Color; LineWidth:Single = 1.0);
 Procedure DrawRay(View:TERRAViewport; Const R:Ray; LineColor:Color; LineWidth:Single = 1.0; Length:Single =0);
 Procedure DrawBoundingBox(View:TERRAViewport; Const MyBox:BoundingBox; LineColor:Color; LineWidth:Single = 1.0);
 Procedure DrawSpline(View:TERRAViewport; S:Spline; LineColor:Color; LineWidth:Single = 1.0);
@@ -215,6 +216,11 @@ Begin
   DrawLine2D(View, ConvertTo2D(View, A), ConvertTo2D(View, B), LineColor, LineWidth);
 End;
 
+Procedure DrawSphere(View:TERRAViewport; Const P:Vector3D; Radius:Single; LineColor:Color; LineWidth:Single = 1.0);
+Begin
+  DrawCircle(View, ConvertTo2D(View, P), Radius, LineColor, LineWidth);
+End;
+
 Procedure DrawRay(View:TERRAViewport; Const R:Ray; LineColor:Color; LineWidth:Single = 1.0; Length:Single =0);
 Var
   P:Vector3D;
@@ -305,7 +311,7 @@ Begin
     Exit;
 
   For I:=1 To Pred(Skeleton.BoneCount) Do
-    DrawBone(View, Skeleton.GetBone(I), State, Transform, LineColor, LineWidth);
+    DrawBone(View, Skeleton.GetBoneByIndex(I), State, Transform, LineColor, LineWidth);
 End;
 
 Procedure DrawFrustum(View:TERRAViewport; F:Frustum; LineColor:Color; LineWidth:Single);

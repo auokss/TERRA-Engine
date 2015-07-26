@@ -767,163 +767,23 @@ the Bind transforms are the transforms of the bone when it's in the rest pose (a
 Wrongly called worldBindRotation in Bone implementation, those transforms are expressed in model space
 the Model space transforms are the transforms of the bone in model space once the frame transforms has been applied}
 
-(*Procedure Animation.computeTransforms(targetBone:MeshBone; sourceSkeleton, targetSkeleton:MeshSkeleton; frameId, animLength:Integer; Const ratio:Vector3D);
-Var
-  sourceBone, childBone:MeshBone;
-  rootRot:Quaternion;
-  scaledPos:Vector3D;
-
-  TargetAnimation:BoneAnimation;
-Begin
-  SourceBone := sourceSkeleton.getBone(targetBone.Name);
-
-  TargetAnimation := Self.GetBone(targetBone.Index);
-
-  //rootRot := new Quaternion();
-  //targetSkeleton.updateWorldVectors();
-
-  //we want the target bone to have the same model transforms as the source Bone (scaled to the correct ratio as models may not have the same scale)
-  //the ratio only affects position
-  If (sourceBone <>Nil) Then
-  Begin
-    If (sourceBone.Parent = Nil) Then
-    Begin
-      //case of a root bone, just combine the source model transforms with the inverse target bind transforms
-      //InnerTrack t = getInnerTrack(targetSkeleton.getBoneIndex(targetBone), tracks, animLength);
-
-      //scaling the modelPosition
-      scaledPos := VectorMultiply(sourceBone.AbsoluteMatrix.GetTranslation(), Ratio);
-
-      TargetAnimation.Positions.Keyframes[frameID].Time;
-      //subtract target's bind position to the source's scaled model position
-      t.positions[frameId] =  new Vector3f();//scaledPos.subtractLocal(targetBone.getBindPosition());
-      // t.positions[frameId] = new Vector3f();
-      //multiplying the source's model rotation witht the target's inverse bind rotation
-      TempVars vars = TempVars.get();
-      Quaternion q = vars.quat1.set(targetBone.getBindRotation()).inverseLocal();
-      t.rotations[frameId] = q.mult(sourceBone.getModelSpaceRotation());
-      rootRot.set(q);
-
-      vars.release();
-
-
-      //dividing by the target's bind scale
-      t.scales[frameId] = sourceBone.getModelSpaceScale().divide(targetBone.getBindScale());
-      targetBone.setUserControl(true);
-      targetBone.setUserTransforms(t.positions[frameId], t.rotations[frameId], t.scales[frameId]);
-      targetBone.updateModelTransforms();
-      targetBone.setUserControl(false);
-    End Else
-    Begin
-      //general case
-       //Combine source model transforms with target's parent inverse model transform and inverse target's bind transforms
-
-      Bone parentBone = targetBone.getParent();
-      InnerTrack t = getInnerTrack(targetSkeleton.getBoneIndex(targetBone), tracks, animLength);
-
-      BoneTrack boneTrack = findBoneTrack(sourceSkeleton.getBoneIndex(sourceBone), anim);
-      if(boneTrack!=null) Then
-      Begin
-        Vector3f animPosition = boneTrack.getTranslations()[frameId];
-        t.positions[frameId] = animPosition.clone();
-      End Else
-      Begin
-        t.positions[frameId] = new Vector3f();
-      End;
-
-      t.positions[frameId] = new Vector3f();
-
-      TempVars vars = TempVars.get();
-    // computing target's parent's inverse model rotation
-    Quaternion inverseTargetParentModelRot = vars.quat1;
-    inverseTargetParentModelRot.set(parentBone.getModelSpaceRotation()).inverseLocal().normalizeLocal();
-//
-//                //ANIMATION POSITION
-//                //first we aplly the ratio
-//                Vector3f scaledPos = sourceBone.getModelSpacePosition().mult(ratio);
-//                //Retrieving target's local pos then subtracting the target's bind pos
-//                t.positions[frameId] = inverseTargetParentModelRot.mult(scaledPos)
-//                        .multLocal(parentBone.getModelSpaceScale())
-//                        .subtract(parentBone.getModelSpacePosition());
-//                //made in 2 steps for the sake of readability
-//                //here t.positions[frameId] is containing the target's local position (frame position regarding the parent bone).
-//                //now we're subtracting target's bind position
-//                t.positions[frameId].subtractLocal(targetBone.getBindPosition());
-                // now t.positions[frameId] is what we are looking for.
-
-
-                //ANIMATION ROTATION
-                //Computing target's local rotation by multiplying source's model
-                //rotation with target's parent's inverse model rotation and multiplying
-                //with the target's inverse world bind rotation.
-                //
-                //The twist quaternion is here to fix the twist on Y axis some
-                //bones may have after the rotation in model space has been computed
-                //For now the problem is worked around by some constant twist
-                //rotation that you set in the bone mapping.
-                //This is probably a predictable behavior that could be detected
-                //and automatically corrected, but as for now I don't have a clue where it comes from.
-
-  //Don't use inverseTargetParentModelRot as is after this point as the
-  //following line compromizes its value. multlocal is used instead of mult for obvious optimization reason.
-  Quaternion targetLocalRot = inverseTargetParentModelRot.multLocal(sourceBone.getModelSpaceRotation()).normalizeLocal();
-  Quaternion targetInverseBindRotation = vars.quat2.set(targetBone.getBindRotation()).inverseLocal().normalizeLocal();
-  Quaternion twist = boneMapping.get(targetBone.getName()).getTwist();
-  //finally computing the animation rotatz\ion for the current frame. Note that the first "mult" instanciate a new Quaternion.
-  t.rotations[frameId] = targetInverseBindRotation.mult(targetLocalRot).multLocal(twist).normalizeLocal();              //
-
-  //releasing tempVars
-  vars.release();
-
-  //ANIMATION SCALE
-  // dividing by the target's parent's model scale then dividing by the target's bind scale
-  t.scales[frameId] = sourceBone.getModelSpaceScale().divide(parentBone.getModelSpaceScale()).divideLocal(targetBone.getBindScale());
-
-  //Applying the computed transforms for the current frame to the bone and updating its model transforms
-  targetBone.setUserControl(true);
-  targetBone.setUserTransforms(t.positions[frameId], t.rotations[frameId], t.scales[frameId]);
-  targetBone.updateModelTransforms();
-  targetBone.setUserControl(false);
-  End;
-
-  //recurse through children bones
-  For I:=0 To Pred(targetSkeleton.BoneCount) Do
-  Begin
-    childBone := targetSkeleton.GetBone(I);
-    If childBone.Parent = TargetBone Then
-      computeTransforms(childBone, sourceSkeleton, targetSkeleton, boneMapping, frameId, tracks, animLength, ratio, anim);
-  End;
-End;*)
-
-Function GetBoneAngle(Const A,B:Vector3D):Vector3D;
-Begin
-  Result.X := VectorAngle2D(VectorCreate2D(A.Y, A.Z), VectorCreate2D(B.Y, B.Z));
-  Result.Y := VectorAngle2D(VectorCreate2D(A.X, A.Z), VectorCreate2D(B.X, B.Z));
-  Result.Z := VectorAngle2D(VectorCreate2D(A.X, A.Y), VectorCreate2D(B.X, B.Y));
-
-  If (Result.X>180*RAD) Then
-    Result.X := (360*RAD) - Result.X;
-
-  If (Result.Y>180*RAD) Then
-    Result.Y := (360*RAD) - Result.Y;
-
-  If (Result.Z>180*RAD) Then
-    Result.Z := (360*RAD) - Result.Z;
-End;
-
 Function Animation.Retarget(SourceSkeleton, TargetSkeleton: MeshSkeleton): Animation;
 Var
   I,J, K:Integer;
   Rots:VectorKeyframeArray;
 
-  ParentA, BoneA:MeshBone;
-  ParentB, BoneB:MeshBone;
+  SourceParent, SourceBone:MeshBone;
+  TargetParent, TargetBone:MeshBone;
 
   BonePos, ParentPos, U, V, W:Vector3D;
 
-  Q, QA, QB:Quaternion;
+  inverseTargetParentModelRot:Quaternion;
+  targetLocalRot, targetInverseBindRotation, twist:Quaternion;
+
+  localRot, finalRot:Quaternion;
 
 Begin
+Exit;
   TargetSkeleton.NormalizeJoints();
 
   Result := Animation.Create(rtDynamic, '');
@@ -931,52 +791,38 @@ Begin
 
   For I:=0 To Pred(_BoneCount) Do
   Begin
-    BoneA := SourceSkeleton.GetBone(_Bones[I].Name);
-    ParentA := BoneA.Parent;
+    SourceBone := SourceSkeleton.GetBoneByName(_Bones[I].Name);
+    SourceParent := SourceBone.Parent;
 
-    BoneB := TargetSkeleton.GetBone(_Bones[I].Name);
-    ParentB := BoneB.Parent;
+    TargetBone := TargetSkeleton.GetBoneByName(_Bones[I].Name);
+    TargetParent := TargetBone.Parent;
 
-    BoneA.Init();
+    SourceBone.Init();
 
     Result._Bones[I].Positions.Count := 0;
     Result._Bones[I].Scales.count := 0;
 
-    If ParentA = Nil Then
+    If SourceParent = Nil Then
     Begin
       Result._Bones[I].Rotations.Count := 0;
+
       Continue;
     End;
 
+//    inverseTargetParentModelRot := Quat1;
+    // computing target's parent's inverse model rotation
     For J:=0 To Pred(_Bones[I].Rotations.Count) Do
     Begin
       Rots := Result._Bones[I].Rotations;
 
       For K:=0 To Pred(Rots.Count) Do
       Begin
-        BonePos := BoneA.AbsoluteMatrix.Transform(VectorZero);
-        ParentPos := ParentA.AbsoluteMatrix.Transform(VectorZero);
 
-        BonePos.Subtract(ParentPos);
-        U := BonePos;
+        //finally computing the animation rotation for the current frame. Note that the first "mult" instanciate a new Quaternion.
+        finalRot := targetInverseBindRotation.mult(targetLocalRot); //.multLocal(twist);
+        finalRot.Normalize();
+        Rots.Keyframes[K].Value := QuaternionToEuler(finalRot);
 
-        //U := GetBoneAngle(BonePos, ParentPos);
-
-        BonePos := BoneB.AbsoluteMatrix.Transform(VectorZero);
-        ParentPos := ParentB.AbsoluteMatrix.Transform(VectorZero);
-        //V := GetBoneAngle(BonePos, ParentPos);
-        BonePos.Subtract(ParentPos);
-        V := BonePos;
-
-        QA := QuaternionRotation(GetBoneAngle(U, V));
-        QB := QuaternionRotation(Rots.Keyframes[K].Value);
-
-        (*If (BoneA.Name = 'Bip01 Head') Then
-          Rots.Keyframes[K].Value := VectorCreate({(K/Rots.Count) * }90*RAD, 0, 0);*)
-
-        Q := QuaternionMultiply(QB, QA);
-
-        Rots.Keyframes[K].Value := QuaternionToEuler(Q);
       End;
 
     End;

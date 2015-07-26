@@ -9,7 +9,7 @@ Uses
   TERRA_Vector2D, TERRA_Mesh, TERRA_MeshSkeleton, TERRA_MeshAnimation, TERRA_MeshAnimationNodes,
   TERRA_FileManager, TERRA_Color, TERRA_DebugDraw, TERRA_Resource, TERRA_Ray,
   TERRA_ScreenFX, TERRA_Math, TERRA_Matrix3x3, TERRA_Matrix4x4, TERRA_Quaternion, TERRA_InputManager,
-  TERRA_FileStream, TERRA_Texture, TERRA_SpriteMAnager, TERRA_IKBone;
+  TERRA_FileStream, TERRA_Texture, TERRA_SpriteMAnager, TERRA_IKBone2D;
 
 Type
   MyDemo = Class(DemoApplication)
@@ -27,16 +27,16 @@ Type
 
 Const
   SnakeSize = 100;
-  SnakeJointCount = 3;
+  SnakeJointCount = 7;
 
 Var
-  SnakeRoot:IKBone;
+  SnakeRoot:IKBone2D;
 
   BodyTex, HeadTex:TERRATexture;
   Dragging:Boolean;
 
 
-Procedure DrawBone(Bone:IKBone; V:TERRAViewport);
+Procedure DrawBone(Bone:IKBone2D; V:TERRAViewport);
 Var
   Mat:Matrix3x3;
   S:QuadSprite;
@@ -71,9 +71,9 @@ Begin
   BodyTex := TextureManager.Instance.GetTexture('snake_body');
   HeadTex := TextureManager.Instance.GetTexture('snake_head');
 
-	SnakeRoot := IKBone.Create(SnakeJointCount);
+	SnakeRoot := IKBone2D.Create(SnakeJointCount);
 
-  For I:=1 To SnakeJointCount Do
+  For I:=1 To Pred(SnakeJointCount) Do
 	  SnakeRoot.GetChainBone(I).Position := VectorCreate2D(0, SnakeSize - 20);
 End;
 
@@ -95,7 +95,7 @@ Procedure MyDemo.OnMouseDown(X, Y: Integer; Button: Word);
 Begin
   If Button = keyMouseRight Then
   Begin
-    SnakeRoot.Solve(X, Y, True, True);
+    SnakeRoot.Solve(VectorCreate2D(X, Y), True, True);
     Exit;
   End;
 
@@ -107,7 +107,7 @@ Begin
   If Not Dragging Then
     Exit;
 
-  SnakeRoot.Solve(X, Y, True, True);
+  SnakeRoot.Solve(VectorCreate2d(X, Y), True, True);
 End;
 
 Procedure MyDemo.OnMouseUp(X, Y: Integer; Button: Word);

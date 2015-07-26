@@ -7,9 +7,9 @@ Uses
   TERRA_OS, TERRA_Vector3D, TERRA_Font, TERRA_UI, TERRA_Lights, TERRA_Viewport,
   TERRA_JPG, TERRA_PNG, TERRA_String,
   TERRA_Vector2D, TERRA_Mesh, TERRA_MeshSkeleton, TERRA_MeshAnimation, TERRA_MeshAnimationNodes,
-  TERRA_FileManager, TERRA_Color, TERRA_DebugDraw, TERRA_Resource, TERRA_Ray,
+  TERRA_FileManager, TERRA_Color, TERRA_DebugDraw, TERRA_Resource, TERRA_Ray, TERRA_Plane,
   TERRA_ScreenFX, TERRA_Math, TERRA_Matrix3x3, TERRA_Matrix4x4, TERRA_Quaternion, TERRA_InputManager,
-  TERRA_FileStream, TERRA_IKBone, TERRA_MeshIK;
+  TERRA_FileStream, TERRA_IKBone3D, TERRA_MeshIK;
 
 Type
   MyDemo = Class(DemoApplication)
@@ -17,6 +17,8 @@ Type
 
 			Procedure OnCreate; Override;
 			Procedure OnDestroy; Override;
+
+      Procedure OnIdle; Override;
 
       Procedure OnRender(V:TERRAViewport); Override;
 
@@ -28,20 +30,24 @@ Type
 
 Var
   TargetInstance:MeshInstance;
-  SelectedBone:Integer = 0;
+  Dragging:Boolean;
+  TargetPos:Vector3D;
+  TargetColor:Color;
 
-  Chain:MeshIKChain;
-
+  IKController:MeshIKController;
+  LeftArm, RightArm:MeshIKChain;
+  TargetChain:MeshIKChain;
 
 { MyDemo }
 Procedure MyDemo.OnCreate;
 Var
   MyMesh:TERRAMesh;
   Skeleton:MeshSkeleton;
+  Bone:MeshBone;
 Begin
   Inherited;
 
-  Self.Scene.MainViewport.Camera.SetPosition(VectorCreate(0, 8, -12));
+  Self.Scene.MainViewport.Camera.SetPosition(VectorCreate(0, 9, -15));
   Self.Scene.MainViewport.Camera.SetView(VectorCreate(0, -0.25, 1));
 
   MyMesh := MeshManager.Instance.GetMesh('ninja');
@@ -55,9 +61,13 @@ Begin
   Skeleton := TargetInstance.Geometry.Skeleton;
   Skeleton.NormalizeJoints();
 
-  Chain := MeshIKChain.Create(Skeleton.GetBoneByName('lwrist'), 3);
+  IKController := MeshIKController.Create(Skeleton);
+  LeftArm := IKController.AddChain('lwrist', 3);
+  RightArm := IKController.AddChain('rwrist', 3);
 
-  TargetInstance.Animation.Root := Chain;
+  TargetChain := LeftArm;
+
+  TargetInstance.Animation.Root := IKController;
 End;
 
 Procedure MyDemo.OnDestroy;
@@ -68,6 +78,43 @@ Begin
   //ReleaseObject(Chain);
 End;
 
+Procedure MyDemo.OnIdle;
+Begin
+  Inherited;
+
+  If InputManager.Instance.Keys.WasPressed(keyV) Then
+    TargetChain := LeftArm;
+
+  If InputManager.Instance.Keys.WasPressed(keyB) Then
+    TargetChain := RightArm;
+End;
+
+Procedure DrawIKBone3D(V:TERRAViewport; Chain:MeshIKChain; Bone:IKBone3D);
+Var
+  A,B:Vector2D;
+  Root, PA,PB:Vector3D;
+Begin
+  If Assigned(Bone.Child) Then
+  Begin
+    A := Bone.GetAbsoluteMatrix().Transform(VectorZero2D);
+    B := Bone.Child.GetAbsoluteMatrix().Transform(VectorZero2D);
+
+    Root := Chain.Root.GetAbsolutePosition();
+
+    PA := Root;
+    PA.X := PA.X + A.X;
+    PA.Y := PA.Y + A.Y;
+
+    PB := Root;
+    PB.X := PB.X + B.X;
+    PB.Y := PB.Y + B.Y;
+
+    DrawLine3D(V, PA, PB, ColorBlue, 2);
+
+    DrawIKBone3D(V, Chain, Bone.Child);
+  End;
+End;
+
 Procedure MyDemo.OnRender(V:TERRAViewport);
 Var
   Bone:MeshBone;
@@ -75,44 +122,46 @@ Begin
   If (V<>Self._Scene.MainViewport) Then
     Exit;
 
-  If (InputManager.Instance.Keys.WasPressed(keyU)) And (SelectedBone>0) Then
-    Dec(SelectedBone);
-  If InputManager.Instance.Keys.WasPressed(keyI) Then
-    Inc(SelectedBone);
-
   DrawSkeleton(V, TargetInstance.Geometry.Skeleton,  TargetInstance.Animation, TargetInstance.Transform, ColorRed, 4.0);
-
   GraphicsManager.Instance.AddRenderable(V, TargetInstance);
-  Exit;
 
-(*  AnimationNode(TargetInstance.Animation.Root).SetCurrentFrame(5);
-  AnimationNode(ClonedInstance.Animation.Root).SetCurrentFrame(5);*)
+  DrawIKBone3D(V, LeftArm, LeftArm.IKChain);
 
-  DrawBone(V, TargetInstance.Geometry.Skeleton.GetBoneByIndex(SelectedBone),  TargetInstance.Animation, TargetInstance.Transform, ColorWhite, 4.0);
-
-  Bone := TargetInstance.Geometry.Skeleton.GetBoneByIndex(SelectedBone);
-
-  Self._FontRenderer.SetTransform(MatrixScale2D(2.0));
-  Self._FontRenderer.DrawText(50, 250, 10, Bone.Name);
+  DrawSphere(V, TargetPos, 20.0, TargetColor, 3);
 End;
 
-procedure MyDemo.OnMouseDown(X, Y: Integer; Button: Word);
-begin
-  inherited;
+Procedure MyDemo.OnMouseDown(X, Y: Integer; Button: Word);
+Begin
+  Dragging := True;
+End;
 
-end;
+Procedure MyDemo.OnMouseMove(X, Y: Integer);
+Var
+  R:Ray;
+  P:Plane;
+  T:Single;
+Begin
+  If Not Dragging Then
+    Exit;
 
-procedure MyDemo.OnMouseMove(X, Y: Integer);
-begin
-  inherited;
+  R := Self._Scene.MainViewport.GetPickRay(X, Y);
+  P := PlaneCreate(VectorZero, VectorCreate(0, 0, -1));
 
-end;
+  If R.Intersect(P, T) Then
+  Begin
+    TargetPos := R.IntersectionPoint(T);
+    If TargetChain.Solve(TargetPos) Then
+      TargetColor := ColorWhite
+    Else
+      TargetColor := ColorRed;
+  End;
 
-procedure MyDemo.OnMouseUp(X, Y: Integer; Button: Word);
-begin
-  inherited;
+End;
 
-end;
+Procedure MyDemo.OnMouseUp(X, Y: Integer; Button: Word);
+Begin
+  Dragging := False;
+End;
 
 {$IFDEF IPHONE}
 Procedure StartGame; cdecl; export;
@@ -122,5 +171,6 @@ Begin
 {$IFDEF IPHONE}
 End;
 {$ENDIF}
+
 End.
 

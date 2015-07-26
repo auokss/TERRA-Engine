@@ -3,25 +3,41 @@ Unit TERRA_MeshIK;
 {$I terra.inc}
 
 Interface
-Uses TERRA_Object, TERRA_Vector2D, TERRA_Vector3D, TERRA_Quaternion, TERRA_Math,
-  TERRA_MeshSkeleton, TERRA_IKBone, TERRA_MeshAnimation, TERRA_MeshAnimationNodes;
+Uses TERRA_String, TERRA_Object, TERRA_Vector2D, TERRA_Vector3D, TERRA_Quaternion, TERRA_Math,
+  TERRA_MeshSkeleton, TERRA_IKBone3D, TERRA_MeshAnimation, TERRA_MeshAnimationNodes;
 
 Type
-  MeshIKChain = Class(AnimationObject)
+  MeshIKChain = Class(TERRAObject)
     Protected
       _Root:MeshBone;
       _Effector:MeshBone;
 
-      _IKChain:IKBone;
+      _IKChain:IKBone3D;
 
       Procedure SetChainPositions();
-      Procedure GetChainPositions();
 
     Public
       Constructor Create(Effector:MeshBone; ChainSize:Integer);
       Procedure Release(); Override;
 
-      Function Solve(Const TargetEffectorPosition:Vector3D):Boolean;
+      Function Solve(TargetEffectorPosition:Vector3D):Boolean;
+
+      Property Root:MeshBone Read _Root;
+      Property Effector:MeshBone Read _Effector;
+      Property IKChain:IKBone3D Read _IKChain;
+  End;
+
+  MeshIKController = Class(AnimationObject)
+    Protected
+      _Target:MeshSkeleton;
+
+      _Chains:Array Of MeshIKChain;
+      _ChainCount:Integer;
+
+    Public
+      Constructor Create(Target:MeshSkeleton);
+
+      Function AddChain(const BoneName:TERRAString; ChainSize: Integer):MeshIKChain;
 
       Function GetTransform(BoneIndex:Integer):AnimationTransformBlock; Override;
   End;
@@ -32,86 +48,128 @@ Implementation
 Constructor MeshIKChain.Create(Effector:MeshBone; ChainSize:Integer);
 Var
   Bone:MeshBone;
+  Child:IKBone3D;
 Begin
-  _IKChain := IKBone.Create(ChainSize);
+  _IKChain := IKBone3D.Create(ChainSize);
   _Effector := Effector;
 
   Bone := _Effector;
   While (ChainSize>0) Do
   Begin
-    Bone := Bone.Parent;
     Dec(ChainSize);
+
+    Child := _IKChain.GetChainBone(ChainSize);
+    Child.Name := 'IK_'+Bone.Name;
+
+    If ChainSize>0 Then
+      Bone := Bone.Parent;
   End;
 
   _Root := Bone;
+
+  Self.SetChainPositions();
 End;
 
-procedure MeshIKChain.SetChainPositions;
-Var
-  Index, ChainSize:Integer;
-  Pos:Vector3D;
-  Child:IKBone;
-  Bone:MeshBone;
-Begin
-  Index := 0;
-  ChainSize := Self._IKChain.ChainSize;
-  Bone := _Effector;
-  While (ChainSize>0) Do
-  Begin
-    Bone := Bone.Parent;
-    Dec(ChainSize);
-
-    If ChainSize = 0 Then
-      Pos := Bone.GetAbsolutePosition()
-    Else
-      Pos := Bone.GetRelativePosition();
-
-    Child := _IKChain.GetChainBone(ChainSize);
-    Child.Position := VectorCreate2D(Pos.X, Pos.Y);
-  End;
-End;
-
-procedure MeshIKChain.GetChainPositions;
-begin
-
-end;
 
 Procedure MeshIKChain.Release;
 Begin
   ReleaseObject(_IKChain);
 End;
 
-Function MeshIKChain.Solve(const TargetEffectorPosition: Vector3D):Boolean;
+{ Copies 3d bones positions to IK bone chain }
+Procedure MeshIKChain.SetChainPositions;
+Var
+  Index, ChainSize:Integer;
+  Pos:Vector3D;
+  Child:IKBone3D;
+  Bone:MeshBone;
+
+  RootPos:Vector3D;
+Begin
+  RootPos := _Root.GetAbsolutePosition();
+
+  Index := 0;
+  ChainSize := Self._IKChain.ChainSize;
+  Bone := _Effector;
+  While (ChainSize>0) Do
+  Begin
+    Dec(ChainSize);
+
+    Pos := Bone.GetAbsolutePosition();
+    Pos.Subtract(RootPos);
+    Child := _IKChain.GetChainBone(ChainSize);
+    Child.Position := VectorCreate2D(Pos.X, Pos.Y);
+
+    Bone := Bone.Parent;
+  End;
+End;
+
+Function MeshIKChain.Solve(TargetEffectorPosition: Vector3D):Boolean;
 Var
   TargetX, TargetY:Single;
 Begin
+  Self.SetChainPositions();
+
+  TargetEffectorPosition.Subtract(_Root.GetAbsolutePosition());
+
   TargetX := TargetEffectorPosition.X;
   TargetY := TargetEffectorPosition.Y;
   Result := _IKChain.Solve(TargetX, TargetY, True, True);
 End;
 
-Function MeshIKChain.GetTransform(BoneIndex: Integer): AnimationTransformBlock;
+{ MeshIKController }
+Function MeshIKController.AddChain(const BoneName: TERRAString; ChainSize: Integer):MeshIKChain;
 Var
   Bone:MeshBone;
+Begin
+  Bone := _Target.GetBoneByName(BoneName);
+  If Bone = Nil Then
+  Begin
+    Result := Nil;
+    Exit;
+  End;
+
+  Result := MeshIKChain.Create(Bone, ChainSize);
+
+  Inc(_ChainCount);
+  SetLength(_Chains, _ChainCount);
+  _Chains[Pred(_ChainCount)] := Result;
+End;
+
+Constructor MeshIKController.Create(Target: MeshSkeleton);
+Begin
+  _Target := Target;
+End;
+
+Function MeshIKController.GetTransform(BoneIndex: Integer): AnimationTransformBlock;
+Var
+  TargetBone:MeshBone;
+  ChainBone:IKBone3D;
+  I, ChainIndex:Integer;
 Begin
   Result.Translation := VectorZero;
   Result.Scale := VectorConstant(1.0);
   Result.Rotation := QuaternionZero;
-    Exit;
-  Bone := Self._Effector;
-  While (Assigned(Bone)) Do
-  Begin
-    If (Bone.Index = BoneIndex) Then
-    Begin
-      Result.Rotation := QuaternionRotation(VectorCreate(90*RAD, 0,  0));
-      Exit;
-    End;
 
-    If (Bone = Self._Root) Then
-      Break;
-       
-    Bone := Bone.Parent;
+  For I:=0 To Pred(_ChainCount) Do
+  Begin
+    TargetBone := _Chains[I].Effector;
+    ChainIndex := _Chains[I].IKChain.ChainSize;
+    While (ChainIndex>0) Do
+    Begin
+      Dec(ChainIndex);
+
+      If (TargetBone.Index = BoneIndex) Then
+      Begin
+        ChainBone := _Chains[I].IKChain.GetChainBone(ChainIndex);
+        Result.Rotation := QuaternionRotation(VectorCreate(0, 0, ChainBone.Rotation));
+        Exit;
+      End;
+
+      TargetBone := TargetBone.Parent;
+    End;
   End;
+
 End;
 
 End.

@@ -6161,8 +6161,8 @@ Begin
 
     For I:=0 To Pred(Source.GetBoneCount) Do
     Begin
-      B := Skeleton.GetBone(I);
-      B.Parent := Skeleton.GetBone(Source.GetBoneParent(I));
+      B := Skeleton.GetBoneByIndex(I);
+      B.Parent := Skeleton.GetBoneByIndex(Source.GetBoneParent(I));
     End;
   End;
 
@@ -6478,20 +6478,20 @@ End;
 
 Function CustomMeshFilter.GetBoneName(BoneID: Integer):TERRAString;
 Begin
-  Result := _Mesh.Skeleton.GetBone(BoneID).Name;
+  Result := _Mesh.Skeleton.GetBoneByIndex(BoneID).Name;
 End;
 
 Function CustomMeshFilter.GetBoneParent(BoneID: Integer): Integer;
 Begin
-  If Assigned(_Mesh.Skeleton.GetBone(BoneID).Parent) Then
-    Result := _Mesh.Skeleton.GetBone(BoneID).Parent.Index
+  If Assigned(_Mesh.Skeleton.GetBoneByIndex(BoneID).Parent) Then
+    Result := _Mesh.Skeleton.GetBoneByIndex(BoneID).Parent.Index
   Else
     Result := -1;
 End;
 
 Function CustomMeshFilter.GetBoneOffsetMatrix(BoneID:Integer):Matrix4x4;
 Begin
-  Result := _Mesh.Skeleton.GetBone(BoneID).RelativeMatrix;
+  Result := _Mesh.Skeleton.GetBoneByIndex(BoneID).RelativeMatrix;
 End;
 
 Function CustomMeshFilter.GetDiffuseColor(GroupID: Integer): Color;
@@ -6800,7 +6800,7 @@ Procedure MeshEmitter.UpdateBone;
 Var
   Bone:MeshBone;
 Begin
-  Bone := Owner.Skeleton.GetBone(Self.ParentBone);
+  Bone := Owner.Skeleton.GetBoneByName(Self.ParentBone);
   If Assigned(Bone) Then
     Self.BoneIndex := Bone.Index
   Else
@@ -6818,7 +6818,7 @@ Procedure MeshLight.UpdateBone;
 Var
   Bone:MeshBone;
 Begin
-  Bone := Owner.Skeleton.GetBone(Self.ParentBone);
+  Bone := Owner.Skeleton.GetBoneByName(Self.ParentBone);
   If Assigned(Bone) Then
     Self.BoneIndex := Bone.Index
   Else

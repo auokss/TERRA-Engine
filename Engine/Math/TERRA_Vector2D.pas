@@ -83,6 +83,19 @@ Function VectorSubtract2D(Const A,B:Vector2D):Vector2D;
 Function VectorAngle3D(Const A,B:Vector3D):Single;
 Function VectorAngle2D(Const A,B:Vector2D):Single;
 
+Const
+// Vector constants
+{$IFDEF OXYGENE}
+  VectorZero2D: Vector2D = new Vector3D(0.0, 0.0);
+  VectorOne2D: Vector2D = new Vector3D(1.0, 1.0);
+  VectorUp2D: Vector2D = new Vector3D(0.0, 1.0);
+{$ELSE}
+  VectorZero2D:  Vector2D = (X:0.0; Y:0.0);
+  VectorOne2D:  Vector2D = (X:1.0; Y:1.0);
+  VectorUp2D:   Vector2D = (X:0.0; Y:1.0);
+{$ENDIF}
+
+
 Implementation
 {$IFDEF NEON_FPU}Uses TERRA_NEON;{$ENDIF}
 

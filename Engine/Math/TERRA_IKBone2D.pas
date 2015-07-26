@@ -21,7 +21,7 @@
  * Implements inverse kinematics
  ***********************************************************************************************************************
 }
-Unit TERRA_IKBone;
+Unit TERRA_IKBone2D;
 
 {$I terra.inc}
 
@@ -29,12 +29,12 @@ Interface
 Uses TERRA_Utils, TERRA_Object, TERRA_Vector2D, TERRA_Vector3D, TERRA_Matrix3x3;
 
 Type
-  IKBone = Class(TERRAObject)
+  IKBone2D = Class(TERRAObject)
     Protected
-      _Parent:IKBone;
-      _Child:IKBone;
+      _Parent:IKBone2D;
+      _Child:IKBone2D;
 
-      _ChainSize:Integer;
+      _ChildCount:Integer;
 
       _Position:Vector2D;
       _Rotation:Single;
@@ -47,26 +47,28 @@ Type
       _DampWidth:Single;
       _DampStrength:Single;
 
-      Function GetEffector():IKBone;
+      Function GetEffector():IKBone2D;
+      Function GetChainSize: Integer;
 
     Public
-      Constructor Create(ChainSize:Integer; Parent:IKBone = Nil);
+      Constructor Create(ChainSize:Integer; Parent:IKBone2D = Nil);
       Procedure Release(); Override;
 
       Function GetRelativeMatrix:Matrix3x3;
       Function GetAbsoluteMatrix:Matrix3x3;
 
-      Function GetChainBone(Index:Integer):IKBone;
+      Function GetChainBone(Index:Integer):IKBone2D;
 
-      Function Solve(TargetX, TargetY:Single; ApplyDamping, ApplyDOF:Boolean):Boolean;
+      Function Solve(Const EndPos:Vector2D; ApplyDamping, ApplyDOF:Boolean):Boolean;
 
       Property Position:Vector2D Read _Position Write _Position;
-      Property Rotation:Single Read _Rotation;
+      Property Rotation:Single Read _Rotation Write _Rotation;
 
-      Property ChainSize:Integer Read _ChainSize;
+      Property ChainSize:Integer Read GetChainSize;
+      Property ChildCount:Integer Read _ChildCount;
 
-      Property Parent:IKBone Read _Parent;
-      Property Child:IKBone Read _Child;
+      Property Parent:IKBone2D Read _Parent;
+      Property Child:IKBone2D Read _Child;
   End;
 
 Implementation
@@ -76,14 +78,17 @@ Const
   MAX_IK_TRIES  =	100;		// max iteratiors for the CCD loop (TRIES = # / LINKS)
   IK_POS_THRESH	= 1.0;	// angle thresold for sucess
 
-{ IKBone }
-Constructor IKBone.Create(ChainSize:Integer; Parent:IKBone = Nil);
+{ IKBone2D }
+Constructor IKBone2D.Create(ChainSize:Integer; Parent:IKBone2D = Nil);
 Begin
+  If (Parent = Nil) Then
+    Dec(ChainSize);
+
   Self._Parent := Parent;
-  Self._ChainSize := ChainSize;
+  Self._ChildCount := ChainSize;
 
   If ChainSize>0 Then
-    Self._Child := IKBone.Create(Pred(ChainSize), Self)
+    Self._Child := IKBone2D.Create(Pred(ChainSize), Self)
   Else
     Self._Child := Nil;
 
@@ -94,26 +99,31 @@ Begin
   _MaxRot := 30 * RAD;
 End;
 
-Procedure IKBone.Release;
+Procedure IKBone2D.Release;
 Begin
   If Assigned(_Child) Then
     ReleaseObject(_Child);
 End;
 
-Function IKBone.GetAbsoluteMatrix: Matrix3x3;
+Function IKBone2D.GetChainSize: Integer;
+Begin
+  Result := Succ(_ChildCount);
+End;
+
+Function IKBone2D.GetAbsoluteMatrix: Matrix3x3;
 Begin
   Result := Self.GetRelativeMatrix();
   If Assigned(Self.parent) Then
     Result := MatrixMultiply3x3(Parent.GetAbsoluteMatrix(), Result);
 End;
 
-Function IKBone.GetRelativeMatrix: Matrix3x3;
+Function IKBone2D.GetRelativeMatrix: Matrix3x3;
 Begin
   Result := MatrixRotation2D(_Rotation);
   Result.SetTranslation(_Position);
 End;
 
-Function IKBone.GetEffector():IKBone;
+Function IKBone2D.GetEffector():IKBone2D;
 Begin
   If Self.Child = Nil Then
     Result := Self
@@ -121,19 +131,16 @@ Begin
     Result := Self.Child.GetEffector();
 End;
 
-Function IKBone.Solve(TargetX, TargetY: Single; ApplyDamping, ApplyDOF:Boolean): Boolean;
+Function IKBone2D.Solve(Const EndPos:Vector2D; ApplyDamping, ApplyDOF:Boolean): Boolean;
 Var
-	endPos, rootPos,curEnd, desiredEnd:Vector2D;
+	rootPos,curEnd, desiredEnd:Vector2D;
   targetVector,curVector:Vector2D;
   crossResult:Vector3D;
 	cosAngle,turnAngle:Double;
-	Effector, Link:IKBone;
+	Effector, Link:IKBone2D;
   Tries:Integer;
 Begin
-  EndPos := VectorCreate2D(TargetX, TargetY);
-
 	// START AT THE LAST LINK IN THE CHAIN
-
   Effector := Self.GetEffector();
 	Link := Effector;
 	Tries := 0;						// LOOP COUNTER SO I KNOW WHEN TO QUIT
@@ -149,71 +156,73 @@ Begin
 		desiredEnd := endPos;
 
 		// SEE IF I AM ALREADY CLOSE ENOUGH
-		If (VectorSubtract2D(curEnd, desiredEnd).LengthSquared > IK_POS_THRESH) Then
+    If (VectorSubtract2D(curEnd, desiredEnd).LengthSquared <= IK_POS_THRESH) Then
     Begin
-			// CREATE THE VECTOR TO THE CURRENT EFFECTOR POS
-			curVector := VectorSubtract2D(curEnd, rootPos);
-
-			// CREATE THE DESIRED EFFECTOR POSITION VECTOR
-			targetVector := VectorSubtract2D(endPos, rootPos);
-
-			// NORMALIZE THE VECTORS (EXPENSIVE, REQUIRES A SQRT)
-			curVector.Normalize;
-			targetVector.Normalize;
-
-			// THE DOT PRODUCT GIVES ME THE COSINE OF THE DESIRED ANGLE
-			cosAngle := VectorDot2D(targetVector, curVector);
-
-			// IF THE DOT PRODUCT RETURNS 1.0, I DON'T NEED TO ROTATE AS IT IS 0 DEGREES
-			if (cosAngle < 0.99999) Then
-			Begin
-				// USE THE CROSS PRODUCT TO CHECK WHICH WAY TO ROTATE
-				crossResult := VectorCross(VectorCreate(targetVector.X, targetVector.Y, 0), VectorCreate(curVector.X, curVector.Y, 0));
-				If (crossResult.z > 0.0)	Then // IF THE Z ELEMENT IS POSITIVE, ROTATE CLOCKWISE
-				Begin
-					turnAngle := arccos(cosAngle);	// GET THE ANGLE
-
-					// DAMPING
-					if (ApplyDamping) And (turnAngle > Link._DampWidth) Then
-						turnAngle := Link._DampWidth;
-
-					Link._Rotation := Link._Rotation - turnAngle;	// ACTUALLY TURN THE LINK
-
-					// DOF RESTRICTIONS
-					If (ApplyDOF) And (Link._Rotation < Link._MinRot) Then
-            Link._Rotation := Link._MinRot;
-
-				End Else
-        if (crossResult.z < 0.0) Then	// ROTATE COUNTER CLOCKWISE
-				Begin
-					turnAngle := ArcCos(cosAngle);
-					// DAMPING
-					If (ApplyDamping) And (turnAngle > Link._DampWidth) Then
-						turnAngle := Link._DampWidth;
-
-				  Link._Rotation := Link._Rotation + turnAngle;	// ACTUALLY TURN THE LINK
-
-					// DOF RESTRICTIONS
-					if (ApplyDOF) And (Link._Rotation > Link._MaxRot) Then
-						Link._Rotation := Link._MaxRot;
-				End;
-
-			End;
-
-      Link := Link.Parent;
-
-			If (Link = Nil) Then
-        Link := Effector;	// START OF THE CHAIN, RESTART
+      Result := True;
+      Exit;
     End;
 
-	  // QUIT IF I AM CLOSE ENOUGH OR BEEN RUNNING LONG ENOUGH
-    Inc(Tries);
-	Until  (tries >= MAX_IK_TRIES) Or (VectorSubtract2D(curEnd, desiredEnd).LengthSquared <= IK_POS_THRESH);
+    // CREATE THE VECTOR TO THE CURRENT EFFECTOR POS
+		curVector := VectorSubtract2D(curEnd, rootPos);
 
-	Result := True;
+		// CREATE THE DESIRED EFFECTOR POSITION VECTOR
+		targetVector := VectorSubtract2D(endPos, rootPos);
+
+		// NORMALIZE THE VECTORS (EXPENSIVE, REQUIRES A SQRT)
+		curVector.Normalize;
+		targetVector.Normalize;
+
+		// THE DOT PRODUCT GIVES ME THE COSINE OF THE DESIRED ANGLE
+		cosAngle := VectorDot2D(targetVector, curVector);
+
+    // IF THE DOT PRODUCT RETURNS 1.0, I DON'T NEED TO ROTATE AS IT IS 0 DEGREES
+		If (cosAngle < 0.99999) Then
+    Begin
+      // USE THE CROSS PRODUCT TO CHECK WHICH WAY TO ROTATE
+			crossResult := VectorCross(VectorCreate(targetVector.X, targetVector.Y, 0), VectorCreate(curVector.X, curVector.Y, 0));
+			If (crossResult.z > 0.0)	Then // IF THE Z ELEMENT IS POSITIVE, ROTATE CLOCKWISE
+			Begin
+			  turnAngle := arccos(cosAngle);	// GET THE ANGLE
+
+				// DAMPING
+				If (ApplyDamping) And (turnAngle > Link._DampWidth) Then
+          turnAngle := Link._DampWidth;
+
+        Link._Rotation := Link._Rotation - turnAngle;	// ACTUALLY TURN THE LINK
+
+				// DOF RESTRICTIONS
+				If (ApplyDOF) And (Link._Rotation < Link._MinRot) Then
+          Link._Rotation := Link._MinRot;
+
+      End Else
+      If (crossResult.z < 0.0) Then	// ROTATE COUNTER CLOCKWISE
+			Begin
+        turnAngle := ArcCos(cosAngle);
+				// DAMPING
+        If (ApplyDamping) And (turnAngle > Link._DampWidth) Then
+				  turnAngle := Link._DampWidth;
+
+        Link._Rotation := Link._Rotation + turnAngle;	// ACTUALLY TURN THE LINK
+
+				// DOF RESTRICTIONS
+				If (ApplyDOF) And (Link._Rotation > Link._MaxRot) Then
+          Link._Rotation := Link._MaxRot;
+      End;
+		End;
+
+    Link := Link.Parent;
+
+    If (Link = Nil) Then
+      Link := Effector;	// START OF THE CHAIN, RESTART
+
+	  // QUIT IF BEEN RUNNING LONG ENOUGH
+    Inc(Tries);
+	Until  (tries >= MAX_IK_TRIES);
+
+	Result := False;
 End;
 
-Function IKBone.GetChainBone(Index: Integer): IKBone;
+Function IKBone2D.GetChainBone(Index: Integer): IKBone2D;
 Begin
   If (Index = 0) Then
     Result := Self
@@ -223,5 +232,6 @@ Begin
   Else
     Result := _Child.GetChainBone(Pred(Index));
 End;
+
 
 End.
