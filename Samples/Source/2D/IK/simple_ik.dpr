@@ -9,7 +9,7 @@ Uses
   TERRA_Vector2D, TERRA_Mesh, TERRA_MeshSkeleton, TERRA_MeshAnimation, TERRA_MeshAnimationNodes,
   TERRA_FileManager, TERRA_Color, TERRA_DebugDraw, TERRA_Resource, TERRA_Ray,
   TERRA_ScreenFX, TERRA_Math, TERRA_Matrix3x3, TERRA_Matrix4x4, TERRA_Quaternion, TERRA_InputManager,
-  TERRA_FileStream, TERRA_Texture, TERRA_SpriteMAnager, TERRA_IK;
+  TERRA_FileStream, TERRA_Texture, TERRA_SpriteMAnager, TERRA_IKBone;
 
 Type
   MyDemo = Class(DemoApplication)
@@ -27,10 +27,10 @@ Type
 
 Const
   SnakeSize = 100;
-  CHAIN_SIZE = 8;
+  SnakeJointCount = 3;
 
 Var
-  SnakeBones:Array[0..Pred(CHAIN_SIZE)] Of IKBone;
+  SnakeRoot:IKBone;
 
   BodyTex, HeadTex:TERRATexture;
   Dragging:Boolean;
@@ -71,25 +71,31 @@ Begin
   BodyTex := TextureManager.Instance.GetTexture('snake_body');
   HeadTex := TextureManager.Instance.GetTexture('snake_head');
 
-	SnakeBones[0] := IKBone.Create(Nil);
+	SnakeRoot := IKBone.Create(SnakeJointCount);
 
-  For I:=1 To Pred(CHAIN_SIZE) Do
-  Begin
-	  SnakeBones[I] := IKBone.create(SnakeBones[Pred(I)]);
-  	SnakeBones[I].Position := VectorCreate2D(0, SnakeSize - 20);
-  End;
+  For I:=1 To SnakeJointCount Do
+	  SnakeRoot.GetChainBone(I).Position := VectorCreate2D(0, SnakeSize - 20);
 End;
 
 Procedure MyDemo.OnDestroy;
 Begin
+  ReleaseObject(SnakeRoot);
+  
   Inherited;
+End;
+
+
+Procedure MyDemo.OnRender(V:TERRAViewport);
+Begin
+  SnakeRoot.Position := VectorCreate2D(V.Width  * 0.5,  2* SnakeSize * 0.5);
+  DrawBone(SnakeRoot, V);
 End;
 
 Procedure MyDemo.OnMouseDown(X, Y: Integer; Button: Word);
 Begin
   If Button = keyMouseRight Then
   Begin
-    SnakeBones[0].Solve(X, Y, True, True);
+    SnakeRoot.Solve(X, Y, True, True);
     Exit;
   End;
 
@@ -101,18 +107,12 @@ Begin
   If Not Dragging Then
     Exit;
 
-  SnakeBones[0].Solve(X, Y, True, True);
+  SnakeRoot.Solve(X, Y, True, True);
 End;
 
 Procedure MyDemo.OnMouseUp(X, Y: Integer; Button: Word);
 Begin
   Dragging := False;
-End;
-
-Procedure MyDemo.OnRender(V:TERRAViewport);
-Begin
-  SnakeBones[0].Position := VectorCreate2D(V.Width  * 0.5, -SnakeSize * 0.5);
-  DrawBone(SnakeBones[0], V);
 End;
 
 {$IFDEF IPHONE}

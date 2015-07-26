@@ -7,7 +7,7 @@ Uses
   TERRA_OS, TERRA_Vector3D, TERRA_Font, TERRA_UI, TERRA_Lights, TERRA_Viewport,
   TERRA_JPG, TERRA_PNG, TERRA_String,
   TERRA_Vector2D, TERRA_Mesh, TERRA_MeshSkeleton, TERRA_MeshAnimation, TERRA_MeshAnimationNodes,
-  TERRA_FileManager, TERRA_Color, TERRA_DebugDraw, TERRA_Resource,
+  TERRA_FileManager, TERRA_Color, TERRA_DebugDraw, TERRA_Resource, TERRA_Ray,
   TERRA_ScreenFX, TERRA_Math, TERRA_Matrix3x3, TERRA_Matrix4x4, TERRA_Quaternion, TERRA_InputManager,
   TERRA_FileStream;
 
@@ -29,92 +29,52 @@ Var
   ClonedInstance:MeshInstance;
   OriginalInstance:MeshInstance;
 
-  GlobalAngles:Array Of Vector3D;
-  Dest:FileStream;
-
-  Saved:Boolean;
-
-  SelectedBone:Integer = 4;
-
-Function GetBoneAngle(Const BoneKeyframe, BoneAbsolute, ParentKeyFrame, ParentAbsolute:Matrix4x4):Vector3D; Overload;
-Var
-  A,B:Vector3D;
-  M:Matrix4x4;
-Begin
-  M := Matrix4x4Multiply4x3(BoneKeyframe, BoneAbsolute);
-  A := M.Transform(VectorZero);
-
-  M :=  Matrix4x4Multiply4x3(ParentKeyFrame, ParentAbsolute);
-  B := M.Transform(VectorZero);
-
-  Result := VectorSubtract(A, B);
-  Result.Normalize();
-
-(*  Result.X := VectorAngle2D(VectorCreate2D(A.Y, A.Z), VectorCreate2D(B.Y, B.Z));
-  Result.Y := VectorAngle2D(VectorCreate2D(A.X, A.Z), VectorCreate2D(B.X, B.Z));
-  Result.Z := VectorAngle2D(VectorCreate2D(A.X, A.Y), VectorCreate2D(B.X, B.Y));*)
-
-(*  If (Result.X>180*RAD) Then
-    Result.X := (360*RAD) - Result.X;
-
-  If (Result.Y>180*RAD) Then
-    Result.Y := (360*RAD) - Result.Y;
-
-  If (Result.Z>180*RAD) Then
-    Result.Z := (360*RAD) - Result.Z;*)
-End;
-
-Function GetBoneAngle(Bone:MeshBone; State:AnimationState):Vector3D; Overload;
-Begin
-  If (Bone = Nil) Or (Bone.Parent = Nil) Then
-  Begin
-    Result := VectorZero;
-    Exit;
-  End;
-
-  Result := GetBoneAngle(State.Transforms[Bone.Index+1], Bone.AbsoluteMatrix, State.Transforms[Bone.Parent.Index+1], Bone.Parent.AbsoluteMatrix);
-End;
-
+  SelectedBone:Integer = 0;
 
 Function RetargetAnimation(State:AnimationState; Bone:AnimationBoneState; Block:AnimationTransformBlock):Matrix4x4;
 Var
   TargetBone, OtherBone:MeshBone;
-  targetLocalRot:Quaternion;
+  OtherState:AnimationBoneState;
+  OldFrame, NewFrame, OldRel, NewRel:Matrix4x4;
 
-  Angle, ParentAngle:Vector3D;
-  OtherMat:Matrix4x4;
-  T:Single;
+  OldNormal, NewNormal:Vector3D;
+
+  Axis, Pos:Vector3D;
+  Rot:Quaternion;
+  Retarget, OldBasis, NewBasis:Matrix4x4;
 Begin
   Result := Matrix4x4Identity;
 
-  OtherBone := OriginalInstance.Geometry.Skeleton.GetBone(Bone._BoneName);
+  OtherBone := OriginalInstance.Geometry.Skeleton.GetBoneByName(Bone._BoneName);
   If OtherBone = Nil Then
     Exit;
 
-  TargetBone := ClonedInstance.Geometry.Skeleton.GetBone(Bone._BoneName);
+  TargetBone := ClonedInstance.Geometry.Skeleton.GetBoneByName(Bone._BoneName);
   If TargetBone = Nil Then
     Exit;
 
-  If Assigned(Dest) Then
-  Begin
-    Saved := True;
-    Dest.WriteLine(Bone._BoneName);
-//    Dest.WriteLine(FloatToString(OtherBone.StartRotation.X * DEG)+'    ' + FloatToString(OtherBone.StartRotation.Y * DEG)+'    ' + FloatToString(OtherBone.StartRotation.Z * DEG));
-    Angle := QuaternionToEuler(Block.Rotation);
-    Dest.WriteLine(FloatToString(Angle.X * DEG)+'    ' + FloatToString(Angle.Y * DEG)+'    ' + FloatToString(Angle.Z * DEG));
-    Dest.WriteLine();
-  End;
-
-//  Block.Rotation := QuaternionMultiply(CreateRetargetChain(State, Bone), Block.Rotation);
-
-  Result := QuaternionMatrix4x4(Block.Rotation);
-
-  T := Sin(Application.GetTime() / 3000);
-
-(*  If (StringContains('Pelvis', OtherBone.Name)) Then
-    Result := Matrix4x4Rotation(VectorCreate(0*RAD, 0, 180*T*RAD));*)
+  OldRel := OtherBone.RelativeMatrix;
+  NewRel := Bone._BindRelativeMatrix;
 
 
+  (*OldNormal := OtherBone.GetNormal();
+  NewNormal := TargetBone.GetNormal();
+  Block.Rotation := QuaternionMultiply(Block.Rotation, QuaternionFromToRotation(OldNormal, NewNormal));*)
+
+  Retarget := Matrix4x4Inverse(OtherBone.RelativeMatrix);
+
+  OldFrame := Matrix4x4Multiply4x3(Matrix4x4Translation(Block.Translation), QuaternionMatrix4x4(Block.Rotation));
+
+  NewFrame := OldFrame;
+
+  OtherState := OriginalInstance.Animation.GetBoneByName(OtherBone.Name);
+
+  Newrel := Matrix4x4Multiply4x3(OldRel, Retarget);
+
+  // Add the animation state to the rest position
+  Result := Matrix4x4Multiply4x3(NewRel, NewFrame);
+
+  //Bone._BindAbsoluteMatrix := OtherBone.AbsoluteMatrix;
 End;
 
 
@@ -138,8 +98,9 @@ Begin
     OriginalInstance := Nil;
 
   OriginalAnimation := OriginalInstance.Animation.Find('run');
- // OriginalInstance.Animation.Play(OriginalAnimation, RescaleDuration);
+  OriginalInstance.Animation.Play(OriginalAnimation, RescaleDuration);
 
+  MyMesh := MeshManager.Instance.GetMesh('monster');
   ClonedMesh := TERRAMesh.Create(rtDynamic, '');
   ClonedMesh.Clone(MyMesh);
   If Assigned(ClonedMesh) Then
@@ -150,12 +111,12 @@ Begin
     ClonedInstance := Nil;
 
 
-  ClonedInstance.Geometry.Skeleton.NormalizeJoints();
+  //ClonedInstance.Geometry.Skeleton.NormalizeJoints();
   //RetargetedAnimation := OriginalAnimation.Retarget(OriginalInstance.Geometry.Skeleton, ClonedInstance.Geometry.Skeleton);
   RetargetedAnimation := Animation.Create(rtDynamic, ''); RetargetedAnimation.Clone(OriginalAnimation);
 
 //  ClonedInstance.Animation.Play(RetargetedAnimation, RescaleDuration);
- // ClonedInstance.Animation.Processor := RetargetAnimation;
+  //ClonedInstance.Animation.Processor := RetargetAnimation;
 End;
 
 Procedure MyDemo.OnDestroy;
@@ -165,58 +126,66 @@ Begin
   ReleaseObject(ClonedInstance);
 End;
 
+Procedure DrawAxis(V:TERRAViewport; Bone:MeshBone; Transform:Matrix4x4; State:AnimationState);
+Var
+  P, N, T, B:Vector3D;
+  Temp:AnimationBoneState;
+  M:Matrix4x4;
+Begin
+  Temp := State.GetBoneByName(Bone.Name);
+
+  M := Matrix4x4Multiply4x3(Transform, Matrix4x4Multiply4x3(State.Transforms[Bone.Index+1], Bone.AbsoluteMatrix));
+
+  //P := Transform.Transform(Bone.GetPosition());
+  P := M.Transform(VectorZero);
+
+  N := M.TransformNormal(Bone.GetNormal());
+  T := M.TransformNormal(Bone.GetTangent());
+  B := M.TransformNormal(Bone.GetBiTangent());
+
+  DrawRay(V, RayCreate(P, N), ColorRed, 1, 5);
+  DrawRay(V, RayCreate(P, T), ColorBlue, 1, 5);
+  DrawRay(V, RayCreate(P, B), ColorGreen, 1, 5);
+End;
+
 Procedure MyDemo.OnRender(V:TERRAViewport);
 Var
-  Angle:Vector3D;
-
   Bone:MeshBone;
-  I, BoneCount:Integer;
 Begin
-  DrawSkeleton(V, OriginalInstance.Geometry.Skeleton,  OriginalInstance.Animation, OriginalInstance.Transform, ColorRed, 4.0);
-  DrawSkeleton(V, ClonedInstance.Geometry.Skeleton,  ClonedInstance.Animation, ClonedInstance.Transform, ColorRed, 4.0);
+  If V <> Self._Scene.MainViewport Then
+    Exit;
 
-  GraphicsManager.Instance.AddRenderable(V, OriginalInstance);
-  GraphicsManager.Instance.AddRenderable(V, ClonedInstance);
-
-Exit;
-  AnimationNode(OriginalInstance.Animation.Root).SetCurrentFrame(5);
-  AnimationNode(ClonedInstance.Animation.Root).SetCurrentFrame(5);
-
-  BoneCount := OriginalInstance.Geometry.Skeleton.BoneCount;
-  SetLength(GlobalAngles, BoneCount);
-  For I:=0 To Pred(BoneCount) Do
-  Begin
-    Bone := OriginalInstance.Geometry.Skeleton.GetBone(I);
-    GlobalAngles[I] := GetBoneAngle(Bone, OriginalInstance.Animation);
-  End;
-
-  DrawBone(V, OriginalInstance.Geometry.Skeleton.GetBone(SelectedBone),  OriginalInstance.Animation, OriginalInstance.Transform, ColorRed, 4.0);
-  DrawBone(V, ClonedInstance.Geometry.Skeleton.GetBone(SelectedBone),  ClonedInstance.Animation, ClonedInstance.Transform, ColorRed, 4.0);
-
-
-  Angle := GlobalAngles[SelectedBone];
-
-  Self._FontRenderer.SetTransform(MatrixScale2D(2.0));
-  Self._FontRenderer.DrawText(100, 210, 10, 'X: '+IntToString(Trunc(Angle.X * DEG)));
-  Self._FontRenderer.DrawText(100, 230, 10, 'Y: '+IntToString(Trunc(Angle.Y * DEG)));
-  Self._FontRenderer.DrawText(100, 250, 10, 'Z: '+IntToString(Trunc(Angle.Z * DEG)));
-
-  If Assigned(Dest) Then
-  Begin
-    If Saved Then
-      ReleaseObject(Dest);
-  End Else
-  If InputManager.Instance.Keys.WasPressed(keyB) Then
-  Begin
-    Saved := False;
-    Dest := FileStream.Create('bones.txt');
-  End;
-
-  If InputManager.Instance.Keys.WasPressed(keyU) Then
+  If (InputManager.Instance.Keys.WasPressed(keyU)) And (SelectedBone>0) Then
     Dec(SelectedBone);
   If InputManager.Instance.Keys.WasPressed(keyI) Then
     Inc(SelectedBone);
 
+  //DrawLine2D(V, VectorCreate2D(100, 100), VectorCreate2D(InputManager.Instance.Mouse.X, InputManager.Instance.Mouse.Y), ColorWhite);
+
+  //DrawBoundingBox(V, OriginalInstance.GetBoundingBox, ColorBlue);
+  DrawSkeleton(V, OriginalInstance.Geometry.Skeleton,  OriginalInstance.Animation, OriginalInstance.Transform, ColorRed, 4.0);
+//  DrawSkeleton(V, ClonedInstance.Geometry.Skeleton,  ClonedInstance.Animation, ClonedInstance.Transform, ColorRed, 4.0);
+
+  GraphicsManager.Instance.AddRenderable(V, OriginalInstance);
+  GraphicsManager.Instance.AddRenderable(V, ClonedInstance);
+
+  Exit;
+
+(*  AnimationNode(OriginalInstance.Animation.Root).SetCurrentFrame(5);
+  AnimationNode(ClonedInstance.Animation.Root).SetCurrentFrame(5);*)
+
+  DrawBone(V, OriginalInstance.Geometry.Skeleton.GetBoneByIndex(SelectedBone),  OriginalInstance.Animation, OriginalInstance.Transform, ColorWhite, 4.0);
+  DrawBone(V, ClonedInstance.Geometry.Skeleton.GetBoneByIndex(SelectedBone),  ClonedInstance.Animation, ClonedInstance.Transform, ColorWhite, 4.0);
+
+
+  Bone := OriginalInstance.Geometry.Skeleton.GetBoneByIndex(SelectedBone);
+//  DrawAxis(V, Bone, OriginalInstance.Transform, OriginalInstance.Animation);
+
+  Bone := ClonedInstance.Geometry.Skeleton.GetBoneByIndex(SelectedBone);
+  //DrawAxis(V, Bone, ClonedInstance.Transform, ClonedInstance.Animation);
+
+  Self._FontRenderer.SetTransform(MatrixScale2D(2.0));
+  Self._FontRenderer.DrawText(50, 250, 10, Bone.Name);
 End;
 
 {$IFDEF IPHONE}

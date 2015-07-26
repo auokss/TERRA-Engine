@@ -21,7 +21,7 @@
  * Implements inverse kinematics
  ***********************************************************************************************************************
 }
-Unit TERRA_IK;
+Unit TERRA_IKBone;
 
 {$I terra.inc}
 
@@ -33,6 +33,8 @@ Type
     Protected
       _Parent:IKBone;
       _Child:IKBone;
+
+      _ChainSize:Integer;
 
       _Position:Vector2D;
       _Rotation:Single;
@@ -48,15 +50,20 @@ Type
       Function GetEffector():IKBone;
 
     Public
-      Constructor Create(Parent:IKBone);
+      Constructor Create(ChainSize:Integer; Parent:IKBone = Nil);
+      Procedure Release(); Override;
 
       Function GetRelativeMatrix:Matrix3x3;
       Function GetAbsoluteMatrix:Matrix3x3;
+
+      Function GetChainBone(Index:Integer):IKBone;
 
       Function Solve(TargetX, TargetY:Single; ApplyDamping, ApplyDOF:Boolean):Boolean;
 
       Property Position:Vector2D Read _Position Write _Position;
       Property Rotation:Single Read _Rotation;
+
+      Property ChainSize:Integer Read _ChainSize;
 
       Property Parent:IKBone Read _Parent;
       Property Child:IKBone Read _Child;
@@ -66,23 +73,31 @@ Implementation
 Uses TERRA_Math;
 
 Const
-  MAX_IK_TRIES	=	100;		// TIMES THROUGH THE CCD LOOP (TRIES = # / LINKS)
-  IK_POS_THRESH	 =	1.0;	// THRESHOLD FOR SUCCESS
-
+  MAX_IK_TRIES  =	100;		// max iteratiors for the CCD loop (TRIES = # / LINKS)
+  IK_POS_THRESH	= 1.0;	// angle thresold for sucess
 
 { IKBone }
-Constructor IKBone.Create(Parent: IKBone);
+Constructor IKBone.Create(ChainSize:Integer; Parent:IKBone = Nil);
 Begin
   Self._Parent := Parent;
-  If Assigned(Parent) Then
-    Parent._Child := Self;
+  Self._ChainSize := ChainSize;
 
-	// SET UP DEFAULT SETTINGS FOR THE DAMPING FOR SIX JOINTS
+  If ChainSize>0 Then
+    Self._Child := IKBone.Create(Pred(ChainSize), Self)
+  Else
+    Self._Child := Nil;
+
   _DampWidth := 5.0 * RAD;
 
-  // SET UP DEFAULT SETTINGS FOR THE DOF RESTRICTIONS
+  // default DOF restrictions
   _MinRot := -30 * RAD;
   _MaxRot := 30 * RAD;
+End;
+
+Procedure IKBone.Release;
+Begin
+  If Assigned(_Child) Then
+    ReleaseObject(_Child);
 End;
 
 Function IKBone.GetAbsoluteMatrix: Matrix3x3;
@@ -95,8 +110,7 @@ End;
 Function IKBone.GetRelativeMatrix: Matrix3x3;
 Begin
   Result := MatrixRotation2D(_Rotation);
-  Result.V[6] := _Position.X;
-  Result.V[7] := _Position.Y;
+  Result.SetTranslation(_Position);
 End;
 
 Function IKBone.GetEffector():IKBone;
@@ -197,6 +211,17 @@ Begin
 	Until  (tries >= MAX_IK_TRIES) Or (VectorSubtract2D(curEnd, desiredEnd).LengthSquared <= IK_POS_THRESH);
 
 	Result := True;
+End;
+
+Function IKBone.GetChainBone(Index: Integer): IKBone;
+Begin
+  If (Index = 0) Then
+    Result := Self
+  Else
+  If (Index<0) Or (_Child = Nil) Then
+    Result := Nil
+  Else
+    Result := _Child.GetChainBone(Pred(Index));
 End;
 
 End.

@@ -17,8 +17,8 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************
- * TERRA_MeshAnimation 
- * Implements the Animation resource and other Animation classes 
+ * TERRA_MeshAnimationNodes 
+ * Implements the mesh animation node system 
  ***********************************************************************************************************************
 }
 Unit TERRA_MeshAnimationNodes;
@@ -41,17 +41,15 @@ Type
   AnimationState = Class;
 
   AnimationObject = Class(TERRAObject)
-      _Name:TERRAString;
-
       Procedure UpdateAnimation(); Virtual;
 
-      Function HasAnimation(MyAnimation:Animation):Boolean; Virtual; Abstract;
-      Function GetActiveAnimation:Animation; Virtual; Abstract;
+      Function HasAnimation(MyAnimation:Animation):Boolean; Virtual; 
+      Function GetActiveAnimation:Animation; Virtual; 
 
-      Function HasBone(Bone:Integer):Boolean; Virtual; Abstract;
+      //Function HasBone(Bone:Integer):Boolean; Virtual; Abstract;
       Function GetTransform(BoneIndex:Integer):AnimationTransformBlock; Virtual; Abstract;
 
-      Function Finished:Boolean; Virtual; Abstract;
+      Function Finished:Boolean; Virtual; 
 
       Function Collapse:AnimationObject; Virtual;
 
@@ -69,7 +67,7 @@ Type
       Function GetActiveAnimation:Animation; Override;
 
       Function HasAnimation(MyAnimation:Animation):Boolean; Override;
-      Function HasBone(Bone:Integer):Boolean; Override;
+      //Function HasBone(Bone:Integer):Boolean; Override;
       Function GetTransform(BoneIndex:Integer):AnimationTransformBlock; Override;
   End;
 
@@ -116,7 +114,7 @@ Type
       Function HasAnimation(MyAnimation:Animation):Boolean; Override;
       Function GetActiveAnimation:Animation; Override;
 
-      Function HasBone(Bone:Integer):Boolean; Override;
+      //Function HasBone(Bone:Integer):Boolean; Override;
       Function GetTransform(BoneIndex:Integer):AnimationTransformBlock; Override;
 
       Procedure SetCurrentFrame(Frame:Integer);
@@ -212,7 +210,7 @@ Type
       Function Crossfade(MyAnimation:Animation; Duration:Cardinal = DefaultCrossfadeDuration):Boolean; Overload;
 
       Property Speed:Single Read _Speed Write SetSpeed;
-      Property Root:AnimationObject Read _Root;
+      Property Root:AnimationObject Read _Root Write SetRoot;
 
       Property LastAnimation:TERRAString Read _LastAnimation;
   End;
@@ -239,7 +237,7 @@ Begin
   _LastTime := Application.Instance.GetElapsedTime();
 
   For I:=0 To Pred(TargetSkeleton.BoneCount) Do
-    Self.AddBone(TargetSkeleton.GetBone(I));
+    Self.AddBone(TargetSkeleton.GetBoneByIndex(I));
 End;
 
 Procedure AnimationState.AddBone(Bone:MeshBone);
@@ -557,10 +555,12 @@ Begin
   If (Assigned(_Owner.Processor)) Then
     _FrameRelativeMatrix := _Owner.Processor(_Owner, Self, _Block)
   Else
+  Begin
     _FrameRelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(_Block.Translation), QuaternionMatrix4x4(_Block.Rotation));
 
-	// Add the animation state to the rest position
-  _FrameRelativeMatrix := Matrix4x4Multiply4x3(_BindRelativeMatrix, _FrameRelativeMatrix);
+  	// Add the animation state to the rest position
+    _FrameRelativeMatrix := Matrix4x4Multiply4x3(_BindRelativeMatrix, _FrameRelativeMatrix);
+  End;
 
 //  _FrameRelativeMatrix := _BindRelativeMatrix;
 
@@ -577,10 +577,10 @@ Begin
 End;
 
 { AnimationMixer }
-Function AnimationMixer.HasBone(Bone:Integer):Boolean;
+(*Function AnimationMixer.HasBone(Bone:Integer):Boolean;
 Begin
   Result := (_A.HasBone(Bone)) Or (_B.HasBone(Bone));
-End;
+End;*)
 
 Function AnimationMixer.GetTransform(BoneIndex:Integer):AnimationTransformBlock;
 Var
@@ -644,7 +644,7 @@ End;
 { AnimationCrossfader }
 Constructor AnimationCrossfader.Create(Src,Dest:AnimationObject;  Duration: Cardinal);
 Begin
-  _Name := Src._Name + ' -> ' + Dest._Name;
+  Self.Name := Src.Name + ' -> ' + Dest.Name;
   _StartTime := Application.Instance.GetElapsedTime();
   _Duration := Duration;
   _A := Src;
@@ -697,7 +697,7 @@ Begin
   If (_Animation = Nil) Then
     Exit;
 
-  _Name := MyAnimation.Name;
+  Self.Name := MyAnimation.Name;
 
   If (MyAnimation.Status<>rsReady) Then
   Begin
@@ -725,10 +725,10 @@ Begin
     _IndexList[I] := _Animation.GetBoneIndex(_Owner._BoneStates[I]._BoneName);
 End;
 
-Function AnimationNode.HasBone(Bone: Integer): Boolean;
+(*Function AnimationNode.HasBone(Bone: Integer): Boolean;
 Begin
-  Result := (_IndexList[Bone]>=0);
-End;
+  Result := (_IndexList[Bone] >= 0);
+End;*)
 
 Function AnimationNode.GetTransform(BoneIndex:Integer): AnimationTransformBlock;
 Var
@@ -890,6 +890,21 @@ End;
 Function AnimationObject.Collapse:AnimationObject;
 Begin
   Result := Self;
+End;
+
+Function AnimationObject.Finished: Boolean;
+Begin
+  Result := False;
+End;
+
+Function AnimationObject.GetActiveAnimation: Animation;
+Begin
+  Result := Nil;
+End;
+
+Function AnimationObject.HasAnimation(MyAnimation: Animation): Boolean;
+Begin
+  Result := False;
 End;
 
 Procedure AnimationObject.Release;
