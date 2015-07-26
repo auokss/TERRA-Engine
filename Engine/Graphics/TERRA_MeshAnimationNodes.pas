@@ -17,8 +17,8 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************
- * TERRA_MeshAnimationNodes 
- * Implements the mesh animation node system 
+ * TERRA_MeshAnimationNodes
+ * Implements the mesh animation node system
  ***********************************************************************************************************************
 }
 Unit TERRA_MeshAnimationNodes;
@@ -43,13 +43,13 @@ Type
   AnimationObject = Class(TERRAObject)
       Procedure UpdateAnimation(); Virtual;
 
-      Function HasAnimation(MyAnimation:Animation):Boolean; Virtual; 
-      Function GetActiveAnimation:Animation; Virtual; 
+      Function HasAnimation(MyAnimation:Animation):Boolean; Virtual;
+      Function GetActiveAnimation:Animation; Virtual;
 
       //Function HasBone(Bone:Integer):Boolean; Virtual; Abstract;
       Function GetTransform(BoneIndex:Integer):AnimationTransformBlock; Virtual; Abstract;
 
-      Function Finished:Boolean; Virtual; 
+      Function Finished:Boolean; Virtual;
 
       Function Collapse:AnimationObject; Virtual;
 
@@ -138,14 +138,17 @@ Type
 
   AnimationBoneState = Class(TERRAObject)
     _Owner:AnimationState;
-    _BoneName:TERRAString;
     _ID:Integer;
     _Block:AnimationTransformBlock;
     _Ready:Boolean;
     _Parent:AnimationBoneState;
 
+    _BindTranslation:Vector3D;
+    _BindOrientation:Quaternion;
     _BindAbsoluteMatrix:Matrix4x4;
-    _BindRelativeMatrix:Matrix4x4;
+    _BindAbsoluteOrientation:Quaternion;
+
+    //_BindRelativeMatrix:Matrix4x4;
 
     _FrameRelativeMatrix:Matrix4x4;
     _FrameAbsoluteMatrix:Matrix4x4; // the current matrix for the
@@ -155,7 +158,7 @@ Type
     Procedure Release; Override;
   End;
 
-  AnimationProcessor = Function (State:AnimationState; Bone:AnimationBoneState; Block:AnimationTransformBlock):Matrix4x4;
+  AnimationProcessor = Procedure(State:AnimationState; Bone:AnimationBoneState; Block:AnimationTransformBlock; Out FrameRelativeMatrix:Matrix4x4);
 
   AnimationState = Class(TERRAObject)
     Protected
@@ -249,10 +252,13 @@ Begin
   SetLength(Transforms, Succ(_BoneCount));
 
   _BoneStates[Pred(_BoneCount)] := AnimationBoneState.Create;
-  _BoneStates[Pred(_BoneCount)]._BoneName := Bone.Name;
+  _BoneStates[Pred(_BoneCount)]._ObjectName := Bone.Name;
 
   _BoneStates[Pred(_BoneCount)]._BindAbsoluteMatrix := Bone.AbsoluteMatrix;
-  _BoneStates[Pred(_BoneCount)]._BindRelativeMatrix := Bone.RelativeMatrix;
+  _BoneStates[Pred(_BoneCount)]._BindAbsoluteOrientation := Bone.AbsoluteOrientation;
+
+  _BoneStates[Pred(_BoneCount)]._BindTranslation := Bone.Translation;
+  _BoneStates[Pred(_BoneCount)]._BindOrientation := Bone.Orientation;
 
   _BoneStates[Pred(_BoneCount)]._Owner := Self;
   _BoneStates[Pred(_BoneCount)]._ID := Pred(_BoneCount);
@@ -261,7 +267,7 @@ Begin
   If Assigned(Bone.Parent) Then
   Begin
     For I:=0 To Pred(_BoneCount) Do
-    If (StringEquals(_BoneStates[I]._BoneName, Bone.Parent.Name)) Then
+    If (StringEquals(_BoneStates[I].Name, Bone.Parent.Name)) Then
     Begin
       _BoneStates[Pred(_BoneCount)]._Parent := _BoneStates[I];
       Break;
@@ -334,6 +340,7 @@ Begin
   For I:=1 To _BoneCount Do
   Begin
     BoneState := _BoneStates[Pred(I)];
+
     Transforms[I] := Matrix4x4Multiply4x3(BoneState._FrameAbsoluteMatrix, Matrix4x4Inverse(BoneState._BindAbsoluteMatrix));
   End;
 End;
@@ -519,7 +526,7 @@ Var
   I:Integer;
 Begin
   For I:=0 To Pred(Self._BoneCount) Do
-  If (StringEquals(Name, _BoneStates[I]._BoneName)) Then
+  If (StringEquals(Name, _BoneStates[I].Name)) Then
   Begin
     Result := _BoneStates[I];
     Exit;
@@ -537,6 +544,9 @@ End;
 Procedure AnimationBoneState.UpdateTransform;
 Var
   Temp:Matrix4x4;
+  T:Vector3D;
+  S:Single;
+  Q:Quaternion;
 Begin
   If (_Ready) Then
     Exit;
@@ -551,16 +561,17 @@ Begin
 	// Create a transformation matrix from the position and rotation
 	// m_frame: additional transformation for this frame of the animation
   If (Assigned(_Owner.Processor)) Then
-    _FrameRelativeMatrix := _Owner.Processor(_Owner, Self, _Block)
+    _Owner.Processor(_Owner, Self, _Block, _FrameRelativeMatrix)
   Else
   Begin
-    _FrameRelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(_Block.Translation), QuaternionMatrix4x4(_Block.Rotation));
-
   	// Add the animation state to the rest position
-    _FrameRelativeMatrix := Matrix4x4Multiply4x3(_BindRelativeMatrix, _FrameRelativeMatrix);
-  End;
+    Q := QuaternionMultiply(_BindOrientation, _Block.Rotation);
+    T := _BindTranslation;
 
-//  _FrameRelativeMatrix := _BindRelativeMatrix;
+    _FrameRelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(T), QuaternionMatrix4x4(Q));
+
+    _FrameRelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(_Block.Translation), _FrameRelativeMatrix);
+  End;
 
 	If (_Parent = nil ) Then					// this is the root node
   Begin
@@ -570,6 +581,14 @@ Begin
 		// m_final := parent's m_final * m_rel (matrix concatenation)
     _FrameAbsoluteMatrix := Matrix4x4Multiply4x3(_Parent._FrameAbsoluteMatrix, _FrameRelativeMatrix);
 	End;
+
+  S := Sin(Application.GetTime() / 1000);
+  If (StringContains('Head', Self.Name)) Then
+  Begin
+    Temp := Matrix4x4Rotation(-90*RAD*S, 0,0 );
+    Temp.MoveTransformOrigin(Self._BindAbsoluteMatrix.Transform(VectorZero));
+    _FrameAbsoluteMatrix := Matrix4x4Multiply4x3(Temp, _FrameAbsoluteMatrix);
+  End;
 
   _Ready := True;
 End;
@@ -720,7 +739,7 @@ Begin
 
   SetLength(_IndexList, _Owner._BoneCount);
   For I:=0 To Pred(_Owner._BoneCount) Do
-    _IndexList[I] := _Animation.GetBoneIndex(_Owner._BoneStates[I]._BoneName);
+    _IndexList[I] := _Animation.GetBoneIndex(_Owner._BoneStates[I].Name);
 End;
 
 (*Function AnimationNode.HasBone(Bone: Integer): Boolean;

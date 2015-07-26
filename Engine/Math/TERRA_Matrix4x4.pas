@@ -39,6 +39,8 @@ Type
     Function Transform(Const P:Vector3D):Vector3D;
     Function TransformNormal(Const P:Vector3D):Vector3D;
 
+    Procedure MoveTransformOrigin(Const NewOrigin:Vector3D);
+
     Procedure OrthoNormalize;
 
     Procedure SetValue(I,J:Integer; Value:Single);
@@ -155,7 +157,7 @@ Begin
     Projection.V[14] := c.w - Projection.V[15];*)
 End;
 
-{   
+{
   0  1  2  3
   4  5  6  7
   8  9  10 11
@@ -328,6 +330,14 @@ End;
 Function Matrix4x4.Get(I, J: Integer): Single;
 Begin
   Result := V[J*4+I];
+End;
+
+Procedure Matrix4x4.MoveTransformOrigin(Const NewOrigin:Vector3D);
+Var
+  T:Matrix4x4;
+Begin
+  T := Matrix4x4Translation(NewOrigin);
+  Self := Matrix4x4Multiply4x3(T, Matrix4x4Multiply4x3(Self, Matrix4x4Inverse(T)));
 End;
 
 Function Matrix4x4.GetColumns: MatrixColumns;

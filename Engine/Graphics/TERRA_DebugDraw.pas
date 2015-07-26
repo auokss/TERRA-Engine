@@ -51,6 +51,8 @@ Procedure DrawFrustum(View:TERRAViewport; F:Frustum; LineColor:Color; LineWidth:
 Procedure DrawBone(View:TERRAViewport; Bone:MeshBone; State:AnimationState; Const Transform:Matrix4x4; LineColor:Color; LineWidth:Single);
 Procedure DrawSkeleton(View:TERRAViewport; Skeleton:MeshSkeleton; State:AnimationState; Const Transform:Matrix4x4; LineColor:Color; LineWidth:Single);
 
+Procedure DrawAxis(V:TERRAViewport; Const Origin, Normal:Vector3D; LineWidth:Single = 1.0);
+
 (*Procedure DrawFrustum(Const MyFrustum:Frustum; Color:TERRA_Color.Color);
 Procedure DrawPlane(Const Position, Normal:Vector3D; Scale:Single; Color:TERRA_Color.Color);
 Procedure DrawPointCloud(Cloud:PointCloud2D; MyColor:Color; Layer:Single);
@@ -351,6 +353,19 @@ Begin
     DrawLine3D(View, P[I-1], P[I], LineColor, LineWidth);
 End;
 
+
+Procedure DrawAxis(V:TERRAViewport; Const Origin, Normal:Vector3D; LineWidth:Single);
+Var
+  Tangent, BiTangent:Vector3D;
+  M:Matrix4x4;
+Begin
+  Tangent := VectorCross(Normal, VectorUp);
+  BiTangent := VectorCross(Normal, Tangent);
+
+  DrawRay(V, RayCreate(Origin, Normal), ColorRed, LineWidth, 5);
+  DrawRay(V, RayCreate(Origin, Tangent), ColorBlue, LineWidth, 5);
+  DrawRay(V, RayCreate(Origin, BiTangent), ColorGreen, LineWidth, 5);
+End;
 
 (*
 Procedure DrawPointCloud(Cloud:PointCloud2D; MyColor:Color; Layer:Single);

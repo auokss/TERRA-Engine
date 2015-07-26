@@ -6491,7 +6491,7 @@ End;
 
 Function CustomMeshFilter.GetBoneOffsetMatrix(BoneID:Integer):Matrix4x4;
 Begin
-  Result := _Mesh.Skeleton.GetBoneByIndex(BoneID).RelativeMatrix;
+  //Result := _Mesh.Skeleton.GetBoneByIndex(BoneID).RelativeMatrix;
 End;
 
 Function CustomMeshFilter.GetDiffuseColor(GroupID: Integer): Color;

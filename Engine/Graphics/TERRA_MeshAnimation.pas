@@ -784,7 +784,7 @@ Var
 
 Begin
 Exit;
-  TargetSkeleton.NormalizeJoints();
+(*  TargetSkeleton.NormalizeJoints();
 
   Result := Animation.Create(rtDynamic, '');
   Result.Clone(Self);
@@ -824,7 +824,7 @@ Exit;
       End;
 
     End;
-  End;
+  End;*)
 End;
 
 
