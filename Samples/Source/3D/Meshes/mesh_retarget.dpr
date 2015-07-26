@@ -34,7 +34,7 @@ Var
 
 Boo:Boolean;
 
-Procedure TwistAnimation(State:AnimationState; Bone:AnimationBoneState; Block:AnimationTransformBlock; Out FrameRelativeMatrix:Matrix4x4);
+Function TwistAnimation(State:AnimationState; Bone:AnimationBoneState; Block:AnimationTransformBlock):Matrix4x4;
 Var
   TargetInstance, SourceInstance:MeshInstance;
   TargetBone, SourceBone:MeshBone;
@@ -46,7 +46,7 @@ Var
   M:Matrix4x4;
   T:Single;
 Begin
-  FrameRelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(Bone._BindTranslation), QuaternionMatrix4x4(Bone._BindOrientation));
+  Result := Matrix4x4Identity;
 
   If (State = OriginalInstance.Animation) Then
   Begin
@@ -68,57 +68,11 @@ Begin
 
   If StringContains('Head', Bone.Name) Then
   Begin
-    (*Angles := QuaternionToEuler(Bone._BindOrientation);
-    Angles.Scale(DEG);
-    PX := Trunc(Angles.X);
-    PY := Trunc(Angles.Y);
-    PZ := Trunc(Angles.Z);
-    IntToString(px+py+pz);*)
-
-    Boo := Not Boo;
-
     T := Sin(Application.GetTime() / 1000);
-
-    Angles := VectorCreate(-90*RAD * T, 0, 0); // lion
-
-    (*If InputManager.Instance.Keys.IsDown(keyB) Then
-      Q := Bone._BindOrientation
-    Else
-      Q := QuaternionMultiply(Bone._BindOrientation, QuaternionRotation(Angles));*)
-
-    If InputManager.Instance.Keys.IsDown(keyB) Then
-      Q := QuaternionZero
-    Else
-      Q := QuaternionRotation(Angles);
-
-    SourceAxis := SourceBone.Normal;
-    TargetAxis := TargetBone.Normal;
-
-(*    If Boo Then
-    Begin
-      QC := QuaternionFromToRotation(SourceAxis, TargetAxis);
-      QB := Bone._BindOrientation;
-
-//      QB := QuaternionMultiply(QC, QB);
-
-      Q := QuaternionMultiply(Q, QB);
-    End;*)
-
-    //FrameRelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(Bone._BindTranslation), QuaternionMatrix4x4(Q));
-    FrameRelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(Bone._BindTranslation), QuaternionMatrix4x4(Bone._BindOrientation));
-
-    //FrameRelativeMatrix := Matrix4x4Multiply4x3(FrameRelativeMatrix, QuaternionMatrix4x4(Q));
-
-    If InputManager.Instance.Keys.IsDown(keyN) Then
-      Direction := SourceAxis
-    Else
-      //Direction := QuaternionMatrix4x4(Q).Transform(SourceAxis);
-      Direction := FrameRelativeMatrix.Transform(SourceAxis);
-
-    DrawAxis(MyDemo(Application.Instance).Scene.MainViewport, VectorAdd(SourceInstance.Position, SourceBone.AbsolutePosition), Direction);
+    Result := Matrix4x4Rotation(-90*RAD*T, 0,0 );
   End;
 
-
+//    DrawAxis(MyDemo(Application.Instance).Scene.MainViewport, VectorAdd(SourceInstance.Position, SourceBone.AbsolutePosition), Direction);
 End;
 
 Procedure RetargetAnimation(State:AnimationState; Bone:AnimationBoneState; Block:AnimationTransformBlock; Out FrameRelativeMatrix:Matrix4x4);

@@ -155,10 +155,12 @@ Type
 
     Procedure UpdateTransform;
 
+    Function GetCurrentAbsolute:Matrix4x4;
+
     Procedure Release; Override;
   End;
 
-  AnimationProcessor = Procedure(State:AnimationState; Bone:AnimationBoneState; Block:AnimationTransformBlock; Out FrameRelativeMatrix:Matrix4x4);
+  AnimationProcessor = Function(State:AnimationState; Bone:AnimationBoneState; Block:AnimationTransformBlock):Matrix4x4;
 
   AnimationState = Class(TERRAObject)
     Protected
@@ -536,6 +538,14 @@ Begin
 End;
 
 { AnimationBoneState }
+Function AnimationBoneState.GetCurrentAbsolute: Matrix4x4;
+Begin
+  Result := Self._FrameAbsoluteMatrix;
+
+  If Assigned(_Parent) Then
+    Result := Matrix4x4Multiply4x3(_Parent.GetCurrentAbsolute(), Result);
+End;
+
 Procedure AnimationBoneState.Release;
 Begin
   // do nothing
@@ -560,18 +570,16 @@ Begin
 
 	// Create a transformation matrix from the position and rotation
 	// m_frame: additional transformation for this frame of the animation
-  If (Assigned(_Owner.Processor)) Then
-    _Owner.Processor(_Owner, Self, _Block, _FrameRelativeMatrix)
-  Else
-  Begin
-  	// Add the animation state to the rest position
-    Q := QuaternionMultiply(_BindOrientation, _Block.Rotation);
-    T := _BindTranslation;
 
-    _FrameRelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(T), QuaternionMatrix4x4(Q));
+  // Add the animation state to the rest position
+  Q := QuaternionMultiply(_BindOrientation, _Block.Rotation);
+  T := _BindTranslation;
 
-    _FrameRelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(_Block.Translation), _FrameRelativeMatrix);
-  End;
+  Q := QuaternionMultiply(_BindOrientation, _Block.Rotation);
+
+  _FrameRelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(T), QuaternionMatrix4x4(Q));
+
+  _FrameRelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(_Block.Translation), _FrameRelativeMatrix);
 
 	If (_Parent = nil ) Then					// this is the root node
   Begin
@@ -582,11 +590,10 @@ Begin
     _FrameAbsoluteMatrix := Matrix4x4Multiply4x3(_Parent._FrameAbsoluteMatrix, _FrameRelativeMatrix);
 	End;
 
-  S := Sin(Application.GetTime() / 1000);
-  If (StringContains('Head', Self.Name)) Then
+  If (Assigned(_Owner.Processor)) Then
   Begin
-    Temp := Matrix4x4Rotation(-90*RAD*S, 0,0 );
-    Temp.MoveTransformOrigin(Self._BindAbsoluteMatrix.Transform(VectorZero));
+    Temp := _Owner.Processor(_Owner, Self, _Block);
+    Temp.MoveTransformOrigin(_FrameAbsoluteMatrix.Transform(VectorZero));
     _FrameAbsoluteMatrix := Matrix4x4Multiply4x3(Temp, _FrameAbsoluteMatrix);
   End;
 
