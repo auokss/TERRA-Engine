@@ -9,7 +9,7 @@ Uses
   TERRA_Vector2D, TERRA_Mesh, TERRA_MeshSkeleton, TERRA_MeshAnimation, TERRA_MeshAnimationNodes,
   TERRA_FileManager, TERRA_Color, TERRA_DebugDraw, TERRA_Resource, TERRA_Ray, TERRA_Plane,
   TERRA_ScreenFX, TERRA_Math, TERRA_Matrix3x3, TERRA_Matrix4x4, TERRA_Quaternion, TERRA_InputManager,
-  TERRA_FileStream, TERRA_IKBone3D, TERRA_MeshIK;
+  TERRA_FileStream, TERRA_IKBone2D, TERRA_MeshIK;
 
 Type
   MyDemo = Class(DemoApplication)
@@ -89,29 +89,49 @@ Begin
     TargetChain := RightArm;
 End;
 
-Procedure DrawIKBone3D(V:TERRAViewport; Chain:MeshIKChain; Bone:IKBone3D);
+(*Procedure DrawIKBone3D(V:TERRAViewport; Chain:MeshIKChain; Bone:IKBone3D);
 Var
-  A,B:Vector2D;
-  Root, PA,PB:Vector3D;
+  A,B:Vector3D;
+  Root:Vector3D;
 Begin
   If Assigned(Bone.Child) Then
   Begin
-    A := Bone.GetAbsoluteMatrix().Transform(VectorZero2D);
-    B := Bone.Child.GetAbsoluteMatrix().Transform(VectorZero2D);
+    A := Bone.GetAbsoluteMatrix().Transform(VectorZero);
+    B := Bone.Child.GetAbsoluteMatrix().Transform(VectorZero);
 
     Root := Chain.Root.GetAbsolutePosition();
 
-    PA := Root;
-    PA.X := PA.X + A.X;
-    PA.Y := PA.Y + A.Y;
+    A.Add(Root);
+    B.Add(Root);
 
-    PB := Root;
-    PB.X := PB.X + B.X;
-    PB.Y := PB.Y + B.Y;
-
-    DrawLine3D(V, PA, PB, ColorBlue, 2);
+    DrawLine3D(V, A, B, ColorBlue, 2);
 
     DrawIKBone3D(V, Chain, Bone.Child);
+  End;
+End;*)
+
+Procedure DrawIKBone2D(V:TERRAViewport; Chain:MeshIKChain; Bone:IKBone2D);
+Var
+  PA,PB:Vector2D;
+  A,B:Vector3D;
+  Root:Vector3D;
+Begin
+  If Assigned(Bone.Child) Then
+  Begin
+    PA := Bone.GetAbsoluteMatrix().Transform(VectorZero2D);
+    PB := Bone.Child.GetAbsoluteMatrix().Transform(VectorZero2D);
+
+    Root := Chain.Root.GetAbsolutePosition();
+
+    A := VectorCreate(PA.X, PA.Y, 0);
+    B := VectorCreate(PB.X, PB.Y, 0);
+
+    A.Add(Root);
+    B.Add(Root);
+
+    DrawLine3D(V, A, B, ColorBlue, 2);
+
+    DrawIKBone2D(V, Chain, Bone.Child);
   End;
 End;
 
@@ -125,7 +145,7 @@ Begin
   DrawSkeleton(V, TargetInstance.Geometry.Skeleton,  TargetInstance.Animation, TargetInstance.Transform, ColorRed, 4.0);
   GraphicsManager.Instance.AddRenderable(V, TargetInstance);
 
-  DrawIKBone3D(V, LeftArm, LeftArm.IKChain);
+  DrawIKBone2D(V, TargetChain, TargetChain.IKChain);
 
   DrawSphere(V, TargetPos, 20.0, TargetColor, 3);
 End;
@@ -133,6 +153,14 @@ End;
 Procedure MyDemo.OnMouseDown(X, Y: Integer; Button: Word);
 Begin
   Dragging := True;
+
+  If Button = keyMouseRight Then
+  Begin
+    Self.OnMouseMove(X, Y);
+    Self.OnMouseUp(X, Y, Button);
+    Exit;
+  End;
+
 End;
 
 Procedure MyDemo.OnMouseMove(X, Y: Integer);
@@ -150,6 +178,7 @@ Begin
   If R.Intersect(P, T) Then
   Begin
     TargetPos := R.IntersectionPoint(T);
+
     If TargetChain.Solve(TargetPos) Then
       TargetColor := ColorWhite
     Else

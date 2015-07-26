@@ -50,7 +50,7 @@ Type
       Function GetEffector():IKBone3D;
       Function GetChainSize: Integer;
 
-      Procedure CheckDOFConstraints();
+      Function GetValidRotation(Q:Quaternion):Quaternion;
 
     Public
       Constructor Create(ChainSize:Integer; Parent:IKBone3D = Nil);
@@ -77,8 +77,8 @@ Implementation
 Uses TERRA_Math;
 
 Const
-  MAX_IK_TRIES  =	100;		// max iteratiors for the CCD loop (TRIES = # / LINKS)
-  IK_POS_THRESH	= 1.0;	// angle thresold for sucess
+  MAX_IK_TRIES  =	100;	// max iteratiors for the CCD loop (TRIES = # / LINKS)
+  IK_POS_THRESH	= 0.1;	// distance thresold for sucess
 
 { IKBone3D }
 Constructor IKBone3D.Create(ChainSize:Integer; Parent:IKBone3D = Nil);
@@ -96,9 +96,11 @@ Begin
 
   _DampWidth := 5.0 * RAD;
 
+  Self._Rotation := QuaternionZero;
+
   // default DOF restrictions
-  _MinRot := VectorConstant(-30 * RAD);
-  _MaxRot := VectorConstant(30 * RAD);
+  _MinRot := VectorCreate(0, 0, -30 * RAD);
+  _MaxRot := VectorCreate(0, 0, 30 * RAD);
 End;
 
 Procedure IKBone3D.Release;
@@ -143,9 +145,8 @@ Var
   Q:Quaternion;
 Begin
 	// START AT THE LAST LINK IN THE CHAIN
-
   Effector := Self.GetEffector();
-	Link := Effector;
+	Link := Effector.Parent;
 	Tries := 0;						// LOOP COUNTER SO I KNOW WHEN TO QUIT
 	Repeat
 		// THE COORDS OF THE X,Y,Z POSITION OF THE ROOT OF THIS BONE IS IN THE MATRIX
@@ -159,68 +160,50 @@ Begin
 		desiredEnd := endPos;
 
 		// SEE IF I AM ALREADY CLOSE ENOUGH
-		If (VectorSubtract(curEnd, desiredEnd).LengthSquared > IK_POS_THRESH) Then
-    Begin
-			// CREATE THE VECTOR TO THE CURRENT EFFECTOR POS
-			curVector := VectorSubtract(curEnd, rootPos);
-
-			// CREATE THE DESIRED EFFECTOR POSITION VECTOR
-			targetVector := VectorSubtract(endPos, rootPos);
-
-			// NORMALIZE THE VECTORS (EXPENSIVE, REQUIRES A SQRT)
-			curVector.Normalize;
-			targetVector.Normalize;
-
-			// THE DOT PRODUCT GIVES ME THE COSINE OF THE DESIRED ANGLE
-			cosAngle := VectorDot(targetVector, curVector);
-
-			// IF THE DOT PRODUCT RETURNS 1.0, I DON'T NEED TO ROTATE AS IT IS 0 DEGREES
-			if (cosAngle < 0.99999) Then
-			Begin
-				// USE THE CROSS PRODUCT TO CHECK WHICH WAY TO ROTATE
-				crossResult := VectorCross(VectorCreate(targetVector.X, targetVector.Y, 0), VectorCreate(curVector.X, curVector.Y, 0));
-				If (crossResult.z > 0.0)	Then // IF THE Z ELEMENT IS POSITIVE, ROTATE CLOCKWISE
-				Begin
-					turnAngle := arccos(cosAngle);	// GET THE ANGLE
-
-					// DAMPING
-					if (ApplyDamping) And (turnAngle > Link._DampWidth) Then
-						turnAngle := Link._DampWidth;
-
-					Link._Rotation := Link._Rotation - turnAngle;	// ACTUALLY TURN THE LINK
-
-					// DOF RESTRICTIONS
-					If (ApplyDOF) And (Link._Rotation < Link._MinRot) Then
-            Link._Rotation := Link._MinRot;
-
-				End Else
-        if (crossResult.z < 0.0) Then	// ROTATE COUNTER CLOCKWISE
-				Begin
-					turnAngle := ArcCos(cosAngle);
-					// DAMPING
-					If (ApplyDamping) And (turnAngle > Link._DampWidth) Then
-						turnAngle := Link._DampWidth;
-
-				  Link._Rotation := Link._Rotation + turnAngle;	// ACTUALLY TURN THE LINK
-
-					// DOF RESTRICTIONS
-					if (ApplyDOF) And (Link._Rotation > Link._MaxRot) Then
-						Link._Rotation := Link._MaxRot;
-				End;
-
-			End;
-
-      Link := Link.Parent;
-
-			If (Link = Nil) Then
-        Link := Effector;	// START OF THE CHAIN, RESTART
-    End;
-
-    If (VectorSubtract2D(curEnd, desiredEnd).LengthSquared <= IK_POS_THRESH) Then
+		If (VectorSubtract(curEnd, desiredEnd).LengthSquared <= IK_POS_THRESH) Then
     Begin
       Result := True;
       Exit;
     End;
+
+    // CREATE THE VECTOR TO THE CURRENT EFFECTOR POS
+		curVector := VectorSubtract(curEnd, rootPos);
+
+		// CREATE THE DESIRED EFFECTOR POSITION VECTOR
+		targetVector := VectorSubtract(endPos, rootPos);
+
+    // NORMALIZE THE VECTORS (EXPENSIVE, REQUIRES A SQRT)
+		curVector.Normalize;
+		targetVector.Normalize;
+
+    // THE DOT PRODUCT GIVES ME THE COSINE OF THE DESIRED ANGLE
+		cosAngle := VectorDot(targetVector, curVector);
+
+		// IF THE DOT PRODUCT RETURNS 1.0, I DON'T NEED TO ROTATE AS IT IS 0 DEGREES
+		If (cosAngle < 0.99999) Then
+    Begin
+      // USE THE CROSS PRODUCT TO CHECK WHICH WAY TO ROTATE
+			crossResult := VectorCross(targetVector, curVector);
+      crossResult.Normalize();
+
+      turnAngle := arccos(cosAngle);	// GET THE ANGLE
+
+      // DAMPING
+			If (ApplyDamping) And (turnAngle > Link._DampWidth) Then
+        turnAngle := Link._DampWidth;
+
+      Q := QuaternionFromAxisAngle(crossResult, turnAngle);	// ACTUALLY TURN THE LINK
+
+      Q := QuaternionMultiply(Link._Rotation, Q);
+      Q.Normalize();
+
+      Link._Rotation := Self.GetValidRotation(Q);
+    End;
+
+    Link := Link.Parent;
+
+		If (Link = Nil) Then
+      Link := Effector.Parent;	// START OF THE CHAIN, RESTART
 
 	  // QUIT IF BEEN RUNNING LONG ENOUGH
     Inc(Tries);
@@ -240,29 +223,53 @@ Begin
     Result := _Child.GetChainBone(Pred(Index));
 End;
 
-Procedure IKBone3D.CheckDOFConstraints();
+Function IKBone3D.IsValidRotation(Q:Quaternion):Boolean;
 Var
   Euler:Vector3D;
 Begin
 	// FIRST STEP IS TO CONVERT LINK QUATERNION BACK TO EULER ANGLES
-	Euler := QuaternionToEuler(Self._Rotation);
+	Euler := QuaternionToEuler(Q);
 
+  Result := False;
+	If (euler.x > Self._MaxRot.X) Then
+		Exit;
+
+	If (euler.x < Self._MinRot.X) Then
+		Exit;
+
+	If (euler.y > Self._MaxRot.y) Then
+		Exit;
+
+	If (euler.y < Self._MinRot.y) Then
+		Exit;
+
+	If (euler.z > Self._MaxRot.z) Then
+		Exit;
+
+	If (euler.z < Self._MinRot.z) Then
+		Exit;
+
+  Result := True;
 	// CHECK THE DOF SETTINGS
-	If (euler.x > Self._MaxRotx) Then
-		euler.x = Self._MaxRotx;
-	If (euler.x < Self._MinRotx) Then
-		euler.x = Self._MinRotx;
-	If (euler.y > Self._MaxRoty) Then
-		euler.y = Self._MaxRoty;
-	If (euler.y < Self._MinRoty) Then
-		euler.y = Self._MinRoty;
-	If (euler.z > Self._MaxRotz) Then
-		euler.z = Self._MaxRotz;
-	If (euler.z < Self._MinRotz) Then
-		euler.z = Self._MinRotz;
+(*	If (euler.x > Self._MaxRot.X) Then
+		euler.x := Self._MaxRot.x;
 
-	// BACK TO QUATERNION
-	_Rotation := QuaternionRotation(Euler);
+	If (euler.x < Self._MinRot.X) Then
+		euler.x := Self._MinRot.x;
+
+	If (euler.y > Self._MaxRot.y) Then
+		euler.y := Self._MaxRot.y;
+
+	If (euler.y < Self._MinRot.y) Then
+		euler.y := Self._MinRot.y;
+
+	If (euler.z > Self._MaxRot.z) Then
+		euler.z := _MaxRot.z
+  Else
+	If (euler.z < Self._MinRot.z) Then
+		euler.z := Self._MinRot.z;
+
+  Result := QuaternionRotation(Euler);*)
 End;
 
 End.

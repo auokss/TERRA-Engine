@@ -57,6 +57,9 @@ Type
       Function GetRelativeMatrix:Matrix3x3;
       Function GetAbsoluteMatrix:Matrix3x3;
 
+      Procedure SetLimits(Min, Max:Single);
+      Procedure SetLimitsInDegrees(Min, Max:Single);
+
       Function GetChainBone(Index:Integer):IKBone2D;
 
       Function Solve(Const EndPos:Vector2D; ApplyDamping, ApplyDOF:Boolean):Boolean;
@@ -142,7 +145,7 @@ Var
 Begin
 	// START AT THE LAST LINK IN THE CHAIN
   Effector := Self.GetEffector();
-	Link := Effector;
+	Link := Effector.Parent;
 	Tries := 0;						// LOOP COUNTER SO I KNOW WHEN TO QUIT
 	Repeat
 		// THE COORDS OF THE X,Y,Z POSITION OF THE ROOT OF THIS BONE IS IN THE MATRIX
@@ -213,7 +216,7 @@ Begin
     Link := Link.Parent;
 
     If (Link = Nil) Then
-      Link := Effector;	// START OF THE CHAIN, RESTART
+      Link := Effector.Parent;	// START OF THE CHAIN, RESTART
 
 	  // QUIT IF BEEN RUNNING LONG ENOUGH
     Inc(Tries);
@@ -233,5 +236,16 @@ Begin
     Result := _Child.GetChainBone(Pred(Index));
 End;
 
+
+Procedure IKBone2D.SetLimits(Min, Max: Single);
+Begin
+  _MaxRot := Max;
+  _MinRot := Min;
+End;
+
+Procedure IKBone2D.SetLimitsInDegrees(Min, Max: Single);
+Begin
+  Self.SetLimits(Min * RAd, Max  * RAD);
+End;
 
 End.
