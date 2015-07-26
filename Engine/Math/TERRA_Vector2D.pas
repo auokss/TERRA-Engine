@@ -280,15 +280,13 @@ End;
 Function VectorAngle2D(Const A,B:Vector2D):Single;
 Var
   XDiff, YDiff: Single;
-  fpAngle: Single;
   N:Vector2D;
 begin
   N := B;
   N.Subtract(A);
   N.Normalize();
 
-  fpAngle := Atan2(-N.Y, N.X);
-  Result := fpAngle + 90*RAD;
+  Result := Atan2(N.Y, N.X);
 End;
 
 Function VectorAngle3D(Const A,B:Vector3D):Single;

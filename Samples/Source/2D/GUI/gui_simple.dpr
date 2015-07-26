@@ -52,7 +52,7 @@ Type
 
 Var
   Fnt:TERRAFont;
-  MyUI:UI;
+  MyUI:TERRAUI;
   MyWnd:UIWindow;
   MyBtn:UIButton;
 
@@ -65,7 +65,7 @@ Begin
   Fnt := FontManager.Instance.GetFont('droid');
 
   // Create a new UI
-  MyUI := UI.Create;
+  MyUI := TERRAUI.Create;
 
   // Register the font with the UI
   MyUI.DefaultFont := Fnt;

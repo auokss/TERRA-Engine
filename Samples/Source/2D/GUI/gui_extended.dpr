@@ -24,6 +24,7 @@ uses
   TERRA_Color,
   TERRA_String,
   TERRA_Matrix4x4,
+  TERRA_UIDimension,
   TERRA_UIWindow,
   TERRA_UIButton,
   TERRA_UISprite,
@@ -37,7 +38,7 @@ uses
 Type
   Demo = Class(Application)
     Protected
-      _Scene:Scene;
+      _Scene:TERRAScene;
 
     Public
 			Procedure OnCreate; Override;
@@ -51,7 +52,7 @@ Type
 			Procedure OnIdle; Override;
   End;
 
-  MyScene = Class(Scene)
+  MyScene = Class(TERRAScene)
       Constructor Create;
       Procedure Release; Override;
 
@@ -65,8 +66,8 @@ Type
   End;
 
 Var
-  Fnt:Font;
-  MyUI:UI;
+  Fnt:TERRAFont;
+  MyUI:TERRAUI;
   MyWnd:UIWindow;
   MyText:UILabel;
   ShowBtn:UIButton;
@@ -83,7 +84,7 @@ Begin
   Fnt := FontManager.Instance.GetFont('droid');
 
   // Create a new UI
-  MyUI := UI.Create;
+  MyUI := TERRAUI.Create;
 
   // Register the font with the UI
   MyUI.DefaultFont := Fnt;
@@ -107,7 +108,7 @@ Begin
     Application.Instance.Terminate;
 
   If Assigned(PBar) Then
-    PBar.Percent := Abs(Cos(GetTime/1000)) * 100;
+    PBar.Percent.Value := Abs(Cos(GetTime/1000)) * 100;
 End;
 
 Procedure Demo.OnKeyPress(Key:Word);
@@ -144,7 +145,7 @@ Var
   Combo:UIComboBox;
   Content:List;
 
-  MyTex:Texture;
+  MyTex:TERRATexture;
 Begin
   // Get background texture
   MyTex := TextureManager.Instance.GetTexture('background');
@@ -155,8 +156,8 @@ Begin
     Background := UISprite.Create('mybg', MyUI, 0, 0, 1);
 
     Background.SetTexture(MyTex);
-    Background.Width := UIScreenWidthPercent(100.0);
-    Background.Height := UIScreenHeightPercent(100.0);
+    Background.Width := UIPercent(100.0);
+    Background.Height := UIPercent(100.0);
 
     Background.U2 := 2;
     Background.V2 := 2;
@@ -200,7 +201,7 @@ Begin
 
   Edt := UIEditText.Create('myedt', MyWnd, 20, 190, 10, UIPixels(300), UIPixels(50), 'editbox');
   Edt.Align := waTopRight;
-  Edt.Caption := 'Write something here...';
+  Edt.Caption.Value := 'Write something here...';
 //  Edt.LineCount := 5;
 
   Edt := UIEditText.Create('myedt', MyWnd, 20, 340, 10, UIPixels(300), UIPixels(50), 'editbox');
@@ -259,7 +260,7 @@ End;
 
 Procedure MyScene.OnCheckBoxClick(Src:Widget);
 Begin
-  MyWnd.Draggable := UICheckBox(Src).Checked;
+  MyWnd.Draggable := UICheckBox(Src).Checked.Value;
 End;
 
 Procedure MyScene.OnShowClick(Src:Widget);

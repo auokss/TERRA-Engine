@@ -27,7 +27,7 @@ Unit TERRA_DebugDraw;
 Interface
 
 Uses TERRA_Object, TERRA_String, TERRA_GraphicsManager, TERRA_Renderer, TERRA_Color, TERRA_BoundingBox, TERRA_Frustum,
-  TERRA_Ray, TERRA_Matrix4x4, TERRA_Vector3D, TERRA_Vector2D, TERRA_Utils, TERRA_SpriteManager,
+  TERRA_Ray, TERRA_Matrix3x3, TERRA_Matrix4x4, TERRA_Vector3D, TERRA_Vector2D, TERRA_Utils, TERRA_SpriteManager,
   TERRA_MeshSkeleton, TERRA_MeshAnimationNodes, TERRA_Collision2D, TERRA_Splines, TERRA_ClipRect, TERRA_Viewport;
 
 // 2d drawing
@@ -83,22 +83,25 @@ End;
 Procedure DrawLine2D(View:TERRAViewport; Const A,B:Vector2D; LineColor:Color; LineWidth:Single);
 Var
   Tex:TERRATexture;
-  DX, DY, Angle, Len:Single;
+  Angle:Single;
   S:QuadSprite;
+  Mat:Matrix3x3;
 Begin
   Tex := TextureManager.Instance.WhiteTexture;
   If Tex = Nil Then
     Exit;
 
-  DX := B.X - A.X;
-  DY := A.Y - B.Y;
-  Angle := Atan2(DY, DX);
+  Angle := VectorAngle2D(A, B);
 
-  S := SpriteManager.Instance.DrawSprite(Trunc(A.X), Trunc(A.Y), Layer, Tex);
+  S := SpriteManager.Instance.DrawSprite(0, 0, Layer, Tex);
   S.SetColor(LineColor);
   S.Rect.Width := Trunc(A.Distance(B));
   S.Rect.Height := Trunc(LineWidth);
-  S.SetScaleAndRotation(1.0, Angle);
+
+  Mat := MatrixRotation2D(Angle);
+  Mat.SetTranslation(A);
+
+  S.SetTransform(Mat);
 End;
 
 Procedure DrawFilledRect(View:TERRAViewport; Const A,B:Vector2D; FillColor:Color);

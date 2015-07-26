@@ -36,6 +36,7 @@ Type
     Function Transform(Const P:Vector3D):Vector3D; Overload;
 
     Function GetTranslation():Vector2D;
+    Procedure SetTranslation(T:Vector2D);
 
     Procedure Init(Const M:Matrix4x4);
   End;
@@ -80,6 +81,12 @@ Function Matrix3x3.GetTranslation():Vector2D;
 Begin
   Result.X := Self.V[6];
   Result.Y := Self.V[7];
+End;
+
+Procedure Matrix3x3.SetTranslation(T:Vector2D);
+Begin
+  Self.V[6] := T.X;
+  Self.V[7] := T.Y;
 End;
 
 Procedure Matrix3x3.Init(Const M: Matrix4x4);
