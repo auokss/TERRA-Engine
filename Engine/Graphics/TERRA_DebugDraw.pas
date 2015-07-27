@@ -86,6 +86,7 @@ End;
 Procedure DrawLine2D(View:TERRAViewport; Const A,B:Vector2D; LineColor:Color; LineWidth:Single);
 Var
   Tex:TERRATexture;
+  Dist:Integer;
   Angle:Single;
   S:QuadSprite;
   Mat:Matrix3x3;
@@ -94,11 +95,18 @@ Begin
   If Tex = Nil Then
     Exit;
 
+  Dist := Trunc(A.Distance(B));
+  If (Dist<=0) Then
+  Begin
+    DrawPoint2D(View, A, LineColor, LineWidth);
+    Exit;
+  End;
+
   Angle := VectorAngle2D(A, B);
 
   S := SpriteManager.Instance.DrawSprite(0, 0, Layer, Tex);
   S.SetColor(LineColor);
-  S.Rect.Width := Trunc(A.Distance(B));
+  S.Rect.Width := Dist;
   S.Rect.Height := Trunc(LineWidth);
 
   Mat := MatrixRotation2D(Angle);
