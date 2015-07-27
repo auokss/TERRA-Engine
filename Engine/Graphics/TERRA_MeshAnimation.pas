@@ -780,11 +780,10 @@ Var
   inverseTargetParentModelRot:Quaternion;
   targetLocalRot, targetInverseBindRotation, twist:Quaternion;
 
-  localRot, finalRot:Quaternion;
-
+  Q:Quaternion;
+  M:Matrix4x4;
 Begin
-Exit;
-(*  TargetSkeleton.NormalizeJoints();
+  TargetSkeleton.NormalizeJoints();
 
   Result := Animation.Create(rtDynamic, '');
   Result.Clone(Self);
@@ -815,16 +814,14 @@ Exit;
 
       For K:=0 To Pred(Rots.Count) Do
       Begin
-
-        //finally computing the animation rotation for the current frame. Note that the first "mult" instanciate a new Quaternion.
-        finalRot := targetInverseBindRotation.mult(targetLocalRot); //.multLocal(twist);
-        finalRot.Normalize();
-        Rots.Keyframes[K].Value := QuaternionToEuler(finalRot);
-
+        Q := QuaternionRotation(Rots.Keyframes[K].Value);
+        M := QuaternionMatrix4x4(Q);
+        M := Matrix4x4Multiply4x3(TargetBone.RetargetMatrix, M);
+        Rots.Keyframes[K].Value := M.GetEulerAngles();
       End;
 
     End;
-  End;*)
+  End;
 End;
 
 

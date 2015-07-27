@@ -34,14 +34,19 @@ Var
 
 Boo:Boolean;
 
-Function TwistAnimation(State:AnimationState; Bone:AnimationBoneState; Block:AnimationTransformBlock):Matrix4x4;
+Type
+  AnimationTwister = Class(AnimationProcessor)
+    Function PostTransform(State: AnimationState; Bone: AnimationBoneState; Const Block:AnimationTransformBlock): Matrix4x4; Override;
+  End;
+
+Function AnimationTwister.PostTransform(State:AnimationState; Bone:AnimationBoneState; Const Block:AnimationTransformBlock):Matrix4x4;
 Var
   TargetInstance, SourceInstance:MeshInstance;
   TargetBone, SourceBone:MeshBone;
 
   Q, QB, QC:Quaternion;
   Angles:Vector3D;
-  SourceAxis, TargetAxis, Direction:Vector3D;
+  Pos, SourceAxis, TargetAxis, Direction:Vector3D;
   PX, PY, PZ:Integer;
   M:Matrix4x4;
   T:Single;
@@ -69,53 +74,97 @@ Begin
   If StringContains('Head', Bone.Name) Then
   Begin
     T := Sin(Application.GetTime() / 1000);
-    Result := Matrix4x4Rotation(-90*RAD*T, 0,0 );
+    //Result := Matrix4x4Rotation(0, -90*RAD*T, 0);
+    //Result := Matrix4x4Scale(2, 2,2);
+
+    Q := QuaternionMultiply(Bone._BindAbsoluteOrientation, Block.Rotation);
+    M := QuaternionMatrix4x4(Q);
+
+    Direction := M.TransformNormal(VectorUp);
+    Pos := Bone._FrameAbsoluteMatrix.Transform(VectorZero);
+    DrawAxis(MyDemo(Application.Instance).Scene.MainViewport, VectorAdd(SourceInstance.Position, Pos), Direction);
   End;
 
-//    DrawAxis(MyDemo(Application.Instance).Scene.MainViewport, VectorAdd(SourceInstance.Position, SourceBone.AbsolutePosition), Direction);
 End;
 
-Procedure RetargetAnimation(State:AnimationState; Bone:AnimationBoneState; Block:AnimationTransformBlock; Out FrameRelativeMatrix:Matrix4x4);
+Type
+  AnimationRetargeter = Class(AnimationProcessor)
+    Function PostTransform(State: AnimationState; Bone: AnimationBoneState; Const Block:AnimationTransformBlock): Matrix4x4; Override;
+    Function PreTransform(State: AnimationState; Bone: AnimationBoneState; Const Block:AnimationTransformBlock): Matrix4x4; Override;
+  End;
+
+Function AnimationRetargeter.PreTransform(State: AnimationState; Bone: AnimationBoneState; Const Block:AnimationTransformBlock): Matrix4x4;
 Var
-  TargetBone, OtherBone:MeshBone;
+  SourceBone, TargetBone:MeshBone;
   OtherState:AnimationBoneState;
 
-  QA, QB, QC:Quaternion;
- Angles, T:Vector3D;
+  T:Vector3D;
+  Q:Quaternion;
 Begin
-  FrameRelativeMatrix := Matrix4x4Identity;
+  Result := Matrix4x4Identity;
 
-  OtherBone := OriginalInstance.Geometry.Skeleton.GetBoneByName(Bone.Name);
-  If OtherBone = Nil Then
+  SourceBone := OriginalInstance.Geometry.Skeleton.GetBoneByName(Bone.Name);
+  If SourceBone = Nil Then
     Exit;
 
   TargetBone := ClonedInstance.Geometry.Skeleton.GetBoneByName(Bone.Name);
   If TargetBone = Nil Then
     Exit;
 
-    If OtherBone.Parent = Nil Then
-      Exit;
+  // Add the animation state to the rest position
+  //Q := QuaternionMultiply(Bone._BindOrientation, Block.Rotation);
+  //T := VectorAdd(Bone._BindTranslation, Block.Translation);
 
-
-    {Block.Rotation -> old.bone_space
-    Block.Rotation ->}
-
-  Angles := QuaternionToEuler(Block.Rotation);
-
-  QC := QuaternionRotation(Angles);
-
-  QA := QuaternionMultiply(Bone._BindOrientation, QC);
+  Q := Bone._BindOrientation;
   T := Bone._BindTranslation;
+  Result := Matrix4x4Multiply4x3(Matrix4x4Translation(T), QuaternionMatrix4x4(Q));
 
-  QB := QuaternionFromToRotation(TargetBone.Normal, OtherBone.Normal);
-  QB := QuaternionZero;
+  If SourceBone.Parent = Nil Then
+    Exit;
+End;
 
-  If Assigned(OtherBone.Parent) Then
-    QA := QuaternionMultiply(QA, QB);
+Function AnimationRetargeter.PostTransform(State:AnimationState; Bone:AnimationBoneState; Const Block:AnimationTransformBlock):Matrix4x4;
+Var
+  SourceBone, TargetBone:MeshBone;
+  OtherState:AnimationBoneState;
 
-  FrameRelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(T), QuaternionMatrix4x4(QA));
+  A, B, SourceAxis, TargetAxis:Vector3D;
+  SourceBoneState:AnimationBoneState;
+  SourceLocal, SourceAbs, SourceParentAbs:Matrix4x4;
+  S:Single;
 
-  //FrameRelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(Block.Translation), FrameRelativeMatrix);
+  Angles, T:Vector3D;
+  Q:Quaternion;
+Begin
+  Result := Matrix4x4Identity;
+
+  SourceBone := OriginalInstance.Geometry.Skeleton.GetBoneByName(Bone.Name);
+  If SourceBone = Nil Then
+    Exit;
+
+  TargetBone := ClonedInstance.Geometry.Skeleton.GetBoneByName(Bone.Name);
+  If TargetBone = Nil Then
+    Exit;
+
+  If SourceBone.Parent = Nil Then
+    Exit;
+
+  (*If StringContains('Head', Bone.Name) Then
+  Begin
+    S := Sin(Application.GetTime() / 1000);
+    Result := Matrix4x4Rotation(0, -90*RAD*S, 0);
+  End;*)
+
+  SourceBoneState := OriginalInstance.Animation.GetBoneByName(SourceBone.Name);
+  SourceAbs := SourceBoneState._FrameAbsoluteMatrix;
+  SourceParentAbs := SourceBoneState._Parent._FrameAbsoluteMatrix;
+
+  SourceAbs := OriginalInstance.Animation.Transforms[SourceBone.Index + 1];
+  SourceParentAbs := OriginalInstance.Animation.Transforms[SourceBone.Parent.Index + 1];
+
+  Result := Matrix4x4Multiply4x3(Matrix4x4Inverse(SourceParentAbs), SourceAbs);
+  //Result.MoveTransformOrigin(SourceAbs.GetTranslation);
+  //Result := Matrix4x4Multiply4x3(SourceAbs, Matrix4x4Inverse(TargetBone.AbsoluteMatrix));
 End;
 
 
@@ -135,14 +184,16 @@ Begin
   Begin
     OriginalInstance :=MeshInstance.Create(MyMesh);
     OriginalInstance.SetPosition(VectorCreate(5, 0, 0));
+    //OriginalInstance.SetRotation(VectorCreate(0, 90*RAD, 0));
   End Else
     OriginalInstance := Nil;
 
   OriginalAnimation := OriginalInstance.Animation.Find('run');
   OriginalInstance.Animation.Play(OriginalAnimation, RescaleDuration);
-  OriginalInstance.Animation.Processor := TwistAnimation;
+  OriginalInstance.Animation.Processor := AnimationTwister.Create();
 
-  MyMesh := MeshManager.Instance.GetMesh('monster');
+  MyMesh := MeshManager.Instance.GetMesh('fox2');
+  //MyMesh := MeshManager.Instance.GetMesh('monster');
   ClonedMesh := TERRAMesh.Create(rtDynamic, '');
   ClonedMesh.Clone(MyMesh);
   If Assigned(ClonedMesh) Then
@@ -158,7 +209,8 @@ Begin
   RetargetedAnimation := Animation.Create(rtDynamic, ''); RetargetedAnimation.Clone(OriginalAnimation);
 
   ClonedInstance.Animation.Play(RetargetedAnimation, RescaleDuration);
-  ClonedInstance.Animation.Processor := TwistAnimation; //RetargetAnimation;
+  //ClonedInstance.Animation.Processor := AnimationTwister.Create();
+  ClonedInstance.Animation.Processor := AnimationRetargeter.Create();
 End;
 
 Procedure MyDemo.OnDestroy;
@@ -184,7 +236,7 @@ Begin
 
   //DrawBoundingBox(V, OriginalInstance.GetBoundingBox, ColorBlue);
 //  DrawSkeleton(V, OriginalInstance.Geometry.Skeleton,  OriginalInstance.Animation, OriginalInstance.Transform, ColorRed, 4.0);
- // DrawSkeleton(V, ClonedInstance.Geometry.Skeleton,  ClonedInstance.Animation, ClonedInstance.Transform, ColorRed, 4.0);
+  DrawSkeleton(V, ClonedInstance.Geometry.Skeleton,  ClonedInstance.Animation, ClonedInstance.Transform, ColorRed, 4.0);
 
   GraphicsManager.Instance.AddRenderable(V, OriginalInstance);
   GraphicsManager.Instance.AddRenderable(V, ClonedInstance);

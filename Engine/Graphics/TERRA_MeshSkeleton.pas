@@ -43,6 +43,8 @@ Type
       //_AbsoluteMatrix:Matrix4x4;
       //_RelativeMatrix:Matrix4x4;
 
+      _RetargetMatrix:Matrix4x4;
+
       _Ready:Boolean;
 
       Procedure Init;
@@ -74,6 +76,8 @@ Type
 
       Property AbsoluteMatrix:Matrix4x4 Read GetAbsoluteMatrix;
       //Property RelativeMatrix:Matrix4x4 Read _RelativeMatrix;
+
+      Property RetargetMatrix:Matrix4x4 Read _RetargetMatrix;
 
       Property AbsolutePosition:Vector3D Read GetAbsolutePosition;
       Property AbsoluteOrientation:Quaternion Read GetAbsoluteOrientation;
@@ -183,7 +187,6 @@ Begin
   Source.Read(@Angles, SizeOf(Vector3D));
 
   _Orientation := QuaternionRotation(Angles);
-  //_RelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(startPosition), Matrix4x4Rotation(startRotation));
   _Ready := False;
 End;
 
@@ -383,21 +386,58 @@ Procedure MeshSkeleton.NormalizeJoints;
 Var
   I:Integer;
   Bone:MeshBone;
-  A, B, C:Matrix4x4;
+  CurrentPos:Array Of Vector3D;
+  Angles:Vector3D;
+  A, B, C, M:Matrix4x4;
 Begin
-For I:=0 To Pred(Self.BoneCount) Do
+  SetLength(CurrentPos, Self.BoneCount);
+  For I:=0 To Pred(Self.BoneCount) Do
+  Begin
+    Bone := Self.GetBoneByIndex(I);
+    CurrentPos[Bone.Index] := Bone.AbsolutePosition;
+  End;
+
+  For I:=0 To Pred(Self.BoneCount) Do
   Begin
     Bone := Self.GetBoneByIndex(I);
 
-    If Assigned(Bone.Parent) Then
-      Bone._Translation := VectorSubtract(Bone.AbsoluteMatrix.Transform(VectorZero), Bone.Parent.AbsoluteMatrix.Transform(VectorZero))
-    Else
-      Bone._Translation:= Bone.AbsoluteMatrix.Transform(VectorZero);
+    A := Matrix4x4Inverse(QuaternionMatrix4x4(Bone._Orientation));
+    (*B := Matrix4x4Translation(CurrentPos[Bone.Index]);
 
-    Bone._Orientation := QuaternionZero;
+    If Assigned(Bone.Parent) Then
+      C := Matrix4x4Inverse(Matrix4x4Translation(CurrentPos[Bone.Parent.Index]))
+    Else
+      C := Matrix4x4Identity;*)
+
+    If Assigned(Bone.Parent) Then
+      B := Matrix4x4Translation(VectorSubtract(CurrentPos[Bone.Index], CurrentPos[Bone.Parent.Index]))
+    Else
+      B := Matrix4x4Translation(Bone.AbsolutePosition);
+
+    //M := Matrix4x4Multiply4x3(A, B);
+    M := B;
+
+
+    C := Matrix4x4Multiply4x3(Matrix4x4Inverse(QuaternionMatrix4x4(Bone._Orientation)), Matrix4x4Inverse(B));
+
+    //M := Matrix4x4Multiply4x3(C, B);
+
+    Angles := M.GetEulerAngles();
+
+    Bone._Translation := M.GetTranslation;
+    Bone._Orientation := QuaternionRotation(Angles);
+
+    Bone._RetargetMatrix := M;
+
+    (*If Assigned(Bone.Parent) Then
+      Bone._Translation := VectorSubtract(CurrentPos[Bone.Index], CurrentPos[Bone.Parent.Index])
+    Else
+      Bone._Translation := Bone.AbsolutePosition;*)
 
     Bone._Ready := False;
   End;
+
+  CurrentPos := Nil;
 
   For I:=0 To Pred(Self.BoneCount) Do
   Begin
