@@ -89,7 +89,8 @@ End;
 
 Type
   AnimationRetargeter = Class(AnimationProcessor)
-    Function PostTransform(State: AnimationState; Bone: AnimationBoneState; Const Block:AnimationTransformBlock): Matrix4x4; Override;
+    //Function PostTransform(State: AnimationState; Bone: AnimationBoneState; Const Block:AnimationTransformBlock): Matrix4x4; Override;
+    Function FinalTransform(State: AnimationState; Bone: AnimationBoneState): Matrix4x4; Override;
     Function PreTransform(State: AnimationState; Bone: AnimationBoneState; Const Block:AnimationTransformBlock): Matrix4x4; Override;
   End;
 
@@ -123,7 +124,8 @@ Begin
     Exit;
 End;
 
-Function AnimationRetargeter.PostTransform(State:AnimationState; Bone:AnimationBoneState; Const Block:AnimationTransformBlock):Matrix4x4;
+//Function AnimationRetargeter.PostTransform(State:AnimationState; Bone:AnimationBoneState; Const Block:AnimationTransformBlock):Matrix4x4;
+Function AnimationRetargeter.FinalTransform(State:AnimationState; Bone:AnimationBoneState):Matrix4x4;
 Var
   SourceBone, TargetBone:MeshBone;
   OtherState:AnimationBoneState;
@@ -155,14 +157,26 @@ Begin
     Result := Matrix4x4Rotation(0, -90*RAD*S, 0);
   End;*)
 
+  //Exit;
+
   SourceBoneState := OriginalInstance.Animation.GetBoneByName(SourceBone.Name);
-  SourceAbs := SourceBoneState._FrameAbsoluteMatrix;
-  SourceParentAbs := SourceBoneState._Parent._FrameAbsoluteMatrix;
+
 
   SourceAbs := OriginalInstance.Animation.Transforms[SourceBone.Index + 1];
   SourceParentAbs := OriginalInstance.Animation.Transforms[SourceBone.Parent.Index + 1];
 
-  Result := Matrix4x4Multiply4x3(Matrix4x4Inverse(SourceParentAbs), SourceAbs);
+(*  SourceAbs := SourceBoneState._FrameAbsoluteMatrix;
+  SourceParentAbs := SourceBoneState._Parent._FrameAbsoluteMatrix;*)
+
+  //Result := Matrix4x4Multiply4x3(Matrix4x4Inverse(SourceParentAbs), SourceAbs);
+  Result := SourceAbs;
+  //Result.SetTranslation(VectorZero);
+
+  //Result := SourceBoneState._FrameRelativeMatrix;
+//  Result.SetTranslation(VectorZero);
+
+//  Result := Matrix4x4Inverse(Result);
+
   //Result.MoveTransformOrigin(SourceAbs.GetTranslation);
   //Result := Matrix4x4Multiply4x3(SourceAbs, Matrix4x4Inverse(TargetBone.AbsoluteMatrix));
 End;
@@ -192,8 +206,8 @@ Begin
   OriginalInstance.Animation.Play(OriginalAnimation, RescaleDuration);
   OriginalInstance.Animation.Processor := AnimationTwister.Create();
 
-  MyMesh := MeshManager.Instance.GetMesh('fox2');
-  //MyMesh := MeshManager.Instance.GetMesh('monster');
+  //MyMesh := MeshManager.Instance.GetMesh('fox2');
+  MyMesh := MeshManager.Instance.GetMesh('monster');
   ClonedMesh := TERRAMesh.Create(rtDynamic, '');
   ClonedMesh.Clone(MyMesh);
   If Assigned(ClonedMesh) Then
@@ -235,7 +249,7 @@ Begin
   //DrawLine2D(V, VectorCreate2D(100, 100), VectorCreate2D(InputManager.Instance.Mouse.X, InputManager.Instance.Mouse.Y), ColorWhite);
 
   //DrawBoundingBox(V, OriginalInstance.GetBoundingBox, ColorBlue);
-//  DrawSkeleton(V, OriginalInstance.Geometry.Skeleton,  OriginalInstance.Animation, OriginalInstance.Transform, ColorRed, 4.0);
+  DrawSkeleton(V, OriginalInstance.Geometry.Skeleton,  OriginalInstance.Animation, OriginalInstance.Transform, ColorRed, 4.0);
   DrawSkeleton(V, ClonedInstance.Geometry.Skeleton,  ClonedInstance.Animation, ClonedInstance.Transform, ColorRed, 4.0);
 
   GraphicsManager.Instance.AddRenderable(V, OriginalInstance);

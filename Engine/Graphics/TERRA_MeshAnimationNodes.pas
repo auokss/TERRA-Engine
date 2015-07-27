@@ -163,6 +163,7 @@ Type
   AnimationProcessor = Class(TERRAObject)
     Function PreTransform(State:AnimationState; Bone:AnimationBoneState; Const Block:AnimationTransformBlock):Matrix4x4; Virtual;
     Function PostTransform(State:AnimationState; Bone:AnimationBoneState; Const Block:AnimationTransformBlock):Matrix4x4; Virtual;
+    Function FinalTransform(State:AnimationState; Bone:AnimationBoneState):Matrix4x4; Virtual;
   End;
 
   AnimationState = Class(TERRAObject)
@@ -352,6 +353,12 @@ Begin
     BoneState := _BoneStates[Pred(I)];
 
     Transforms[I] := Matrix4x4Multiply4x3(BoneState._FrameAbsoluteMatrix, Matrix4x4Inverse(BoneState._BindAbsoluteMatrix));
+
+    M := Self._Processor.FinalTransform(Self, BoneState);
+//    M.MoveTransformOrigin(BoneState._FrameAbsoluteMatrix.Transform(VectorZero));
+    Transforms[I] := Matrix4x4Multiply4x3(M, Transforms[I]);
+
+
   End;
 End;
 
@@ -595,7 +602,7 @@ Begin
 	End;
 
   Temp := _Owner.Processor.PostTransform(_Owner, Self, _Block);
-//  Temp.MoveTransformOrigin(_FrameAbsoluteMatrix.Transform(VectorZero));
+  Temp.MoveTransformOrigin(_FrameAbsoluteMatrix.Transform(VectorZero));
   _FrameAbsoluteMatrix := Matrix4x4Multiply4x3(Temp, _FrameAbsoluteMatrix);
 
   _Ready := True;
@@ -956,6 +963,11 @@ End;
 
 
 Function AnimationProcessor.PostTransform(State: AnimationState; Bone: AnimationBoneState; Const Block:AnimationTransformBlock): Matrix4x4;
+Begin
+  Result := Matrix4x4Identity;
+End;
+
+Function AnimationProcessor.FinalTransform(State: AnimationState; Bone: AnimationBoneState): Matrix4x4;
 Begin
   Result := Matrix4x4Identity;
 End;
