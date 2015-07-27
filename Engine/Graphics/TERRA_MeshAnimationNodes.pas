@@ -150,8 +150,14 @@ Type
 
     //_BindRelativeMatrix:Matrix4x4;
 
+    _KeyFrameRelativeMatrix:Matrix4x4;
+    _KeyFrameAbsoluteMatrix:Matrix4x4;
+
     _FrameRelativeMatrix:Matrix4x4;
     _FrameAbsoluteMatrix:Matrix4x4; // the current matrix for the
+
+    _ExtraRelativeMatrix:Matrix4x4;
+    _ExtraAbsoluteMatrix:Matrix4x4; // the current matrix for the
 
     Procedure UpdateTransform;
 
@@ -283,82 +289,6 @@ Begin
       _BoneStates[Pred(_BoneCount)]._Parent := _BoneStates[I];
       Break;
     End;
-  End;
-End;
-
-Procedure AnimationState.Update;
-Var
-  I:Integer;
-  Time, Delta:Cardinal;
-  BoneState:AnimationBoneState;
-  M:Matrix4x4;
-Begin
-  If (Length(Transforms)<=0) Then
-  Begin
-    SetLength(Transforms, Succ(_BoneCount));
-  End;
-
-  Transforms[0] := Matrix4x4Identity;
-
-  If (_Next<>'') Then
-  Begin
-    Self.Play(Find(_Next));
-    _Next := '';
-  End;
-
-  _UpdateID := GraphicsManager.Instance.FrameID;
-
-{  If (Assigned(_QueueAnimation)) And ((Not Assigned(_Root)) Or (_Root Is AnimationCrossfader) And (AnimationCrossfader(_Root).Alpha >=1)) Then
-  Begin
-    If Self.Crossfade(_QueueAnimation, _QueueDuration) Then
-      _QueueAnimation := Nil;
-  End;}
-
-  If Assigned(_Root) Then
-    Self.CollapseNode(_Root);
-
-  If Not Assigned(_Root) Then
-  Begin
-    For I:=1 To _BoneCount Do
-      Transforms[I] := Matrix4x4Identity;
-
-    Exit;
-  End;
-
-  Time := Application.Instance.GetElapsedTime();
-  Delta := Time - _LastTime;
-
-  {If (Delta<10) Then
-    Exit;
-   }
-
-  _LastTime := Time;
-
-  If Length(_BoneStates)<_BoneCount Then
-    Exit;
-
-  // Get all bones tranformations
-  For I:=0 To Pred(_BoneCount) Do
-  If Assigned(_Root) Then
-  Begin
-    _BoneStates[I]._Block := _Root.GetTransform(I);
-    _BoneStates[I]._Ready := False;
-  End;
-
-  For I:=0 To Pred(_BoneCount) Do
-    _BoneStates[I].UpdateTransform();
-
-  For I:=1 To _BoneCount Do
-  Begin
-    BoneState := _BoneStates[Pred(I)];
-
-    Transforms[I] := Matrix4x4Multiply4x3(BoneState._FrameAbsoluteMatrix, Matrix4x4Inverse(BoneState._BindAbsoluteMatrix));
-
-    M := Self._Processor.FinalTransform(Self, BoneState);
-//    M.MoveTransformOrigin(BoneState._FrameAbsoluteMatrix.Transform(VectorZero));
-    Transforms[I] := Matrix4x4Multiply4x3(M, Transforms[I]);
-
-
   End;
 End;
 
@@ -559,23 +489,96 @@ Begin
   _Processor := Value;
 End;
 
+Procedure AnimationState.Update;
+Var
+  I:Integer;
+  Time, Delta:Cardinal;
+  BoneState:AnimationBoneState;
+  M:Matrix4x4;
+Begin
+  If (Length(Transforms)<=0) Then
+  Begin
+    SetLength(Transforms, Succ(_BoneCount));
+  End;
+
+  Transforms[0] := Matrix4x4Identity;
+
+  If (_Next<>'') Then
+  Begin
+    Self.Play(Find(_Next));
+    _Next := '';
+  End;
+
+  _UpdateID := GraphicsManager.Instance.FrameID;
+
+{  If (Assigned(_QueueAnimation)) And ((Not Assigned(_Root)) Or (_Root Is AnimationCrossfader) And (AnimationCrossfader(_Root).Alpha >=1)) Then
+  Begin
+    If Self.Crossfade(_QueueAnimation, _QueueDuration) Then
+      _QueueAnimation := Nil;
+  End;}
+
+  If Assigned(_Root) Then
+    Self.CollapseNode(_Root);
+
+  If Not Assigned(_Root) Then
+  Begin
+    For I:=1 To _BoneCount Do
+      Transforms[I] := Matrix4x4Identity;
+
+    Exit;
+  End;
+
+  Time := Application.Instance.GetElapsedTime();
+  Delta := Time - _LastTime;
+
+  {If (Delta<10) Then
+    Exit;
+   }
+
+  _LastTime := Time;
+
+  If Length(_BoneStates)<_BoneCount Then
+    Exit;
+
+  // Get all bones tranformations
+  For I:=0 To Pred(_BoneCount) Do
+  If Assigned(_Root) Then
+  Begin
+    _BoneStates[I]._Block := _Root.GetTransform(I);
+    _BoneStates[I]._Ready := False;
+  End;
+
+  For I:=0 To Pred(_BoneCount) Do
+    _BoneStates[I].UpdateTransform();
+
+  For I:=1 To _BoneCount Do
+  Begin
+    BoneState := _BoneStates[Pred(I)];
+
+    Transforms[I] := BoneState._FrameAbsoluteMatrix;
+    Transforms[I] := Matrix4x4Multiply4x3(BoneState._KeyFrameAbsoluteMatrix, Transforms[I]);
+
+    Transforms[I] := Matrix4x4Multiply4x3(Transforms[I], Matrix4x4Inverse(BoneState._BindAbsoluteMatrix));
+
+
+    (*
+    M := Self._Processor.FinalTransform(Self, BoneState);
+    //M.MoveTransformOrigin(BoneState._FrameAbsoluteMatrix.Transform(VectorZero));
+    Transforms[I] := Matrix4x4Multiply4x3(M, Transforms[I]);
+
+    Transforms[I] := Matrix4x4Multiply4x3(BoneState._ExtraAbsoluteMatrix, Transforms[I]);
+
+    *)
+
+  End;
+End;
+
 { AnimationBoneState }
-Function AnimationBoneState.GetCurrentAbsolute: Matrix4x4;
-Begin
-  Result := Self._FrameAbsoluteMatrix;
-
-  If Assigned(_Parent) Then
-    Result := Matrix4x4Multiply4x3(_Parent.GetCurrentAbsolute(), Result);
-End;
-
-Procedure AnimationBoneState.Release;
-Begin
-  // do nothing
-End;
-
 Procedure AnimationBoneState.UpdateTransform;
 Var
   Temp:Matrix4x4;
+  T:Vector3D;
+  Q:Quaternion;
 Begin
   If (_Ready) Then
     Exit;
@@ -589,23 +592,49 @@ Begin
 
 	// Create a transformation matrix from the position and rotation
 	// m_frame: additional transformation for this frame of the animation
-
-  _FrameRelativeMatrix := _Owner.Processor.PreTransform(_Owner, Self, _Block);
+  _KeyFrameRelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(_Block.Translation), QuaternionMatrix4x4(_Block.Rotation));
+  _FrameRelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(_BindTranslation), QuaternionMatrix4x4(_BindOrientation));
 
 	If (_Parent = nil ) Then					// this is the root node
   Begin
     _FrameAbsoluteMatrix := _FrameRelativeMatrix;
+    _KeyFrameAbsoluteMatrix := _KeyFrameRelativeMatrix;
   End Else									// not the root node
 	Begin
 		// m_final := parent's m_final * m_rel (matrix concatenation)
     _FrameAbsoluteMatrix := Matrix4x4Multiply4x3(_Parent._FrameAbsoluteMatrix, _FrameRelativeMatrix);
+    _KeyFrameAbsoluteMatrix := Matrix4x4Multiply4x3(_Parent._KeyFrameAbsoluteMatrix, _KeyFrameRelativeMatrix);
 	End;
 
-  Temp := _Owner.Processor.PostTransform(_Owner, Self, _Block);
-  Temp.MoveTransformOrigin(_FrameAbsoluteMatrix.Transform(VectorZero));
-  _FrameAbsoluteMatrix := Matrix4x4Multiply4x3(Temp, _FrameAbsoluteMatrix);
+  _ExtraRelativeMatrix := _Owner.Processor.PostTransform(_Owner, Self, _Block);
+  _ExtraRelativeMatrix.MoveTransformOrigin(_FrameAbsoluteMatrix.Transform(VectorZero));
+
+	If (_Parent = nil ) Then					// this is the root node
+  Begin
+    _ExtraAbsoluteMatrix := _ExtraRelativeMatrix;
+  End Else									// not the root node
+	Begin
+		// m_final := parent's m_final * m_rel (matrix concatenation)
+    _ExtraAbsoluteMatrix := Matrix4x4Multiply4x3(_Parent._ExtraAbsoluteMatrix, _ExtraRelativeMatrix);
+	End;
+
+  (*Temp.MoveTransformOrigin(_FrameAbsoluteMatrix.Transform(VectorZero));
+  _FrameAbsoluteMatrix := Matrix4x4Multiply4x3(Temp, _FrameAbsoluteMatrix);*)
 
   _Ready := True;
+End;
+
+Function AnimationBoneState.GetCurrentAbsolute: Matrix4x4;
+Begin
+  Result := Self._FrameAbsoluteMatrix;
+
+  If Assigned(_Parent) Then
+    Result := Matrix4x4Multiply4x3(_Parent.GetCurrentAbsolute(), Result);
+End;
+
+Procedure AnimationBoneState.Release;
+Begin
+  // do nothing
 End;
 
 { AnimationMixer }

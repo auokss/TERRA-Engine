@@ -5,7 +5,7 @@ Unit TERRA_DemoApplication;
 Interface
 Uses TERRA_Utils, TERRA_Object, TERRA_String, TERRA_Application, TERRA_OS, TERRA_Scene,
   TERRA_Vector3D, TERRA_Color,
-  TERRA_Font, TERRA_FontRenderer, TERRA_Skybox, TERRA_Viewport, TERRA_Lights;
+  TERRA_Font, TERRA_FontRenderer, TERRA_Skybox, TERRA_Viewport, TERRA_Lights, TERRA_Mesh, TERRA_Texture;
 
 Type
   DemoApplication = Class;
@@ -15,6 +15,7 @@ Type
       _Owner:DemoApplication;
       _Sky:TERRASkybox;
       _Sun:DirectionalLight;
+      _GroundInstance:MeshInstance;
       _Main:TERRAViewport;
 
       Function CreateMainViewport(Const Name:TERRAString; Width, Height:Integer):TERRAViewport;
@@ -41,6 +42,9 @@ Type
 			Procedure OnDestroy; Override;
 			Procedure OnIdle; Override;
 
+      Function GetWidth:Word; Override;
+      Function GetHeight:Word; Override;
+
       Procedure OnRender(V:TERRAViewport); Virtual;
 
       Property Font:TERRAFont Read _Font;
@@ -51,6 +55,18 @@ Implementation
 Uses TERRA_FileManager, TERRA_InputManager, TERRA_GraphicsManager;
 
 { Demo }
+Function DemoApplication.GetWidth: Word;
+Begin
+//  Result := 420;
+  Result := 800;
+End;
+
+Function DemoApplication.GetHeight: Word;
+Begin
+  //Result := 340;
+  Result := 600;
+End;
+
 Procedure DemoApplication.OnCreate;
 Begin
   Inherited;
@@ -92,12 +108,18 @@ Begin
 
   _Main := Self.CreateMainViewport('main', GraphicsManager.Instance.Width, GraphicsManager.Instance.Height);
   _Main.SetPostProcessingState(True);
+
+  _GroundInstance := MeshInstance.Create(MeshManager.Instance.PlaneMesh);
+  _GroundInstance.SetScale(VectorConstant(40));
+  _GroundInstance.SetDiffuseMap(0, TextureManager.Instance.GetTexture('cobble'));
+  _GroundInstance.SetUVScale(0, 4, 4);
 End;
 
 Procedure DemoScene.Release;
 Begin
   Inherited;
 
+  ReleaseObject(_GroundInstance);
   ReleaseObject(_Sun);
   ReleaseObject(_Sky);
 End;
@@ -120,6 +142,7 @@ End;
 Procedure DemoScene.RenderViewport(V: TERRAViewport);
 Begin
   GraphicsManager.Instance.AddRenderable(V, _Sky);
+  GraphicsManager.Instance.AddRenderable(V, _GroundInstance);
   LightManager.Instance.AddLight(V, Sun);
 
   _Owner.OnRender(V);

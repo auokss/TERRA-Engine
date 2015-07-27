@@ -45,9 +45,6 @@ Type
 
       _RetargetMatrix:Matrix4x4;
 
-      _Ready:Boolean;
-
-      Procedure Init;
 
       Function GetLength():Single;
 
@@ -64,20 +61,22 @@ Type
       Function Read(Source:Stream):TERRAString;
       Procedure Write(Dest:Stream);
 
+      Procedure SetLength(Const Value:Single);
+
       Property Index:Integer Read _Index;
       Property Parent:MeshBone Read _Parent;
       Property Owner:MeshSkeleton Read _Owner;
 
-      Property Length:Single Read GetLength;
-      Property Translation:Vector3D Read _Translation;
-      Property Orientation:Quaternion Read _Orientation;
+      Property Length:Single Read GetLength Write SetLength;
+      Property Translation:Vector3D Read _Translation Write _Translation;
+      Property Orientation:Quaternion Read _Orientation Write _Orientation;
 
       Property Normal:Vector3D Read GetNormal;
 
       Property AbsoluteMatrix:Matrix4x4 Read GetAbsoluteMatrix;
       //Property RelativeMatrix:Matrix4x4 Read _RelativeMatrix;
 
-      Property RetargetMatrix:Matrix4x4 Read _RetargetMatrix;
+      Property RetargetMatrix:Matrix4x4 Read _RetargetMatrix Write _RetargetMatrix;
 
       Property AbsolutePosition:Vector3D Read GetAbsolutePosition;
       Property AbsoluteOrientation:Quaternion Read GetAbsoluteOrientation;
@@ -98,14 +97,12 @@ Type
 
       Procedure NormalizeJoints();
 
-      Procedure Init();
-
       Procedure Clone(Other:MeshSkeleton);
 
       Procedure Read(Source:Stream);
       Procedure Write(Dest:Stream);
 
-      Function AddBone():MeshBone;
+      Function AddBone(Parent:MeshBone = Nil):MeshBone;
 
       Function GetBoneByIndex(Index:Integer):MeshBone;
       Function GetBoneByName(Const Name:TERRAString):MeshBone;
@@ -127,6 +124,26 @@ Procedure MeshBone.Release;
 Begin
   // do nothing
 End;
+
+Procedure MeshBone.SetLength(const Value: Single);
+Var
+  CurrentPos, ParentPos, R:Vector3D;
+Begin
+  If (Self.Parent=Nil) Then
+    Exit;
+
+  CurrentPos := Self.GetAbsolutePosition();
+  ParentPos := Parent.GetAbsolutePosition();
+  R := VectorSubtract(CurrentPos, ParentPos);
+  R.Normalize();
+  R.Scale(Value);
+
+  //VectorSubtract(CurrentPos[Bone.Index], CurrentPos[Bone.Parent.Index])
+
+  Self._Translation := R;
+  Self._Orientation := QuaternionZero;
+End;
+
 
 Function MeshBone.GetLength: Single;
 Var
@@ -152,28 +169,6 @@ Begin
   End;
 End;
 
-Procedure MeshBone.Init;
-Begin
-  If (_Ready) Then
-    Exit;
-
-  If (Assigned(Parent)) And (Not Parent._Ready) Then
-    Parent.Init;
-
-(*
-	// Each bone's final matrix is its relative matrix concatenated onto its
-	// parent's final matrix (which in turn is ....)
-	If ( Parent = nil ) Then					// this is the root node
-  Begin
-    _AbsoluteMatrix := _RelativeMatrix;
-  End Else									// not the root node
-	Begin
-    _AbsoluteMatrix := Matrix4x4Multiply4x3(Parent.AbsoluteMatrix, _RelativeMatrix);
-	End;*)
-
-  _Ready := True;
-End;
-
 Function MeshBone.Read(Source:Stream):TERRAString;
 Var
   I:Integer;
@@ -187,7 +182,6 @@ Begin
   Source.Read(@Angles, SizeOf(Vector3D));
 
   _Orientation := QuaternionRotation(Angles);
-  _Ready := False;
 End;
 
 Procedure MeshBone.Write(Dest:Stream);
@@ -208,7 +202,6 @@ End;
 
 Function MeshBone.GetAbsolutePosition: Vector3D;
 Begin
-  Self.Init();
   Result := Self.AbsoluteMatrix.Transform(VectorZero);
 End;
 
@@ -230,11 +223,13 @@ Begin
 End;
 
 { MeshSkeleton }
-Function MeshSkeleton.AddBone:MeshBone;
+Function MeshSkeleton.AddBone(Parent:MeshBone):MeshBone;
 Begin
+  Result := MeshBone.Create;
+  Result._Parent := Parent;
+  
   Inc(_BoneCount);
   SetLength(_BoneList, _BoneCount);
-  Result := MeshBone.Create;
   _BoneList[ Pred(_BoneCount)] := Result;
 End;
 
@@ -276,35 +271,11 @@ Begin
     _BoneList[I] := MeshBone.Create;
     _BoneList[I]._Index := I;
     _BoneList[I]._Owner := Self;
-    _BoneList[I]._Ready := False;
     Parents[I] := _BoneList[I].Read(Source);
   End;
 
   For I:=0 To Pred(_BoneCount) Do
     _BoneList[I]._Parent := Self.GetBoneByName(Parents[I]);
-
-  Self.Init();
-End;
-
-Procedure MeshSkeleton.Init;
-Var
-  I:Integer;
-Begin
-  For I:=0 To Pred(_BoneCount) Do
-    _BoneList[I]._Ready := False;
-
-  For I:=0 To Pred(_BoneCount) Do
-    _BoneList[I].Init();
-
-(*  For I:=0 To Pred(_BoneCount) Do
-  Begin
-    _BoneList[I].StartPosition := _BoneList[I].AbsoluteMatrix.Transform(VectorZero);
-    _BoneList[I].StartRotation := VectorZero;
-    _BoneList[I].Ready := False;
-  End;
-
-  For I:=0 To Pred(_BoneCount) Do
-    _BoneList[I].Init();*)
 End;
 
 Procedure MeshSkeleton.Write(Dest: Stream);
@@ -368,7 +339,6 @@ Begin
     _BoneList[I].Name := Bone.Name;
     _BoneList[I]._Index := I;
     _BoneList[I]._Owner := Self;
-    _BoneList[I]._Ready := Bone._Ready;
 
     _BoneList[I]._Translation := Bone.Translation;
     _BoneList[I]._Orientation := Bone.Orientation;
@@ -433,17 +403,9 @@ Begin
       Bone._Translation := VectorSubtract(CurrentPos[Bone.Index], CurrentPos[Bone.Parent.Index])
     Else
       Bone._Translation := Bone.AbsolutePosition;*)
-
-    Bone._Ready := False;
   End;
 
   CurrentPos := Nil;
-
-  For I:=0 To Pred(Self.BoneCount) Do
-  Begin
-    Bone := Self.GetBoneByIndex(I);
-    Bone.Init();
-  End;
 End;
 
 End.

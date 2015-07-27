@@ -5867,6 +5867,8 @@ End;
 
 Function TERRAMesh.GetSkeleton:MeshSkeleton;
 Begin
+  Self.IsReady();
+
   If Not Assigned(_Skeleton) Then
   Begin
     _Skeleton := MeshSkeleton.Create;
