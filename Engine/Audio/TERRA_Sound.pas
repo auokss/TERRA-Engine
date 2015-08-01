@@ -104,14 +104,14 @@ Begin
   _Buffer := TERRAAudioBuffer.Create(Samples, Frequency, Stereo);
   Move(Data^, _Buffer.Samples^, _Buffer.SizeInBytes);
 
-(*  If (Frequency <> DefaultSampleFrequency) Then
+  If (Frequency <> DefaultSampleFrequency) Then
   Begin
     Converter := AudioRateConverter.Create(_Buffer);
     Temp := _Buffer;
     _Buffer := Converter.Convert(DefaultSampleFrequency);
     ReleaseObject(Converter);
     ReleaseObject(Temp);
-  End;*)
+  End;
 
   SetStatus(rsReady);
 End;
