@@ -76,13 +76,6 @@ Begin
     T := Sin(Application.GetTime() / 1000);
     Result := Matrix4x4Rotation(0, -90*RAD*T, 0);
     //Result := Matrix4x4Scale(2, 2,2);
-
-    Q := QuaternionMultiply(Bone._BindAbsoluteOrientation, Block.Rotation);
-    M := QuaternionMatrix4x4(Q);
-
-    Direction := M.TransformNormal(VectorUp);
-    Pos := Bone._FrameAbsoluteMatrix.Transform(VectorZero);
-    //DrawAxis(MyDemo(Application.Instance).Scene.MainViewport, VectorAdd(SourceInstance.Position, Pos), Direction);
   End;
 
 End;
@@ -106,14 +99,14 @@ Begin
 
   SourceBone := OriginalInstance.Geometry.Skeleton.GetBoneByName(Bone.Name);
   If SourceBone = Nil Then
-    Exit;                       
+    Exit;
 
   TargetBone := ClonedInstance.Geometry.Skeleton.GetBoneByName(Bone.Name);
   If TargetBone = Nil Then
     Exit;
 
   // Add the animation state to the rest position
-  Q := QuaternionMultiply(Bone._BindOrientation, Block.Rotation);
+(*  Q := QuaternionMultiply(Bone._BindOrientation, Block.Rotation);
   T := VectorAdd(Bone._BindTranslation, Block.Translation);
 
 //  Q := Bone._BindOrientation;
@@ -121,7 +114,7 @@ Begin
   Result := Matrix4x4Multiply4x3(Matrix4x4Translation(T), QuaternionMatrix4x4(Q));
 
   If SourceBone.Parent = Nil Then
-    Exit;
+    Exit;*)
 End;
 
 Function AnimationRetargeter.PostTransform(State:AnimationState; Bone:AnimationBoneState; Const Block:AnimationTransformBlock):Matrix4x4;

@@ -143,10 +143,8 @@ Type
     _Ready:Boolean;
     _Parent:AnimationBoneState;
 
-    _BindTranslation:Vector3D;
-    _BindOrientation:Quaternion;
+    _BindRelativeMatrix:Matrix4x4;
     _BindAbsoluteMatrix:Matrix4x4;
-    _BindAbsoluteOrientation:Quaternion;
 
     //_BindRelativeMatrix:Matrix4x4;
 
@@ -266,10 +264,7 @@ Begin
   _BoneStates[Pred(_BoneCount)]._ObjectName := Bone.Name;
 
   _BoneStates[Pred(_BoneCount)]._BindAbsoluteMatrix := Bone.AbsoluteMatrix;
-  _BoneStates[Pred(_BoneCount)]._BindAbsoluteOrientation := Bone.AbsoluteOrientation;
-
-  _BoneStates[Pred(_BoneCount)]._BindTranslation := Bone.Translation;
-  _BoneStates[Pred(_BoneCount)]._BindOrientation := Bone.Orientation;
+  _BoneStates[Pred(_BoneCount)]._BindRelativeMatrix := Bone.RelativeMatrix;
 
   _BoneStates[Pred(_BoneCount)]._Owner := Self;
   _BoneStates[Pred(_BoneCount)]._ID := Pred(_BoneCount);
@@ -955,10 +950,14 @@ Var
   T:Vector3D;
   Q:Quaternion;
 Begin
+  Result := Bone._BindRelativeMatrix;
+  T := VectorAdd(Result.GetTranslation(), Block.Translation);
+  Result.SetTranslation(VectorZero);
+
   // Add the animation state to the rest position
-  Q := QuaternionMultiply(Bone._BindOrientation, Block.Rotation);
-  T := VectorAdd(Bone._BindTranslation, Block.Translation);
-  Result := Matrix4x4Multiply4x3(Matrix4x4Translation(T), QuaternionMatrix4x4(Q));
+  Result := Matrix4x4Multiply4x3(Result, QuaternionMatrix4x4(Block.Rotation));
+
+  Result := Matrix4x4Multiply4x3(Matrix4x4Translation(T), Result);
 End;
 
 

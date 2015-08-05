@@ -6069,6 +6069,7 @@ Var
   It:Iterator;
   Group:MeshGroup;
   V:MeshVertex;
+  Anim:Animation;
 Begin
   Self.Create(rtDynamic, '');
 
@@ -6082,6 +6083,9 @@ Begin
 
     //Format := [vertexFormatPosition, vertexFormatNormal, vertexFormatUV0];
     Format := [vertexFormatPosition, vertexFormatColor, vertexFormatNormal, vertexFormatTangent, vertexFormatUV0];
+
+    If Source.GetBoneCount>0 Then
+      Format := Format + [vertexFormatBone];
 
     Group  := Self.AddGroup(Format, Source.GetGroupName(N));
 //    Group.Flags := Source.GetGroupFlags(N);
@@ -6119,30 +6123,28 @@ Begin
     End;
 
     Group.DiffuseMap := TextureManager.Instance.GetTexture(Source.GetDiffuseMapName(N));
-    //Group.DiffuseMap := TextureManager.Instance.WhiteTexture;
-
-    //Group._Material.DiffuseColor := Source.GetDiffuseColor(N);
-    Group._Material.DiffuseColor := ColorWhite;
+    Group.DiffuseColor := Source.GetDiffuseColor(N);
 
     If (vertexFormatTangent In Format) Then
       _Groups[N].CalculateTangents;
   End;
 
-(*  If (Source.GetBoneCount>0) Then
+  If (Source.GetBoneCount>0) Then
   Begin
     For I:=0 To Pred(Source.GetBoneCount) Do
     Begin
-      B := Skeleton.AddBone();
+      B := Skeleton.AddBone(Skeleton.GetBoneByIndex(Source.GetBoneParent(I)));
       B.Name := Source.GetBoneName(I);
       B.RelativeMatrix := Source.GetBoneOffsetMatrix(I);
     End;
+  End;
 
-    For I:=0 To Pred(Source.GetBoneCount) Do
-    Begin
-      B := Skeleton.GetBoneByIndex(I);
-      B.Parent := Skeleton.GetBoneByIndex(Source.GetBoneParent(I));
-    End;
-  End;*)
+  For I:=0 To Pred(Source.GetAnimationCount) Do
+  Begin
+    Anim := Animation.Create(rtDynamic, Self.Name + '_'+ Source.GetAnimationName(I));
+    Anim.InitFromFilter(I, Source);
+    AnimationManager.Instance.AddResource(Anim);
+  End;
 
   Self.Update;
 End;
@@ -6469,7 +6471,7 @@ End;
 
 Function CustomMeshFilter.GetBoneOffsetMatrix(BoneID:Integer):Matrix4x4;
 Begin
-  //Result := _Mesh.Skeleton.GetBoneByIndex(BoneID).RelativeMatrix;
+  Result := _Mesh.Skeleton.GetBoneByIndex(BoneID).RelativeMatrix;
 End;
 
 Function CustomMeshFilter.GetDiffuseColor(GroupID: Integer): Color;

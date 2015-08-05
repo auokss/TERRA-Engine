@@ -386,7 +386,7 @@ End;
 
 Function MeshFilter.GetAnimationLoop(AnimationID: Integer): Boolean;
 Begin
-  Result := False;
+  Result := True;
 End;
 
 Function MeshFilter.GetAlphaMapName(GroupID: Integer):TERRAString;

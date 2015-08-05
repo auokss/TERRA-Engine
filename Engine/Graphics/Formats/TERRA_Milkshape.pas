@@ -126,7 +126,7 @@ Type
     RelativeMatrix:Matrix4x4;
     AbsoluteMatrix:Matrix4x4;
 
-    Procedure Init;
+    Procedure Init(UseCachedRelative:Boolean);
   End;
 
   Milkshape3DComment=Record
@@ -223,13 +223,28 @@ Type
       Function GetSpecularMapName(GroupID:Integer):AnsiString; Override;
       Function GetEmissiveMapName(GroupID:Integer):AnsiString; Override;
 
+      Function GetAnimationCount():Integer; Override;
+      Function GetAnimationName(Index:Integer):TERRAString; Override;
+      Function GetAnimationDuration(Index:Integer):Single; Override;
+      Function GetAnimationFrameRate(AnimationID: Integer): Single; Override;
+
+      Function GetPositionKeyCount(AnimationID, BoneID:Integer):Integer; Override;
+      Function GetRotationKeyCount(AnimationID, BoneID:Integer):Integer; Override;
+
+      Function GetPositionKey(AnimationID, BoneID:Integer; Index:Integer):MeshVectorKey; Override;
+      Function GetRotationKey(AnimationID, BoneID:Integer; Index:Integer):MeshVectorKey; Override;
+
+      Function GetBoneCount():Integer; Override;
+      Function GetBoneName(BoneID:Integer):TERRAString; Override;
+      Function GetBoneParent(BoneID:Integer):Integer; Override;
+      Function GetBoneOffsetMatrix(BoneID:Integer):Matrix4x4; Override;
+
       Property Data:Milkshape3DObject Read _MS3D;
   End;
 
 
 Implementation
-Uses TERRA_Error, TERRA_Log, TERRA_TextureAtlas, TERRA_Image, TERRA_Application, TERRA_ResourceManager,
-  Math;
+Uses TERRA_Error, TERRA_Log, TERRA_TextureAtlas, TERRA_Image, TERRA_Application, TERRA_ResourceManager, TERRA_Quaternion, Math;
 
 { Milkshape3DObject }
 Function Milkshape3DObject.GetMaterialFile(MaterialIndex:Integer; SourceFile:AnsiString):AnsiString;
@@ -383,10 +398,10 @@ Begin
   End;
 
   For I:=0 To Pred(NumJoints)  Do
-    Joints[I].Init();
+    Joints[I].Init(False);
 
   For I:=0 To Pred(NumJoints)  Do
-    Joints[I].AbsolutePosition := Joints[I].AbsoluteMatrix.Transform(VectorZero); 
+    Joints[I].AbsolutePosition := Joints[I].AbsoluteMatrix.Transform(VectorZero);
 
   Result := True;
 End;
@@ -773,6 +788,8 @@ Var
   Key:MeshVectorKey;
   Ratio:Single;
 
+  PA, PB:Vector3D;
+
   Function ClampTime(T:Single):Single;
   Begin
     Result := Round(T * MS3D.AnimationFPS  * Ratio) / MS3D.AnimationFPS;
@@ -902,14 +919,15 @@ Begin
   If (MS3D.TotalFrames>0) Then
   Begin
     Inc(MS3D.TotalFrames);
-    
+
     MS3D.NumModelComments := 1;
     MS3D.Comment := 'Name='+MyMEsh.GetAnimationName(AnimID)+', Start=1, End='+IntToString(MS3D.TotalFrames)+', Loop='+BoolToString(MyMesh.GetAnimationLoop(AnimID))+#0;
     MS3D.Comment := StringLower(MS3D.Comment);
   End;
-  
+
   MS3D.NumJoints := MyMesh.GetBoneCount;
   SetLength(MS3D.Joints, MS3D.NumJoints);
+
   For I:=0 To Pred(MS3D.NumJoints) Do
   Begin
     S := MyMesh.GetBoneName(I);
@@ -923,6 +941,8 @@ Begin
     J := MyMesh.GetBoneParent(I);
     If (J>=0) Then
     Begin
+      MS3D.Joints[I].Parent := @MS3D.Joints[J];
+
       S := MyMesh.GetBoneName(J);
       For J:=1 To Length(S) Do
         MS3D.Joints[I].ParentName[J] := S[J];
@@ -930,12 +950,30 @@ Begin
     End Else
       MS3D.Joints[I].ParentName[1] := #0;
 
-//      WriteLn(MS3D.Joints[I].Name, ' parent is ',MS3D.Joints[I].ParentName);
 
+      MS3D.Joints[I].RelativeMatrix := MyMesh.GetBoneOffsetMatrix(I);
+      MS3D.Joints[I].Ready := False;
+  End;
+
+  For I:=0 To Pred(MS3D.NumJoints) Do
+    MS3D.Joints[I].Init(True);
+
+  For I:=0 To Pred(MS3D.NumJoints) Do
+  If Assigned(MS3D.Joints[I].Parent) Then
+  Begin
+    MS3D.Joints[I].RelativePosition := MS3D.Joints[I].RelativeMatrix.GetTranslation();
+    MS3D.Joints[I].RelativeRotation := QuaternionToEuler(QuaternionFromRotationMatrix4x4(MS3D.Joints[I].RelativeMatrix));
+  End Else
+  Begin
+    MS3D.Joints[I].RelativePosition := MS3D.Joints[I].AbsoluteMatrix.Transform(VectorZero);
+    MS3D.Joints[I].RelativeRotation := VectorZero;
+  End;
+
+  For I:=0 To Pred(MS3D.NumJoints) Do
+  Begin
+//      WriteLn(MS3D.Joints[I].Name, ' parent is ',MS3D.Joints[I].ParentName);
       MS3D.Joints[I].NumKeyFramesTrans := MyMesh.GetPositionKeyCount(AnimID, I);
       MS3D.Joints[I].NumKeyFramesRot := MyMesh.GetRotationKeyCount(AnimID, I);
-      MS3D.Joints[I].RelativePosition := MyMesh.GetBoneOffsetMatrix(I).GetTranslation();
-      MS3D.Joints[I].RelativeRotation := MyMesh.GetBoneOffsetMatrix(I).GetEulerAngles();
       MS3D.Joints[I].Flags := 0;
 
       SetLength(MS3D.Joints[I].KeyFramesTrans, MS3D.Joints[I].NumKeyFramesTrans);
@@ -1122,17 +1160,79 @@ Begin
   Result := _Groups[GroupID].Vertices[Index].TexCoords;
 End;
 
+Function Milkshape3DModel.GetAnimationCount: Integer;
+Begin
+  Result := 1;
+End;
+
+Function Milkshape3DModel.GetAnimationDuration(Index: Integer): Single;
+Begin
+  Result := Self._MS3D.TotalFrames;
+End;
+
+Function Milkshape3DModel.GetAnimationName(Index: Integer): TERRAString;
+Begin
+  Result := 'idle';
+End;
+
+Function Milkshape3DModel.GetBoneCount: Integer;
+Begin
+  Result := Self._MS3D.NumJoints;
+End;
+
+Function Milkshape3DModel.GetBoneName(BoneID: Integer): TERRAString;
+Begin
+  Result := Self._MS3D.Joints[BoneID].Name;
+End;
+
+Function Milkshape3DModel.GetBoneOffsetMatrix(BoneID: Integer): Matrix4x4;
+Begin
+  Result := _MS3D.Joints[BoneID].RelativeMatrix;
+End;
+
+Function Milkshape3DModel.GetBoneParent(BoneID: Integer): Integer;
+Begin
+  Result := _MS3D.GetParentOf(BoneID);
+End;
+
+Function Milkshape3DModel.GetPositionKey(AnimationID, BoneID, Index: Integer): MeshVectorKey;
+Begin
+  Result.Time := _MS3D.Joints[BoneID].KeyFramesTrans[Index].Time;
+  Result.Value := _MS3D.Joints[BoneID].KeyFramesTrans[Index].Vector;
+End;
+
+Function Milkshape3DModel.GetPositionKeyCount(AnimationID, BoneID: Integer): Integer;
+Begin
+  Result := _MS3D.Joints[BoneID].NumKeyFramesTrans;
+End;
+
+Function Milkshape3DModel.GetRotationKey(AnimationID, BoneID,Index: Integer): MeshVectorKey;
+Begin
+  Result.Time := _MS3D.Joints[BoneID].KeyFramesRot[Index].Time;
+  Result.Value := _MS3D.Joints[BoneID].KeyFramesRot[Index].Vector;
+End;
+
+Function Milkshape3DModel.GetRotationKeyCount(AnimationID, BoneID: Integer): Integer;
+Begin
+  Result := _MS3D.Joints[BoneID].NumKeyFramesRot;
+End;
+
+Function Milkshape3DModel.GetAnimationFrameRate( AnimationID: Integer): Single;
+Begin
+  Result := Self._MS3D.AnimationFPS;
+End;
 
 { Milkshape3DJoint }
-Procedure Milkshape3DJoint.Init;
+Procedure Milkshape3DJoint.Init(UseCachedRelative:Boolean);
 Begin
   If (Ready) Then
     Exit;
 
   If (Assigned(Parent)) And (Not Parent.Ready) Then
-    Parent.Init;
+    Parent.Init(UseCachedRelative);
 
-  RelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(RelativePosition), Matrix4x4Rotation(RelativeRotation));
+  If Not UseCachedRelative Then
+    RelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(RelativePosition), Matrix4x4Rotation(RelativeRotation));
 
 	// Each bone's final matrix is its relative matrix concatenated onto its
 	// parent's final matrix (which in turn is ....)

@@ -26,7 +26,8 @@ Unit TERRA_MeshAnimation;
 
 Interface
 Uses TERRA_String, TERRA_Utils, TERRA_Object, TERRA_Stream, TERRA_Resource, TERRA_Vector3D, TERRA_Math,
-  TERRA_Matrix4x4, TERRA_Vector2D, TERRA_Color, TERRA_Quaternion, TERRA_ResourceManager, TERRA_MeshSkeleton;
+  TERRA_Matrix4x4, TERRA_Vector2D, TERRA_Color, TERRA_Quaternion, TERRA_ResourceManager,
+  TERRA_MeshFilter, TERRA_MeshSkeleton;
 
 Const
   TimeCompressionLimit = 20000;
@@ -36,10 +37,7 @@ Const
 Type
   BoneAnimation = Class;
 
-  VectorKeyFrame=Record
-    Time:Single;
-    Value:Vector3D;
-  End;
+  VectorKeyFrame = MeshVectorKey;
 
   VectorKeyframeArray = Class(TERRAObject)
     Protected
@@ -123,6 +121,8 @@ Type
       Speed:Single;
 
       Next:TERRAString;
+
+      Procedure InitFromFilter(Const AnimationID:Integer; Source:MeshFilter);
 
       Procedure Clone(Other:Animation);
       Function Retarget(SourceSkeleton, TargetSkeleton:MeshSkeleton):Animation;
@@ -775,14 +775,14 @@ Var
   T:Vector3D;
   Q:Quaternion;
 Begin
-  Q := SourceBone.Orientation;
+(*  Q := SourceBone.Orientation;
   T := SourceBone.Translation;
   Bind := Matrix4x4Multiply4x3(Matrix4x4Translation(T), QuaternionMatrix4x4(Q));
 
   // Add the animation state to the rest position
   Q := QuaternionMultiply(SourceBone.Orientation, QuaternionRotation(FrameRotation));
   T := VectorAdd(SourceBone.Translation, {Block.Translation} VectorZero);
-  Frame := Matrix4x4Multiply4x3(Matrix4x4Translation(T), QuaternionMatrix4x4(Q));
+  Frame := Matrix4x4Multiply4x3(Matrix4x4Translation(T), QuaternionMatrix4x4(Q));*)
 End;
 
 Var
@@ -868,5 +868,35 @@ Begin
   End;
 End;
 
+Procedure Animation.InitFromFilter(Const AnimationID:Integer; Source: MeshFilter);
+Var
+  I, J:Integer;
+  Bone:BoneAnimation;
+Begin
+  _BoneCount := 0;
+  Self.FPS := Source.GetAnimationFrameRate(AnimationID);
+  Self.Loop := Source.GetAnimationLoop(AnimationID);
+  Self.Speed := 1;
+
+  For I:=0 To Pred(Source.GetBoneCount()) Do
+  Begin
+    Bone := Self.AddBone(Source.GetBoneName(I));
+
+    Bone.Positions.Count := Source.GetPositionKeyCount(AnimationID, I);
+    SetLength(Bone.Positions.Keyframes, Bone.Positions.Count);
+    For J:=0 To Pred(Bone.Positions.Count) Do
+      Bone.Positions.Keyframes[J] := Source.GetPositionKey(AnimationID, I, J);
+
+    Bone.Rotations.Count := Source.GetRotationKeyCount(AnimationID, I);
+    SetLength(Bone.Rotations.Keyframes, Bone.Rotations.Count);
+    For J:=0 To Pred(Bone.Rotations.Count) Do
+      Bone.Rotations.Keyframes[J] := Source.GetRotationKey(AnimationID, I, J);
+
+    Bone.Scales.Count := Source.GetScaleKeyCount(AnimationID, I);
+    SetLength(Bone.Scales.Keyframes, Bone.Scales.Count);
+    For J:=0 To Pred(Bone.Scales.Count) Do
+      Bone.Scales.Keyframes[J] := Source.GetScaleKey(AnimationID, I, J);
+  End;
+End;
 
 End.

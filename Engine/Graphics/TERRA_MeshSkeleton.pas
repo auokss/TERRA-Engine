@@ -32,13 +32,17 @@ Type
   MeshSkeleton = Class;
 
   MeshBone = Class(TERRAObject)
+  private
+    procedure SetRelativeMatrix(const Value: Matrix4x4);
     Protected
       _Index:Integer;
       _Parent:MeshBone;
       _Owner:MeshSkeleton;
 
-      _Translation:Vector3D;
-      _Orientation:Quaternion;
+      _RelativeMatrix:Matrix4x4;
+
+      //_Translation:Vector3D;
+      //_Orientation:Quaternion;
 
       //_AbsoluteMatrix:Matrix4x4;
       //_RelativeMatrix:Matrix4x4;
@@ -51,7 +55,6 @@ Type
       Function GetAbsolutePosition():Vector3D;
 
       Function GetAbsoluteMatrix: Matrix4x4;
-      Function GetAbsoluteOrientation: Quaternion;
 
       Function GetNormal: Vector3D;
 
@@ -61,25 +64,24 @@ Type
       Function Read(Source:Stream):TERRAString;
       Procedure Write(Dest:Stream);
 
-      Procedure SetLength(Const Value:Single);
+      //Procedure SetLength(Const Value:Single);
 
       Property Index:Integer Read _Index;
       Property Parent:MeshBone Read _Parent;
       Property Owner:MeshSkeleton Read _Owner;
 
-      Property Length:Single Read GetLength Write SetLength;
-      Property Translation:Vector3D Read _Translation Write _Translation;
-      Property Orientation:Quaternion Read _Orientation Write _Orientation;
+      Property Length:Single Read GetLength; // Write SetLength;
+      //Property Translation:Vector3D Read _Translation Write _Translation;
+      //Property Orientation:Quaternion Read _Orientation Write _Orientation;
 
       Property Normal:Vector3D Read GetNormal;
 
       Property AbsoluteMatrix:Matrix4x4 Read GetAbsoluteMatrix;
-      //Property RelativeMatrix:Matrix4x4 Read _RelativeMatrix;
+      Property RelativeMatrix:Matrix4x4 Read _RelativeMatrix Write SetRelativeMatrix;
 
       Property RetargetMatrix:Matrix4x4 Read _RetargetMatrix Write _RetargetMatrix;
 
       Property AbsolutePosition:Vector3D Read GetAbsolutePosition;
-      Property AbsoluteOrientation:Quaternion Read GetAbsoluteOrientation;
   End;
 
   MeshSkeleton = Class(TERRAObject)
@@ -125,7 +127,7 @@ Begin
   // do nothing
 End;
 
-Procedure MeshBone.SetLength(const Value: Single);
+(*Procedure MeshBone.SetLength(const Value: Single);
 Var
   CurrentPos, ParentPos, R:Vector3D;
 Begin
@@ -142,7 +144,7 @@ Begin
 
   Self._Translation := R;
   Self._Orientation := QuaternionZero;
-End;
+End;*)
 
 
 Function MeshBone.GetLength: Single;
@@ -172,16 +174,16 @@ End;
 Function MeshBone.Read(Source:Stream):TERRAString;
 Var
   I:Integer;
-  Angles:Vector3D;
+  Translation, Angles:Vector3D;
 Begin
   Source.ReadString(_ObjectName);
   Source.ReadString(Result);
   _Parent := Nil;
 
-  Source.Read(@_Translation, SizeOf(Vector3D));
+  Source.Read(@Translation, SizeOf(Vector3D));
   Source.Read(@Angles, SizeOf(Vector3D));
 
-  _Orientation := QuaternionRotation(Angles);
+  Self._RelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(Translation), Matrix4x4Rotation(Angles));
 End;
 
 Procedure MeshBone.Write(Dest:Stream);
@@ -194,10 +196,10 @@ Begin
   Else
     Dest.WriteString('');
 
-  Angles := QuaternionToEuler(Self._Orientation);
+(*  Angles := QuaternionToEuler(Self._Orientation);
 
   Dest.Write(@_Translation, SizeOf(Vector3D));
-  Dest.Write(@Angles, SizeOf(Vector3D));
+  Dest.Write(@Angles, SizeOf(Vector3D));*)
 End;
 
 Function MeshBone.GetAbsolutePosition: Vector3D;
@@ -208,18 +210,15 @@ End;
 
 Function MeshBone.GetAbsoluteMatrix: Matrix4x4;
 Begin
-  Result := Matrix4x4Multiply4x3(Matrix4x4Translation(_Translation), QuaternionMatrix4x4(_Orientation));
+  Result := _RelativeMatrix;
   If Assigned(Parent) Then
     Result := Matrix4x4Multiply4x3(_Parent.AbsoluteMatrix, Result);
 End;
 
 
-Function MeshBone.GetAbsoluteOrientation: Quaternion;
+Procedure MeshBone.SetRelativeMatrix(const Value: Matrix4x4);
 Begin
-  Result := Self.Orientation;
-
-  If Assigned(Parent) Then
-    Result := QuaternionMultiply(Result, Parent.AbsoluteOrientation);
+  Self._RelativeMatrix := Value;
 End;
 
 { MeshSkeleton }
@@ -340,8 +339,7 @@ Begin
     _BoneList[I]._Index := I;
     _BoneList[I]._Owner := Self;
 
-    _BoneList[I]._Translation := Bone.Translation;
-    _BoneList[I]._Orientation := Bone.Orientation;
+    _BoneList[I]._RelativeMatrix := Bone.RelativeMatrix;
 
     If Assigned(Bone.Parent) Then
       _BoneList[I]._Parent := Self.GetBoneByName(Bone.Parent.Name)
@@ -370,7 +368,7 @@ Begin
   For I:=0 To Pred(Self.BoneCount) Do
   Begin
     Bone := Self.GetBoneByIndex(I);
-
+{
     A := Matrix4x4Inverse(QuaternionMatrix4x4(Bone._Orientation));
     (*B := Matrix4x4Translation(CurrentPos[Bone.Index]);
 
@@ -403,6 +401,7 @@ Begin
       Bone._Translation := VectorSubtract(CurrentPos[Bone.Index], CurrentPos[Bone.Parent.Index])
     Else
       Bone._Translation := Bone.AbsolutePosition;*)
+      }
   End;
 
   CurrentPos := Nil;

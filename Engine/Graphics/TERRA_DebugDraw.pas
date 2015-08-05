@@ -51,8 +51,8 @@ Procedure DrawMeshGroupVertices(View:TERRAViewport; Group:MeshGroup; LineColor:C
 
 Procedure DrawFrustum(View:TERRAViewport; F:Frustum; LineColor:Color; LineWidth:Single = 1.0);
 
-Procedure DrawBone(View:TERRAViewport; Bone:MeshBone; State:AnimationState; Const Transform:Matrix4x4; LineColor:Color; LineWidth:Single);
-Procedure DrawSkeleton(View:TERRAViewport; Skeleton:MeshSkeleton; State:AnimationState; Const Transform:Matrix4x4; LineColor:Color; LineWidth:Single);
+Procedure DrawBone(View:TERRAViewport; Bone:MeshBone; State:AnimationState; Const Transform:Matrix4x4; LineColor:Color; LineWidth:Single = 1.0);
+Procedure DrawSkeleton(View:TERRAViewport; Skeleton:MeshSkeleton; State:AnimationState; Const Transform:Matrix4x4; LineColor:Color; LineWidth:Single = 1.0);
 
 Procedure DrawAxis(V:TERRAViewport; Const Origin, Normal:Vector3D; LineWidth:Single = 1.0);
 

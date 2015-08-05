@@ -51,6 +51,8 @@ Type
       Bones:Array Of AssimpBone;
       BoneCount:Integer;
 
+      RootTransform:Matrix4x4;
+
       Function FindNode(Name:TERRAString; Root:pAiNode):pAiNode;
 
       //Function GetBoneAt(Var BoneID:Integer):Integer;
@@ -182,7 +184,7 @@ Begin
     Exit;
 
   BoneCount := 0;
-  For I:=0 To Pred(scene.mNumMeshes) Do
+(*  For I:=0 To Pred(scene.mNumMeshes) Do
   If (scene.mMeshes[I].mNumBones>0) Then
   Begin
     BoneCount := 1;
@@ -191,8 +193,9 @@ Begin
     Bones[0].Name := aiStringGetValue(Scene.mRootNode.mName);
     Bones[0].Parent := Nil;
     Bones[0].Node := Scene.mRootNode;
+    Bones[0].GlobalTransform := Matrix4x4Rotation(0, 90*RAD, 90*RAD); //Scene.mRootNode.mTransformation;
     Break;
-  End;
+  End;*)
 
   For I:=0 To Pred(scene.mNumMeshes) Do
     For J:=0 To Pred(Scene.mMeshes[I].mNumBones) Do
@@ -220,8 +223,7 @@ Begin
         Bones[I].Parent := Bones[N];
       //  WriteLn(Bones[I].Name ,' parent is ', Bones[N].Name);
       End;
-    End Else
-      Bones[I].Parent := Bones[0];
+    End; //Else      Bones[I].Parent := Bones[0];
   End;
 
   For I:=0 To Pred(BoneCount) Do
@@ -244,11 +246,11 @@ Begin
       Bones[J] := Temp;
     End;
 
-  For I:=0 To Pred(BoneCount) Do
+(*  For I:=0 To Pred(BoneCount) Do
   Begin
     WriteLn(Bones[I].Name,'   ', Bones[I].Level);
   End;
-  //ReadLn;
+  //ReadLn;*)
 End;
 
 Procedure AssimpFilter.Release;
