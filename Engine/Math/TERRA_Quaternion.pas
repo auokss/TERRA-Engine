@@ -268,9 +268,18 @@ End;
 Begin
 	Result.w := Sqrt(1.0 + M.V[0] + M.V[5] + M.V[10]) / 2.0;
 	w4 := (4.0 * Result.w);
-	Result.x := (M.V[Index(2,1)] - M.V[Index(1,2)]) / w4 ;
-	Result.y := (M.V[Index(0,2)] - M.V[Index(2,0)]) / w4 ;
-	Result.z := (M.V[Index(1,0)] - M.V[Index(0,1)]) / w4 ;
+
+  If (w4<>0.0) Then
+  Begin
+  	Result.x := (M.V[Index(2,1)] - M.V[Index(1,2)]) / w4 ;
+  	Result.y := (M.V[Index(0,2)] - M.V[Index(2,0)]) / w4 ;
+	  Result.z := (M.V[Index(1,0)] - M.V[Index(0,1)]) / w4 ;
+  End Else
+  Begin
+  	Result.x := M.V[0];
+  	Result.y := 0;
+	  Result.z := 0;
+  End;
 End;
 
 Function QuaternionMatrix4x4(Const Quaternion:Quaternion):Matrix4x4;

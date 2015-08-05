@@ -28,7 +28,7 @@ Interface
 
 Uses TERRA_Object, TERRA_String, TERRA_GraphicsManager, TERRA_Renderer, TERRA_Color, TERRA_BoundingBox, TERRA_Frustum,
   TERRA_Ray, TERRA_Matrix3x3, TERRA_Matrix4x4, TERRA_Vector3D, TERRA_Vector2D, TERRA_Utils, TERRA_SpriteManager,
-  TERRA_MeshSkeleton, TERRA_MeshAnimationNodes, TERRA_Collision2D, TERRA_Splines, TERRA_ClipRect, TERRA_Viewport;
+  TERRA_Mesh, TERRA_MeshSkeleton, TERRA_MeshAnimationNodes, TERRA_Collision2D, TERRA_Splines, TERRA_ClipRect, TERRA_Viewport;
 
 // 2d drawing
 Procedure DrawPoint2D(View:TERRAViewport; Const P:Vector2D; FillColor:Color; Radius:Single = 2.0);
@@ -46,6 +46,9 @@ Procedure DrawRay(View:TERRAViewport; Const R:Ray; LineColor:Color; LineWidth:Si
 Procedure DrawBoundingBox(View:TERRAViewport; Const MyBox:BoundingBox; LineColor:Color; LineWidth:Single = 1.0);
 Procedure DrawSpline(View:TERRAViewport; S:Spline; LineColor:Color; LineWidth:Single = 1.0);
 
+Procedure DrawMeshVertices(View:TERRAViewport; Mesh:TERRAMesh; LineColor:Color; LineWidth:Single = 1.0);
+Procedure DrawMeshGroupVertices(View:TERRAViewport; Group:MeshGroup; LineColor:Color; LineWidth:Single = 1.0);
+
 Procedure DrawFrustum(View:TERRAViewport; F:Frustum; LineColor:Color; LineWidth:Single = 1.0);
 
 Procedure DrawBone(View:TERRAViewport; Bone:MeshBone; State:AnimationState; Const Transform:Matrix4x4; LineColor:Color; LineWidth:Single);
@@ -59,7 +62,7 @@ Procedure DrawPointCloud(Cloud:PointCloud2D; MyColor:Color; Layer:Single);
 *)
 
 Implementation
-Uses TERRA_OS, TERRA_Math, TERRA_Texture;
+Uses TERRA_OS, TERRA_Math, TERRA_Texture, TERRA_VertexFormat;
 
 Const
   Layer = 99;
@@ -374,6 +377,27 @@ Begin
   DrawRay(V, RayCreate(Origin, Tangent), ColorBlue, LineWidth, 5);
   DrawRay(V, RayCreate(Origin, BiTangent), ColorGreen, LineWidth, 5);
 End;
+
+Procedure DrawMeshVertices(View:TERRAViewport; Mesh:TERRAMesh; LineColor:Color; LineWidth:Single = 1.0);
+Var
+  I:Integer;
+Begin
+  For I:=0 To Pred(Mesh.GroupCount) Do
+    DrawMeshGroupVertices(View, Mesh.GetGroup(I), LineColor);
+End;
+
+Procedure DrawMeshGroupVertices(View:TERRAViewport; Group:MeshGroup; LineColor:Color; LineWidth:Single = 1.0);
+Var
+  I:Integer;
+  P:Vector3D;
+Begin
+  For I:=0 To Pred(Group.VertexCount) Do
+  Begin
+    Group.Vertices.GetVector3D(vertexPosition, I, P);
+    DrawPoint3D(View, P, LineColor);
+  End;
+End;
+
 
 (*
 Procedure DrawPointCloud(Cloud:PointCloud2D; MyColor:Color; Layer:Single);

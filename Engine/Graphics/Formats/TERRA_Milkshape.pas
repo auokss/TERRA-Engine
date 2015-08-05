@@ -894,13 +894,15 @@ Begin
     Ratio := Succ(MS3D.TotalFrames) / MS3D.TotalFrames
   Else
     Ratio := 1.0;
-  Inc(MS3D.TotalFrames);
+
   MS3D.CurrentTime := 0;
   MS3D.AnimationFPS := 24.0;
 
 
   If (MS3D.TotalFrames>0) Then
   Begin
+    Inc(MS3D.TotalFrames);
+    
     MS3D.NumModelComments := 1;
     MS3D.Comment := 'Name='+MyMEsh.GetAnimationName(AnimID)+', Start=1, End='+IntToString(MS3D.TotalFrames)+', Loop='+BoolToString(MyMesh.GetAnimationLoop(AnimID))+#0;
     MS3D.Comment := StringLower(MS3D.Comment);
@@ -933,6 +935,7 @@ Begin
       MS3D.Joints[I].NumKeyFramesTrans := MyMesh.GetPositionKeyCount(AnimID, I);
       MS3D.Joints[I].NumKeyFramesRot := MyMesh.GetRotationKeyCount(AnimID, I);
       MS3D.Joints[I].RelativePosition := MyMesh.GetBoneOffsetMatrix(I).GetTranslation();
+      MS3D.Joints[I].RelativeRotation := MyMesh.GetBoneOffsetMatrix(I).GetEulerAngles();
       MS3D.Joints[I].Flags := 0;
 
       SetLength(MS3D.Joints[I].KeyFramesTrans, MS3D.Joints[I].NumKeyFramesTrans);

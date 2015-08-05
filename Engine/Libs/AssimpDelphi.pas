@@ -42,6 +42,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Unit AssimpDelphi;
 
 Interface
+Uses TERRA_Matrix3x3, TERRA_Matrix4x4, TERRA_Quaternion, TERRA_Vector3D, TERRA_Vector2D;
+
 
 Const
   AssimpLib = 'Assimp.dll';
@@ -53,25 +55,11 @@ SingleArray = Array[0..100000] Of Single;
 PCardinalArray = ^CardinalArray;
 CardinalArray = Array[0..1000] Of Cardinal;
 
-aiMatrix3x3 = Packed Record
-	v:Array[0..8] Of Single;
-End;
-
-aiMatrix4x4 = Packed Record
-	v:Array[0..15] Of Single;
-End;
-
-aiQuaternion = Packed Record
-	w, 	x, y, z:Single;
-End;
-
-aiVector3D = Packed Record
-	x, y, z:Single;
-End;
-
-aiVector2D = Packed Record
-	x, y:Single;
-End;
+aiMatrix3x3 = Matrix3x3;
+aiMatrix4x4 = Matrix4x4;
+aiQuaternion = Quaternion;
+aiVector3D = Vector3D;
+aiVector2D = Vector2D;
 
 aiColor4D = Packed Record
 	// Red, green, blue and alpha color values 

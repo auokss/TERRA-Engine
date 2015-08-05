@@ -352,7 +352,7 @@ Var
   sinPitch, cosPitch, sinRoll, cosRoll, sinYaw, cosYaw:Double;
   Inv:Double;
 Begin
-	sinPitch := -V[2]; // [2][0];
+	sinPitch := -V[2];
 	cosPitch := Sqrt(1 - Sqr(sinPitch));
 
 	If (Abs(cosPitch) > EPSILON ) Then
@@ -362,17 +362,22 @@ Begin
 	  cosRoll := V[10] * Inv;
 	  sinYaw := V[1] * Inv;
 	  cosYaw := V[0] * Inv;
+
+	  Result.X  := atan2(sinYaw, cosYaw);
+  	Result.Y := atan2(sinPitch, cosPitch);
+  	Result.Z  := atan2(sinRoll, cosRoll);
   End Else
   Begin
     sinRoll := -V[6];
 	  cosRoll := V[5];
 	  sinYaw := 0.0;
 	  cosYaw := 1.0;
+
+  	Result.X  := atan2(sinYaw, cosYaw);
+  	Result.Y := atan2(sinPitch, cosPitch);
+	  Result.Z  := atan2(sinRoll, cosRoll);
   End;
 
-	Result.X  := atan2(sinYaw, cosYaw);
-	Result.Y := atan2(sinPitch, cosPitch);
-	Result.Z  := atan2(sinRoll, cosRoll);
 End;
 
 Procedure Matrix4x4.SetTranslation(Const P:Vector3D);
