@@ -326,7 +326,7 @@ Type
 
       Procedure SetViewport(X,Y, Width, Height:Integer); Override;
 
-      Procedure SetAttributeSource(Const Name:AnsiString; AttributeKind:Cardinal; ElementType:DataFormat; AttributeSource:Pointer); Override;
+      Function SetAttributeSource(Const Name:AnsiString; AttributeKind:Cardinal; ElementType:DataFormat; AttributeSource:Pointer):Boolean; Override;
 
       Procedure SetDiffuseColor(Const C:Color); Override;
 
@@ -1138,12 +1138,14 @@ Begin
   glColor4f(C.R/255, C.G/255, C.B/255, C.A/255);
 End;
 
-Procedure OpenGLRenderer.SetAttributeSource(Const Name:AnsiString; AttributeKind:Cardinal; ElementType:DataFormat; AttributeSource:Pointer);
+Function OpenGLRenderer.SetAttributeSource(Const Name:AnsiString; AttributeKind:Cardinal; ElementType:DataFormat; AttributeSource:Pointer):Boolean;
 Var
   Count, Format:Integer;
   Norm:Boolean;
   Handle:Integer;
 Begin
+  Result := False;
+
   Format := DataFormatToGL(ElementType);
   Case ElementType Of
   typeColor:
@@ -1249,6 +1251,7 @@ Begin
     Exit;
 
   glVertexAttribPointer(Handle, Count, Format, Norm, _CurrentSource.Size, AttributeSource);
+  Result := True;
 End;
 
 Procedure OpenGLRenderer.DrawSource(Primitive: RenderPrimitive; Count: Integer);

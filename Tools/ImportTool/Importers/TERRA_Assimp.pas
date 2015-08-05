@@ -26,18 +26,18 @@ Unit TERRA_Assimp;
 {$I terra.inc}
 
 Interface
-Uses TERRA_Mesh, TERRA_Math, TERRA_Utils, TERRA_Stream,
-  TERRA_FileStream, TERRA_FileUtils, TERRA_MeshFilter, TERRA_OS, TERRA_Quaternion,
-  TERRA_Vector3D, TERRA_Vector2D, TERRA_Color, TERRA_Matrix, Assimp;
-
-Function ASSIMP_Import(SourceFile, TargetDir:TERRAString):TERRAString;
+Uses TERRA_Mesh, TERRA_Object, TERRA_String, TERRA_Math, TERRA_Utils, TERRA_Stream,
+  TERRA_FileStream, TERRA_FileUtils, TERRA_MeshFilter, TERRA_OS, TERRA_Quaternion, TERRA_Renderer,
+  TERRA_Vector2D, TERRA_Vector3D, TERRA_Vector4D, TERRA_Color, TERRA_Matrix4x4, TERRA_VertexFormat,
+  AssimpDelphi;
+  //Assimp, aiTypes, aiMatrix4x4, aiMatrix3x3, aiMesh, aiScene, aiMaterial, aiColor4d, aiVector3D;
 
 Type
   AssimpBone = Class(TERRAObject)
     ID:Integer;
     Name:TERRAString;
-    LocalTransform:Matrix;
-    GlobalTransform:Matrix;
+    LocalTransform:Matrix4x4;
+    GlobalTransform:Matrix4x4;
     Parent:AssimpBone;
     Node:PAINode;
   End;
@@ -67,15 +67,13 @@ Type
       Function GetTriangle(GroupID, Index:Integer):Triangle; Override;
 
       Function GetVertexCount(GroupID:Integer):Integer; Override;
-      Function GetVertexFormat(GroupID:Integer):Cardinal; Override;
+      //Function GetVertexFormat(GroupID:Integer):VertexFormat; Override;
       Function GetVertexPosition(GroupID, Index:Integer):Vector3D; Override;
       Function GetVertexNormal(GroupID, Index:Integer):Vector3D; Override;
-      Function GetVertexTangent(GroupID, Index:Integer):Vector3D; Override;
-      Function GetVertexHandness(GroupID, Index:Integer):Single; Override;
+      Function GetVertexTangent(GroupID, Index:Integer):Vector4D; Override;
       Function GetVertexBone(GroupID, Index:Integer):Integer; Override;
       Function GetVertexColor(GroupID, Index:Integer):Color; Override;
-      Function GetVertexUV(GroupID, Index:Integer):Vector2D; Override;
-      Function GetVertexUV2(GroupID, Index:Integer):Vector2D; Override;
+      Function GetVertexUV(GroupID, Index, Channel:Integer):Vector2D; Override;
 
       Function GetDiffuseColor(GroupID:Integer):Color; Override;
       Function GetDiffuseMapName(GroupID:Integer):TERRAString; Override;
@@ -97,17 +95,17 @@ Type
       Function GetBoneCount():Integer; Override;
       Function GetBoneName(BoneID:Integer):TERRAString; Override;
       Function GetBoneParent(BoneID:Integer):Integer; Override;
-      Function GetBonePosition(BoneID:Integer):Vector3D; Override;
+      Function GetBoneOffsetMatrix(BoneID:Integer):Matrix4x4; Override;
   End;
 
 
 Implementation
 Uses TERRA_GraphicsManager;
 
-Function ASSIMP_Import(SourceFile, TargetDir:TERRAString):TERRAString;
+(*Function ASSIMP_Import(SourceFile, TargetDir:TERRAString):TERRAString;
 Var
   dest:FileStream;
-  mymesh:Mesh;
+  mymesh:TERRAMesh;
   group:MeshGroup;
   I, J, K, N:Integer;
   X,Y,Z:Single;
@@ -135,19 +133,19 @@ Begin
     Writeln('ASSIMP:Error!');
     Result := '';
   End;
-End;
+End;*)
 
-Var
-  c:aiLogStream;
+(*Var
+  c:aiLogStream;*)
+
 { AssimpFilter }
-
 Constructor AssimpFilter.Create(Source:TERRAString);
 Var
   Flags:Cardinal;
   I, J, N:Integer;
   node, P:PAInode;
   S:TERRAString;
-  M:Matrix;
+  M:Matrix4x4;
 Begin
   flags := 	aiProcess_CalcTangentSpace Or
 	aiProcess_GenSmoothNormals				Or
@@ -162,11 +160,11 @@ Begin
 	//aiProcess_FindDegenerates        Or
 	aiProcess_FindInvalidData;
 
-  scene := aiImportFile(PTERRAChar(Source), flags);
+  scene := aiImportFile(PAnsiChar(Source), flags);
   If (Scene = Nil) Then
     Exit;
 
-  BoneCount := 0;
+ (* BoneCount := 0;
   For I:=0 To Pred(scene.mNumMeshes) Do
   If (scene.mMeshes[I].mNumBones>0) Then
   Begin
@@ -198,7 +196,7 @@ Begin
     Node := Bones[I].Node;
     For J:=0 To 15 Do
       Bones[I].LocalTransform.V[J] := Node.mTransformation.V[J];
-      Bones[I].LocalTransform := MatrixTranspose(Bones[I].LocalTransform);
+      Bones[I].LocalTransform := Matrix4x4Transpose(Bones[I].LocalTransform);
       Bones[I].GlobalTransform := Bones[I].LocalTransform;
 
     Node := Node.mParent;
@@ -206,9 +204,9 @@ Begin
     Begin
       For J:=0 To 15 Do
         M.V[J] := Node.mTransformation.V[J];
-        M := MatrixTranspose(M);
+        M := Matrix4x4Transpose(M);
 
-      Bones[I].GlobalTransform := MatrixMultiply4x3(M, Bones[I].GlobalTransform);
+      Bones[I].GlobalTransform := Matrix4x4Multiply4x3(M, Bones[I].GlobalTransform);
 
       N := Self.GetBoneIDByName(aiStringGetValue(Node.mName));
       If (N>=0) And (Bones[I].Parent = Nil) Then
@@ -229,6 +227,7 @@ Begin
       WriteLn(Bones[I].Name,' has no parent!');
   End;
   //ReadLn;
+  *)
 End;
 
 Procedure AssimpFilter.Release;
@@ -250,7 +249,7 @@ Begin
   Begin
     SetLength(Result, Prop.mDataLength);
     Move(Prop.mData^, Result[1], Prop.mDataLength);
-    Result := TrimLeft(TrimRight(Result));
+    Result := StringTrim(Result);
     Result := GetFileName(Result, False);
     StringTofloat(Result);
   End Else
@@ -280,7 +279,7 @@ End;
 function AssimpFilter.GetGroupName(GroupID: Integer):TERRAString;
 begin
   Result := aiStringGetValue(scene.mMeshes[GroupID].mName);
-  Result := TrimLeft(TrimRight(Result));
+  Result := StringTrim(Result);
   If (Result='') Then
     Result := 'group'+IntToString(GroupID);
 end;
@@ -336,15 +335,10 @@ Begin
   Result := scene.mMeshes[GroupID].mNumVertices;
 End;
 
-Function AssimpFilter.GetVertexFormat(GroupID: Integer): Cardinal;
+(*Function AssimpFilter.GetVertexFormat(GroupID: Integer): VertexFormat;
 Begin
   Result := meshFormatNormal Or meshFormatTangent Or meshFormatUV1;
-End;
-
-Function AssimpFilter.GetVertexHandness(GroupID, Index: Integer): Single;
-Begin
-  Result := 1;
-End;
+End;*)
 
 function AssimpFilter.GetVertexNormal(GroupID, Index: Integer): Vector3D;
 begin
@@ -360,24 +354,22 @@ begin
   Result.Z := scene.mMeshes[GroupID].mVertices[Index].Z;
 end;
 
-Function AssimpFilter.GetVertexTangent(GroupID, Index: Integer): Vector3D;
+Function AssimpFilter.GetVertexTangent(GroupID, Index: Integer): Vector4D;
 begin
   Result.X := scene.mMeshes[GroupID].mTangents[Index].X;
   Result.Y := scene.mMeshes[GroupID].mTangents[Index].Y;
   Result.Z := scene.mMeshes[GroupID].mTangents[Index].Z;
+  Result.W := 1;
 end;
 
-Function AssimpFilter.GetVertexUV(GroupID, Index: Integer): Vector2D;
+Function AssimpFilter.GetVertexUV(GroupID, Index, Channel: Integer): Vector2D;
 begin
-  Result.X := scene.mMeshes[GroupID].mTextureCoords[0][Index].X;
-  Result.Y := 1 - scene.mMeshes[GroupID].mTextureCoords[0][Index].Y;
+  If (Channel<Length(scene.mMeshes[GroupID].mTextureCoords)) And (Assigned(scene.mMeshes[GroupID].mTextureCoords[Channel])) Then
+  Begin
+    Result.X := scene.mMeshes[GroupID].mTextureCoords[Channel][Index].X;
+    Result.Y := 1 - scene.mMeshes[GroupID].mTextureCoords[Channel][Index].Y;
+  End;
 end;
-
-Function AssimpFilter.GetVertexUV2(GroupID, Index: Integer): Vector2D;
-begin
-  Result.X := scene.mMeshes[GroupID].mTextureCoords[1][Index].X;
-  Result.Y := 1- scene.mMeshes[GroupID].mTextureCoords[1][Index].Y;
-End;
 
 Function AssimpFilter.GetAnimationCount():Integer;
 Begin
@@ -547,17 +539,9 @@ Begin
   End;
 End;
 
-Function AssimpFilter.GetBonePosition(BoneID: Integer): Vector3D;
-Var
-  A,B:Vector3D;
+Function AssimpFilter.GetBoneOffsetMatrix(BoneID:Integer):Matrix4x4; 
 Begin
-  A := Bones[BoneID].GlobalTransform.Transform(VectorZero);
-  If Assigned(Bones[BoneID].Parent) Then
-  Begin
-    B := Bones[Bones[BoneID].Parent.ID].GlobalTransform.Transform(VectorZero);
-    Result := VectorSubtract(A, B);
-  End Else
-    Result := A;
+  Result := Bones[BoneID].LocalTransform;
 End;
 
 Initialization

@@ -39,12 +39,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ---------------------------------------------------------------------------
 *)
 
-Unit Assimp;
+Unit AssimpDelphi;
 
 Interface
 
 Const
-  AssimpLib = 'Assimp32.dll';
+  AssimpLib = 'Assimp.dll';
 
 Type
 PSingleArray = ^SingleArray;
@@ -127,7 +127,7 @@ aiString = Packed Record
 	length:Integer;
 
 	// String buffer. Size limit is MAXLEN */
-	data:Array[0..Pred(MAXLEN)] Of TERRAChar;
+	data:Array[0..Pred(MAXLEN)] Of AnsiChar;
 End ;  // !struct aiString
 
 
@@ -1218,7 +1218,7 @@ aiMaterialProperty = Packed Record
     (*	Binary buffer to hold the property's value.
      * The size of the buffer is always mDataLength.
      *)
-    mData:PTERRAChar;
+    mData:PAnsiChar;
 End;
 
 
@@ -1289,7 +1289,7 @@ Const
  * @param pPropOut Pointer to receive a pointer to a valid aiMaterialProperty
  *        structure or NULL if the key has not been found. *)
 
-Function aiGetMaterialProperty(pMat:PaiMaterial; pKey:PTERRAChar; _type:aiTextureType; index:Cardinal;Var pPropOut:PaiMaterialProperty):aiReturn;  cdecl; external AssimpLib;
+Function aiGetMaterialProperty(pMat:PaiMaterial; pKey:PAnsiChar; _type:aiTextureType; index:Cardinal;Var pPropOut:PaiMaterialProperty):aiReturn;  cdecl; external AssimpLib;
 
 (* @brief Retrieve an array of float values with a specific key 
  *  from the material
@@ -1316,7 +1316,7 @@ Function aiGetMaterialProperty(pMat:PaiMaterial; pKey:PTERRAChar; _type:aiTextur
  * @return Specifies whether the key has been found. If not, the output
  *   arrays remains unmodified and pMax is set to 0.*)
 // ---------------------------------------------------------------------------
-Function aiGetMaterialFloatArray(pMat:PaiMaterial; pKey:PTERRAChar;
+Function aiGetMaterialFloatArray(pMat:PaiMaterial; pKey:PAnsiChar;
 	 _type, index:Cardinal; pOut:PSingleArray;
     Var pMax:Integer):aiReturn;  cdecl; external AssimpLib;
 
@@ -1343,20 +1343,20 @@ Function aiGetMaterialFloatArray(pMat:PaiMaterial; pKey:PTERRAChar;
  *  from a material
  *
  * See the sample for aiGetMaterialFloatArray for more information.*)
-Function  aiGetMaterialIntegerArray(pMat:PaiMaterial; pKey:PTERRAChar; _type, index:Cardinal;
+Function  aiGetMaterialIntegerArray(pMat:PaiMaterial; pKey:PAnsiChar; _type, index:Cardinal;
    pOut:PIntegerArray; Var pMax:Integer):aiReturn;  cdecl; external AssimpLib;
 
 
 (* @brief Retrieve a color value from the material property table
 *
 * See the sample for aiGetMaterialFloat for more information*)
-Function aiGetMaterialColor(pMat:PaiMaterial; pKey:PTERRAChar; _type, index:Cardinal; Var pOut:aiColor4D):aiReturn; cdecl; external AssimpLib;
+Function aiGetMaterialColor(pMat:PaiMaterial; pKey:PAnsiChar; _type, index:Cardinal; Var pOut:aiColor4D):aiReturn; cdecl; external AssimpLib;
 
 
 (* @brief Retrieve a string from the material property table
 * See the sample for aiGetMaterialFloat for more information.*)
 
-Function aiGetMaterialString(pMat:PaiMaterial; pKey:PTERRAChar; _type:Cardinal; index:Cardinal; var pOut:aiString):aiReturn; cdecl; external AssimpLib;
+Function aiGetMaterialString(pMat:PaiMaterial; pKey:PAnsiChar; _type:Cardinal; index:Cardinal; var pOut:aiString):aiReturn; cdecl; external AssimpLib;
 
 (* Get the number of textures for a particular texture type.
  *  @param[in] pMat Pointer to the input material. May not be NULL
@@ -1744,10 +1744,10 @@ Const
   AI_MAX_FACES = $7fffffff;
 
 // Supported number of vertex color sets per mesh.
-  AI_MAX_NUMBER_OF_COLOR_SETS = 4;
+  AI_MAX_NUMBER_OF_COLOR_SETS = 8;
 
 // Supported number of texture coord sets (UV(W) channels) per mesh */
-  AI_MAX_NUMBER_OF_TEXTURECOORDS = 4;
+  AI_MAX_NUMBER_OF_TEXTURECOORDS = 8;
 
 (* @brief A single face in a mesh, referring to multiple vertices.
  *
@@ -1948,7 +1948,7 @@ aiAnimMeshArray = Array[0..100000] Of PaiAnimMesh;
 * @endcode
 *)
 PaiMesh = ^aiMesh;
-aiMesh = Packed Record
+aiMesh = Record
 	(* Bitwise combination of the members of the #aiPrimitiveType enum.
 	 * This specifies which types of primitives are present in the mesh.
 	 * The "SortByPrimitiveType"-Step can be used to make sure the
@@ -2195,7 +2195,7 @@ aiTexture = Packed Record
 	 * E.g. 'dds\\0', 'pcx\\0', 'jpg\\0'.  All characters are lower-case.
 	 * The fourth character will always be '\\0'.
 	 *)
-	achFormatHint:Array[0..3] Of TERRAChar;
+	achFormatHint:Array[0..3] Of AnsiChar;
 
 	(* Data of the texture.
 	 *
@@ -2482,7 +2482,7 @@ End;
 
 //assimp.h
 Type
-	aiLogStreamCallback = Procedure (message, user:PTERRAChar); Cdecl;
+	aiLogStreamCallback = Procedure (message, user:PAnsiChar); Cdecl;
 
   PaiLogStream= ^aiLogStream;
 	aiLogStream = Packed Record
@@ -2490,7 +2490,7 @@ Type
 		 callback:aiLogStreamCallback;
 
 	// user data to be passed to the callback 
-		user:PTERRAChar;
+		user:PAnsiChar;
 	End;
 
 (* Reads the given file and returns its content.
@@ -2508,7 +2508,7 @@ Type
  *   #aiPostProcessSteps flags.
  * @return Pointer to the imported data or NULL if the import failed. 
  *)
-Function aiImportFile(pFile:PTERRAChar; pFlags:Cardinal):PaiScene; cdecl; external AssimpLib;
+Function aiImportFile(pFile:PAnsiChar; pFlags:Cardinal):PaiScene; cdecl; external AssimpLib;
 
 (* Reads the given file using user-defined I/O functions and returns 
  *   its content.
@@ -2529,7 +2529,7 @@ Function aiImportFile(pFile:PTERRAChar; pFlags:Cardinal):PaiScene; cdecl; extern
  * @return Pointer to the imported data or NULL if the import failed.  
  * @note Include <aiFileIO.h> for the definition of #aiFileIO.
  *)
-//Function aiImportFileEx( pFile:PTERRAChar; pFlags:Cardinal; pFS:PaiFileIO):PaiScene; cdecl; external AssimpLib;
+//Function aiImportFileEx( pFile:PAnsiChar; pFlags:Cardinal; pFS:PaiFileIO):PaiScene; cdecl; external AssimpLib;
 
 (* Reads the given file from a given memory buffer,
  * 
@@ -2559,7 +2559,7 @@ Function aiImportFile(pFile:PTERRAChar; pFlags:Cardinal):PaiScene; cdecl; extern
  * stuff into external scripts. If you need the full functionality, provide a custom 
  * IOSystem to make Assimp find these files.
  *)
-Function aiImportFileFromMemory(pBuffer:Pointer; pLength:Cardinal; pFlags:Cardinal; pHint:PTERRAChar):PAiScene; cdecl; external AssimpLib;
+Function aiImportFileFromMemory(pBuffer:Pointer; pLength:Cardinal; pFlags:Cardinal; pHint:PAnsiChar):PAiScene; cdecl; external AssimpLib;
 
 (* Apply post-processing to an already-imported scene.
  *
@@ -2596,7 +2596,7 @@ Function aiApplyPostProcessing(pScene:PaiScene; pFlags:Cardinal):PaiScene; cdecl
  *    Pass NULL for all other flags.
  *  @return The log stream. callback is set to NULL if something went wrong.
  *)
-Function aiGetPredefinedLogStream(pStreams:aiDefaultLogStream; fileName:PTERRAChar):aiLogStream; cdecl; external AssimpLib;
+Function aiGetPredefinedLogStream(pStreams:aiDefaultLogStream; fileName:PAnsiChar):aiLogStream; cdecl; external AssimpLib;
 
 (* Attach a custom log stream to the libraries' logging system.
  *
@@ -2649,7 +2649,7 @@ Procedure aiReleaseImport(pScene:PaiScene); cdecl; external AssimpLib;
  * import process. NULL if there was no error. There can't be an error if you
  * got a non-NULL #aiScene from #aiImportFile/#aiImportFileEx/#aiApplyPostProcessing.
  *)
-Function aiGetErrorString():PTERRAChar; cdecl; external AssimpLib;
+Function aiGetErrorString():PAnsiChar; cdecl; external AssimpLib;
 
 (* Returns whether a given file extension is supported by ASSIMP
  *
@@ -2657,7 +2657,7 @@ Function aiGetErrorString():PTERRAChar; cdecl; external AssimpLib;
  * Must include a leading dot '.'. Example: '.3ds', '.md3'
  * @return AI_TRUE if the file extension is supported.
  *)
-Function aiIsExtensionSupported(szExtension:PTERRAChar):Boolean; cdecl; external AssimpLib;
+Function aiIsExtensionSupported(szExtension:PAnsiChar):Boolean; cdecl; external AssimpLib;
 
 (* Get a list of all file extensions supported by ASSIMP.
  *
@@ -2685,7 +2685,7 @@ Procedure aiGetMemoryRequirements( pIn:PaiScene; info:PaiMemoryInfo); cdecl; ext
  *   public properties are defined in the aiConfig.h header file (#AI_CONFIG_XXX).
  * @param value New value for the property
  *)
-Procedure aiSetImportPropertyInteger(szName:PTERRAChar; value:Integer);cdecl; external AssimpLib;
+Procedure aiSetImportPropertyInteger(szName:PAnsiChar; value:Integer);cdecl; external AssimpLib;
 
 (* Set a floating-point property. 
  *
@@ -2697,7 +2697,7 @@ Procedure aiSetImportPropertyInteger(szName:PTERRAChar; value:Integer);cdecl; ex
  *   public properties are defined in the aiConfig.h header file (#AI_CONFIG_XXX).
  * @param value New value for the property
  *)
-Procedure aiSetImportPropertyFloat(szName:PTERRAChar; value:Single); cdecl; external AssimpLib;
+Procedure aiSetImportPropertyFloat(szName:PAnsiChar; value:Single); cdecl; external AssimpLib;
 
 (* Set a string property. 
  *
@@ -2709,7 +2709,7 @@ Procedure aiSetImportPropertyFloat(szName:PTERRAChar; value:Single); cdecl; exte
  *   public properties are defined in the aiConfig.h header file (#AI_CONFIG_XXX).
  * @param value New value for the property
  *)
-Procedure aiSetImportPropertyString(szName:PTERRAChar; Var st:aiString); cdecl; external AssimpLib;
+Procedure aiSetImportPropertyString(szName:PAnsiChar; Var st:aiString); cdecl; external AssimpLib;
 
 (* Construct a quaternion from a 3x3 rotation matrix.
  *  @param quat Receives the output quaternion.
@@ -2774,15 +2774,15 @@ Procedure aiIdentityMatrix3(Var mat:aiMatrix3x3); cdecl; external AssimpLib;
 Procedure aiIdentityMatrix4(Var mat:aiMatrix4x4); cdecl; external AssimpLib;
 
 
-Function aiStringGetValue(Str:aiString):TERRAString;
-function aiAnimationGetChannel(Anim:PAiAnimation; Name:TERRAString): Integer;
+Function aiStringGetValue(Str:aiString):AnsiString;
+function aiAnimationGetChannel(Anim:PAiAnimation; Name:AnsiString): Integer;
 
 Implementation
 
 
 { aiString }
 
-Function aiStringGetValue(Str:aiString):TERRAString;
+Function aiStringGetValue(Str:aiString):AnsiString;
 Begin
   SetLength(Result, str.length);
   If str.Length>0 Then
@@ -2791,7 +2791,7 @@ End;
 
 { aiAnimation }
 
-function aiAnimationGetChannel(Anim:PAiAnimation; Name:TERRAString): Integer;
+function aiAnimationGetChannel(Anim:PAiAnimation; Name:AnsiString): Integer;
 Var
   I:Integer;
 begin

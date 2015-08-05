@@ -147,7 +147,7 @@ Type
 
       Procedure SetViewport(X,Y, Width, Height:Integer); Override;
 
-      Procedure SetAttributeSource(Const Name:AnsiString; AttributeKind:Cardinal; ElementType:DataFormat; AttributeSource:Pointer); Override;
+      Function SetAttributeSource(Const Name:AnsiString; AttributeKind:Cardinal; ElementType:DataFormat; AttributeSource:Pointer):Boolean; Override;
 
       Procedure SetDiffuseColor(Const C:Color); Override;
 
@@ -272,7 +272,7 @@ Procedure NullRenderer.SetDiffuseColor(Const C: Color);
 Begin
 End;
 
-Procedure NullRenderer.SetAttributeSource(Const Name:AnsiString; AttributeKind:Cardinal; ElementType:DataFormat; AttributeSource:Pointer);
+Function NullRenderer.SetAttributeSource(Const Name:AnsiString; AttributeKind:Cardinal; ElementType:DataFormat; AttributeSource:Pointer):Boolean;
 Begin
 End;
 

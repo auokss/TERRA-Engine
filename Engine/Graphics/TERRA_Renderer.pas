@@ -574,7 +574,7 @@ Type
       //Procedure SetBackgroundColor(Const C:Color);
 
       Procedure SetVertexSource(Data:VertexData);
-      Procedure SetAttributeSource(Const Name:TERRAString; AttributeKind:Cardinal; ElementType:DataFormat; AttributeSource:Pointer); Virtual; Abstract;
+      Function SetAttributeSource(Const Name:TERRAString; AttributeKind:Cardinal; ElementType:DataFormat; AttributeSource:Pointer):Boolean; Virtual; Abstract;
       Procedure DrawSource(Primitive:RenderPrimitive; Count:Integer); Virtual; Abstract;
       Procedure DrawIndexedSource(Primitive:RenderPrimitive; Count:Integer; Indices:PWord); Virtual; Abstract;
 

@@ -114,6 +114,8 @@ Type
 
       //Procedure computeTransforms(targetBone:MeshBone; sourceSkeleton, targetSkeleton:MeshSkeleton; frameId, animLength:Integer; Const ratio:Vector3D);
 
+      Procedure RetargetBone(SourceBone, TargetBone:MeshBone; SourceAnimation, TargetAnimation:BoneAnimation);
+
     Public
       FPS:Single;
       Loop:Boolean;
@@ -767,20 +769,89 @@ the Bind transforms are the transforms of the bone when it's in the rest pose (a
 Wrongly called worldBindRotation in Bone implementation, those transforms are expressed in model space
 the Model space transforms are the transforms of the bone in model space once the frame transforms has been applied}
 
+Procedure Animation.RetargetBone(SourceBone, TargetBone:MeshBone; SourceAnimation, TargetAnimation:BoneAnimation);
+Procedure CalcMatrices(Bone:MeshBone; Const FrameRotation:Vector3D; Out Bind, Frame:Matrix4x4);
+Var
+  T:Vector3D;
+  Q:Quaternion;
+Begin
+  Q := SourceBone.Orientation;
+  T := SourceBone.Translation;
+  Bind := Matrix4x4Multiply4x3(Matrix4x4Translation(T), QuaternionMatrix4x4(Q));
+
+  // Add the animation state to the rest position
+  Q := QuaternionMultiply(SourceBone.Orientation, QuaternionRotation(FrameRotation));
+  T := VectorAdd(SourceBone.Translation, {Block.Translation} VectorZero);
+  Frame := Matrix4x4Multiply4x3(Matrix4x4Translation(T), QuaternionMatrix4x4(Q));
+End;
+
+Var
+  I:Integer;
+  SourceParent, TargetParent:MeshBone;
+
+  CrossResult, BindPos, FramePos, ParentPos:Vector3D;
+
+  turnAngle, cosAngle:Single;
+  Q:Quaternion;
+
+  BindMatrix, FrameMatrix:Matrix4x4;
+
+  SourceAxis, TargetAxis, Direction:Vector3D;
+
+Begin
+  SourceParent := SourceBone.Parent;
+  TargetParent := TargetBone.Parent;
+
+  TargetAnimation.Positions.Count := 0;
+  TargetAnimation.Scales.count := 0;
+
+  If SourceParent = Nil Then
+  Begin
+    TargetAnimation.Rotations.Count := 0;
+
+    Exit;
+  End;
+
+  For I:=0 To Pred(TargetAnimation.Rotations.Count) Do
+    Begin
+      CalcMatrices(SourceBone, TargetAnimation.Rotations.KeyFrames[I].Value, BindMatrix, FrameMatrix);
+
+      BindPos := BindMatrix.Transform(SourceBone.AbsolutePosition);
+      FramePos := FrameMatrix.Transform(SourceBone.AbsolutePosition);
+
+      TargetAxis := VectorSubtract(FramePos, BindPos);
+      TargetAxis.Normalize();
+
+      SourceAxis := TargetBone.Normal;
+
+      cosAngle := VectorDot(TargetAxis, SourceAxis);
+
+      CrossResult := VectorCross(TargetAxis, SourceAxis);
+      CrossResult.Normalize();
+
+      turnAngle := arccos(cosAngle);	// GET THE ANGLE
+
+      //  turnAngle := 45*RAD;  CrossResult := VectorUp;
+
+      Q := QuaternionFromAxisAngle(crossResult, turnAngle);
+
+
+      TargetAnimation.Rotations.KeyFrames[I].Value := QuaternionToEuler(Q);
+    End;
+End;
+
 Function Animation.Retarget(SourceSkeleton, TargetSkeleton: MeshSkeleton): Animation;
 Var
   I,J, K:Integer;
   Rots:VectorKeyframeArray;
 
-  SourceParent, SourceBone:MeshBone;
-  TargetParent, TargetBone:MeshBone;
+  SourceBone, TargetBone:MeshBone;
 
   BonePos, ParentPos, U, V, W:Vector3D;
 
   inverseTargetParentModelRot:Quaternion;
   targetLocalRot, targetInverseBindRotation, twist:Quaternion;
 
-  Q:Quaternion;
   M:Matrix4x4;
 Begin
   TargetSkeleton.NormalizeJoints();
@@ -791,36 +862,9 @@ Begin
   For I:=0 To Pred(_BoneCount) Do
   Begin
     SourceBone := SourceSkeleton.GetBoneByName(_Bones[I].Name);
-    SourceParent := SourceBone.Parent;
-
     TargetBone := TargetSkeleton.GetBoneByName(_Bones[I].Name);
-    TargetParent := TargetBone.Parent;
 
-    Result._Bones[I].Positions.Count := 0;
-    Result._Bones[I].Scales.count := 0;
-
-    If SourceParent = Nil Then
-    Begin
-      Result._Bones[I].Rotations.Count := 0;
-
-      Continue;
-    End;
-
-//    inverseTargetParentModelRot := Quat1;
-    // computing target's parent's inverse model rotation
-    For J:=0 To Pred(_Bones[I].Rotations.Count) Do
-    Begin
-      Rots := Result._Bones[I].Rotations;
-
-      For K:=0 To Pred(Rots.Count) Do
-      Begin
-        Q := QuaternionRotation(Rots.Keyframes[K].Value);
-        M := QuaternionMatrix4x4(Q);
-        M := Matrix4x4Multiply4x3(TargetBone.RetargetMatrix, M);
-        Rots.Keyframes[K].Value := M.GetEulerAngles();
-      End;
-
-    End;
+    Self.RetargetBone(SourceBone, TargetBone, Self._Bones[I], Result._Bones[I]);
   End;
 End;
 

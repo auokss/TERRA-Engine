@@ -50,8 +50,11 @@ Begin
   Solid := MeshInstance.Create(MeshManager.Instance.CubeMesh);
   Solid.SetDiffuseMap(0, DiffuseTex);
   Solid.SetGlowMap(0, GlowTex);
-  Solid.SetPosition(VectorCreate(0, -30, -80));
+  Solid.SetPosition(VectorCreate(0, 10, 0));
   Solid.SetScale(VectorConstant(20.0));
+
+  Self._Scene.MainViewport.Camera.SetPosition(VectorCreate(0, 20, -50));
+  Self._Scene.MainViewport.Camera.SetView(VectorCreate(0, -0.25, 0.75));
 End;
 
 Procedure MyDemo.OnDestroy;

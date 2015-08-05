@@ -707,7 +707,11 @@ Begin
     Else
       AttrOfs := Pointer(BaseOfs);
 
-    GraphicsManager.Instance.Renderer.SetAttributeSource(Name, I, _Formats[I], AttrOfs);
+    If Not GraphicsManager.Instance.Renderer.SetAttributeSource(Name, I, _Formats[I], AttrOfs) Then
+    Begin
+      Log(logDebug, 'VBO', 'Attribute '+_Names[I]+' is missing from the shader.');
+      Exit;
+    End;
   End;
 
   Result := True;

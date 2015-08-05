@@ -215,7 +215,7 @@ Type
       Function GetVertexPosition(GroupID, Index:Integer):Vector3D; Override;
       Function GetVertexNormal(GroupID, Index:Integer):Vector3D; Override;
       Function GetVertexBone(GroupID, Index:Integer):Integer; Override;
-      Function GetVertexUV(GroupID, Index:Integer):Vector2D; Override;
+      Function GetVertexUV(GroupID, Index, Channel:Integer):Vector2D; Override;
 
       Function GetDiffuseColor(GroupID:Integer):Color; Override;
 
@@ -864,7 +864,7 @@ Begin
       MS3D.Triangles[TOfs + I].Flags := MS3D.Groups[N].Flags;
       For J:=0 To 2 Do
       Begin
-        UV := MyMesh.GetVertexUV(N, T.Indices[J]);
+        UV := MyMesh.GetVertexUV(N, T.Indices[J], 0);
         MS3D.Triangles[TOfs + I].VertexIndices[Succ(J)] := T.Indices[J] + VOfs;
         MS3D.Triangles[TOfs + I].VertexNormals[Succ(J)] := MyMesh.GetVertexNormal(N, T.Indices[J]);
         MS3D.Triangles[TOfs + I].S[Succ(J)] := UV.X;
@@ -932,7 +932,7 @@ Begin
 
       MS3D.Joints[I].NumKeyFramesTrans := MyMesh.GetPositionKeyCount(AnimID, I);
       MS3D.Joints[I].NumKeyFramesRot := MyMesh.GetRotationKeyCount(AnimID, I);
-      MS3D.Joints[I].RelativePosition := MyMesh.GetBonePosition(I);
+      MS3D.Joints[I].RelativePosition := MyMesh.GetBoneOffsetMatrix(I).GetTranslation();
       MS3D.Joints[I].Flags := 0;
 
       SetLength(MS3D.Joints[I].KeyFramesTrans, MS3D.Joints[I].NumKeyFramesTrans);
@@ -1114,7 +1114,7 @@ Begin
   Result := _Groups[GroupID].Vertices[Index].Position;
 End;
 
-Function Milkshape3DModel.GetVertexUV(GroupID, Index: Integer): Vector2D;
+Function Milkshape3DModel.GetVertexUV(GroupID, Index, Channel: Integer): Vector2D;
 Begin
   Result := _Groups[GroupID].Vertices[Index].TexCoords;
 End;

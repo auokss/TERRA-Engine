@@ -506,8 +506,6 @@ Type
       _Vertices:VertexData;
       _ScratchVertices:VertexData;
 
-      _AlphaInspected:TERRATexture;
-
       _Triangles:Array Of Triangle;
       _Edges:Array Of TriangleEdgesState;
       _TriangleNormals:Array Of Vector3D;
@@ -546,8 +544,6 @@ Type
       Function CalculateDitherScale():Single;
 
       Procedure InheritMaterial(Const OtherMat:MeshMaterial; Var DestMaterial:MeshMaterial);
-
-      Procedure InspectAlpha(Tex:TERRATexture);
 
     Public
       Userdata:Pointer;
@@ -872,8 +868,7 @@ Type
       Function GetVertexTangent(GroupID, Index:Integer):Vector4D; Override;
       Function GetVertexBone(GroupID, Index:Integer):Integer; Override;
       Function GetVertexColor(GroupID, Index:Integer):Color; Override;
-      Function GetVertexUV(GroupID, Index:Integer):Vector2D; Override;
-      Function GetVertexUV2(GroupID, Index:Integer):Vector2D; Override;
+      Function GetVertexUV(GroupID, Index, Channel:Integer):Vector2D; Override;
 
       Function GetDiffuseColor(GroupID:Integer):Color; Override;
       Function GetDiffuseMapName(GroupID:Integer):TERRAString; Override;
@@ -3366,7 +3361,6 @@ Begin
 
 
   _EmitterFX := '';
-  _AlphaInspected := Nil;
   _CullGeometry := False;
 
   ReleaseObject(_Buffer);
@@ -4355,9 +4349,6 @@ Begin
     Begin
       Slot := 0;
 
-      If (DestMaterial.FlowMap<>Nil) Then
-        IntToString(2);
-
       BindMaterial(View, Slot, DestMaterial);
 
       If Assigned(_Shader) Then
@@ -4377,11 +4368,6 @@ Begin
       Begin
         Tex.IsReady();
         Exit;
-      End;
-
-      If _AlphaInspected = Nil Then
-      Begin
-        Self.InspectAlpha(Tex);
       End;
 
       {$IFDEF DEBUG_GRAPHICS}Log(logDebug, 'MeshGroup', 'Setting texture wrap mode');  {$ENDIF}
@@ -5691,11 +5677,6 @@ Begin
   _Material.ShadowColor := Value;
 End;
 
-Procedure MeshGroup.InspectAlpha(Tex:TERRATexture);
-Begin
-  _AlphaInspected := Tex;
-End;
-
 Function MeshGroup.GetHueShift: Single;
 Begin
   Result := _Material.HueShift;
@@ -6085,71 +6066,62 @@ Var
   S:TERRAString;
   B:MeshBone;
   P:Vector2D;
+  Group:MeshGroup;
 Begin
+  Self.Create(rtDynamic, '');
+
   Self.Clean();
   If Source = Nil Then
     Exit;
 
-  _GroupCount := Source.GetGroupCount;
-  SetLength(_Groups, _GroupCount);
-  For N:=0 To Pred(_GroupCount) Do
+  For N:=0 To Pred(Source.GetGroupCount) Do
   Begin
     Format := Source.GetVertexFormat(N);
 
-    _Groups[N] := MeshGroup.Create(N, Self, Format, Source.GetGroupName(N));
-    _Groups[N].Flags := Source.GetGroupFlags(N);
-    _Groups[N]._Vertices.Resize(Source.GetVertexCount(N));
-    _Groups[N]._TriangleCount := Source.GetTriangleCount(N);
-    _Groups[N]._VisibleTriangleCount := _Groups[N]._TriangleCount;
+    //Format := [vertexFormatPosition, vertexFormatNormal, vertexFormatUV0];
+    Format := [vertexFormatPosition, vertexFormatColor, vertexFormatNormal, vertexFormatTangent, vertexFormatUV0];
 
-    For I:=0 To Pred(_Groups[N].VertexCount) Do
+    Group  := Self.AddGroup(Format, Source.GetGroupName(N));
+//    Group.Flags := Source.GetGroupFlags(N);
+    Group.Vertices.Resize(Source.GetVertexCount(N));
+    Group.TriangleCount := Source.GetTriangleCount(N);
+  //  Group._VisibleTriangleCount := Group._TriangleCount;
+
+    For I:=0 To Pred(Group.VertexCount) Do
     Begin
-{      _Groups[N]._Vertices.SetVector3D(I, vertexPosition, Source.GetVertexPosition(N, I);
+      Group._Vertices.SetVector3D(I, vertexPosition, Source.GetVertexPosition(N, I));
+      //Group._Vertices.SetVector3D(I, vertexNormal, Source.GetVertexNormal(N, I));
+      //Group._Vertices.SetVector4D(I, vertexTangent, Source.GetVertexTangent(N, I));
 
-      If (Format And vertexBone<>0) Then
-        _Groups[N].GetSingle(I, vertexBone)^ := Source.GetVertexBone(N, I)
-      Else
-        _Groups[N].GetSingle(I, vertexBone)^ := -1;
+      Group._Vertices.SetVector2D(I, vertexUV0, Source.GetVertexUV(N, I, 0));
+//      Group._Vertices.SetVector2D(I, vertexUV1, Source.GetVertexUV(N, I, 1));
+  //    Group._Vertices.SetFloat(I, vertexBone, Source.GetVertexBone(N, I));
 
-      If (Format And vertexNormal<>0) Then
-        _Groups[N]._Vertices[I].Normal := Source.GetVertexNormal(N, I);
+      Group._Vertices.SetFloat(I, vertexBone, -1);
 
-      If (Format And vertexUV0<>0) Then
-        _Groups[N]._Vertices[I].TextureCoords := Source.GetVertexUV(N, I);
-
-      If (Format And vertexUV1<>0) Then
-        _Groups[N]._Vertices[I].TextureCoords2 := Source.GetVertexUV2(N, I);
-
-      If (Format And vertexColor<>0) Then
-        _Groups[N]._Vertices[I].Color := Source.GetVertexColor(N, I)
-      Else
-        _Groups[N]._Vertices[I].Color := ColorWhite;
-
-      If (Format And vertexTangent<>0) Then
-      Begin
-        _Groups[N]._Vertices[I].Tangent := Source.GetVertexTangent(N, I);
-        _Groups[N]._Vertices[I].Handness := Source.GetVertexHandness(N, I);
-      End;}
-
-      RaiseError('unfinished mesh');
+      //Group._Vertices.SetColor(I, vertexBone, Source.GetVertexColor(N, I));
+      Group._Vertices.SetColor(I, vertexBone, ColorWhite);
     End;
-    SetLength(_Groups[N]._Triangles, _Groups[N]._TriangleCount);
-    For I:=0 To Pred(_Groups[N]._TriangleCount) Do
-      _Groups[N]._Triangles[I] := Source.GetTriangle(N,I);
 
-    _Groups[N].DiffuseMap := TextureManager.Instance.GetTexture(Source.GetDiffuseMapName(N));
-    _Groups[N].DiffuseMap := TextureManager.Instance.GetTexture(Source.GetDiffuseMapName(N));
-    _Groups[N].DiffuseMap := TextureManager.Instance.GetTexture(Source.GetDiffuseMapName(N));
-    _Groups[N].DiffuseMap := TextureManager.Instance.GetTexture(Source.GetDiffuseMapName(N));
-    _Groups[N].DiffuseMap := TextureManager.Instance.GetTexture(Source.GetDiffuseMapName(N));
-    _Groups[N].DiffuseMap := TextureManager.Instance.GetTexture(Source.GetDiffuseMapName(N));
-    _Groups[N].DiffuseMap := TextureManager.Instance.GetTexture(Source.GetDiffuseMapName(N));
-    _Groups[N].DiffuseMap := TextureManager.Instance.GetTexture(Source.GetDiffuseMapName(N));
+    SetLength(Group._Triangles, Group._TriangleCount);
+    For I:=0 To Pred(Group._TriangleCount) Do
+    Begin
+      //Group._Triangles[I] := Source.GetTriangle(N,I);
+      Group._Triangles[I].Indices[0] := 0;
+      Group._Triangles[I].Indices[1] := 1;
+      Group._Triangles[I].Indices[2] := 2;
+    End;
 
-    _Groups[N]._Material.DiffuseColor := Source.GetDiffuseColor(N);
+    Group._TriangleCount := 1;
 
-    If (vertexFormatTangent In Format) Then
-      _Groups[N].CalculateTangents;
+    //Group.DiffuseMap := TextureManager.Instance.GetTexture(Source.GetDiffuseMapName(N));
+    Group.DiffuseMap := TextureManager.Instance.WhiteTexture;
+
+    //Group._Material.DiffuseColor := Source.GetDiffuseColor(N);
+    Group._Material.DiffuseColor := ColorWhite;
+
+    (*If (vertexFormatTangent In Format) Then
+      _Groups[N].CalculateTangents;*)
   End;
 
 (*  If (Source.GetBoneCount>0) Then
@@ -6624,15 +6596,10 @@ Begin
   _Mesh._Groups[GroupID].Vertices.GetVector4D(Index, vertexTangent, Result);
 End;
 
-Function CustomMeshFilter.GetVertexUV(GroupID, Index: Integer): Vector2D;
+Function CustomMeshFilter.GetVertexUV(GroupID, Index, Channel: Integer): Vector2D;
 Begin
-  _Mesh._Groups[GroupID].Vertices.GetVector2D(Index, vertexUV0, Result);
+  _Mesh._Groups[GroupID].Vertices.GetVector2D(Index, vertexUV0 + Channel, Result);
   Result.Y := 1 - Result.Y;
-End;
-
-Function CustomMeshFilter.GetVertexUV2(GroupID, Index: Integer): Vector2D;
-Begin
-  _Mesh._Groups[GroupID].Vertices.GetVector2D(Index, vertexUV1, Result);
 End;
 
 { MeshMerger }

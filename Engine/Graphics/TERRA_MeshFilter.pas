@@ -102,8 +102,7 @@ Type
       Function GetVertexTangent(GroupID, Index:Integer):Vector4D; Virtual;
       Function GetVertexBone(GroupID, Index:Integer):Integer; Virtual;
       Function GetVertexColor(GroupID, Index:Integer):Color; Virtual;
-      Function GetVertexUV(GroupID, Index:Integer):Vector2D; Virtual;
-      Function GetVertexUV2(GroupID, Index:Integer):Vector2D; Virtual;
+      Function GetVertexUV(GroupID, Index, Channel:Integer):Vector2D; Virtual;
 
       Function GetDiffuseColor(GroupID:Integer):Color; Virtual;
       Function GetAmbientColor(GroupID:Integer):Color; Virtual;
@@ -273,13 +272,7 @@ Begin
   Result := VectorCreate4D(0,1,0,1);
 End;
 
-Function MeshFilter.GetVertexUV(GroupID, Index: Integer): Vector2D;
-Begin
-  Result.X := 0;
-  Result.Y := 0;
-End;
-
-Function MeshFilter.GetVertexUV2(GroupID, Index: Integer): Vector2D;
+Function MeshFilter.GetVertexUV(GroupID, Index, Channel: Integer): Vector2D;
 Begin
   Result.X := 0;
   Result.Y := 0;
