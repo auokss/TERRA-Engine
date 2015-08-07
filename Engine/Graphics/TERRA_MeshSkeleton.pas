@@ -32,14 +32,13 @@ Type
   MeshSkeleton = Class;
 
   MeshBone = Class(TERRAObject)
-  private
-    procedure SetRelativeMatrix(const Value: Matrix4x4);
     Protected
-      _Index:Integer;
+      _ID:Integer;
       _Parent:MeshBone;
       _Owner:MeshSkeleton;
 
       _RelativeMatrix:Matrix4x4;
+      _OffsetMatrix:Matrix4x4;
 
       //_Translation:Vector3D;
       //_Orientation:Quaternion;
@@ -58,7 +57,10 @@ Type
 
       Function GetNormal: Vector3D;
 
+      Procedure SetRelativeMatrix(const Value: Matrix4x4);
+
     Public
+      Constructor Create(ID:Integer; Parent:MeshBone);
       Procedure Release; Override;
 
       Function Read(Source:Stream):TERRAString;
@@ -66,7 +68,9 @@ Type
 
       //Procedure SetLength(Const Value:Single);
 
-      Property Index:Integer Read _Index;
+      Function GetRoot():MeshBone;
+
+      Property ID:Integer Read _ID;
       Property Parent:MeshBone Read _Parent;
       Property Owner:MeshSkeleton Read _Owner;
 
@@ -78,6 +82,7 @@ Type
 
       Property AbsoluteMatrix:Matrix4x4 Read GetAbsoluteMatrix;
       Property RelativeMatrix:Matrix4x4 Read _RelativeMatrix Write SetRelativeMatrix;
+      Property OffsetMatrix:Matrix4x4 Read _OffsetMatrix;
 
       Property RetargetMatrix:Matrix4x4 Read _RetargetMatrix Write _RetargetMatrix;
 
@@ -122,6 +127,13 @@ Uses TERRA_Error, TERRA_Log, TERRA_Application, TERRA_OS, TERRA_FileManager,  TE
   TERRA_GraphicsManager, TERRA_FileStream, TERRA_FileUtils;
 
 { MeshBone }
+
+Constructor MeshBone.Create(ID: Integer; Parent: MeshBone);
+Begin
+  _Parent := Parent;
+  _ID := ID;
+End;
+
 Procedure MeshBone.Release;
 Begin
   // do nothing
@@ -172,18 +184,13 @@ Begin
 End;
 
 Function MeshBone.Read(Source:Stream):TERRAString;
-Var
-  I:Integer;
-  Translation, Angles:Vector3D;
 Begin
   Source.ReadString(_ObjectName);
   Source.ReadString(Result);
   _Parent := Nil;
 
-  Source.Read(@Translation, SizeOf(Vector3D));
-  Source.Read(@Angles, SizeOf(Vector3D));
-
-  Self._RelativeMatrix := Matrix4x4Multiply4x3(Matrix4x4Translation(Translation), Matrix4x4Rotation(Angles));
+  Source.Read(@_RelativeMatrix, SizeOf(_RelativeMatrix));
+  Source.Read(@_OffsetMatrix, SizeOf(_OffsetMatrix));
 End;
 
 Procedure MeshBone.Write(Dest:Stream);
@@ -196,10 +203,7 @@ Begin
   Else
     Dest.WriteString('');
 
-(*  Angles := QuaternionToEuler(Self._Orientation);
-
-  Dest.Write(@_Translation, SizeOf(Vector3D));
-  Dest.Write(@Angles, SizeOf(Vector3D));*)
+  Dest.Write(@_RelativeMatrix, SizeOf(_RelativeMatrix));
 End;
 
 Function MeshBone.GetAbsolutePosition: Vector3D;
@@ -211,6 +215,7 @@ End;
 Function MeshBone.GetAbsoluteMatrix: Matrix4x4;
 Begin
   Result := _RelativeMatrix;
+
   If Assigned(Parent) Then
     Result := Matrix4x4Multiply4x3(_Parent.AbsoluteMatrix, Result);
 End;
@@ -221,11 +226,18 @@ Begin
   Self._RelativeMatrix := Value;
 End;
 
+Function MeshBone.GetRoot: MeshBone;
+Begin
+  If Parent = Nil Then
+    Result := Self
+  Else
+    Result := Parent.GetRoot;
+End;
+
 { MeshSkeleton }
 Function MeshSkeleton.AddBone(Parent:MeshBone):MeshBone;
 Begin
-  Result := MeshBone.Create;
-  Result._Parent := Parent;
+  Result := MeshBone.Create(_BoneCount, Parent);
   
   Inc(_BoneCount);
   SetLength(_BoneList, _BoneCount);
@@ -259,7 +271,7 @@ Var
   Parents:Array Of TERRAString;
   I:Integer;
 Begin
-  Source.Read(@_BoneCount, 4);
+  Source.ReadInteger(_BoneCount);
   SetLength(_BoneList, _BoneCount);
   SetLength(Parents, _BoneCount);
   For I:=0 To Pred(_BoneCount) Do
@@ -267,8 +279,8 @@ Begin
 
   For I:=0 To Pred(_BoneCount) Do
   Begin
-    _BoneList[I] := MeshBone.Create;
-    _BoneList[I]._Index := I;
+    _BoneList[I] := MeshBone.Create(I, Nil);
+    _BoneList[I]._ID := I;
     _BoneList[I]._Owner := Self;
     Parents[I] := _BoneList[I].Read(Source);
   End;
@@ -309,7 +321,7 @@ Begin
   End;
 
   A := _BoneList[Index].AbsoluteMatrix.Transform(VectorZero);
-  B := _BoneList[_BoneList[Index].Parent.Index].AbsoluteMatrix.Transform(VectorZero);
+  B := _BoneList[_BoneList[Index].Parent.ID].AbsoluteMatrix.Transform(VectorZero);
   Result := A.Distance(B);
 End;
 
@@ -334,9 +346,9 @@ Begin
   For I:=0 To Pred(_BoneCount) Do
   Begin
     Bone := Other.GetBoneByIndex(I);
-    _BoneList[I] := MeshBone.Create;
+    _BoneList[I] := MeshBone.Create(I, Nil);
     _BoneList[I].Name := Bone.Name;
-    _BoneList[I]._Index := I;
+    _BoneList[I]._ID := I;
     _BoneList[I]._Owner := Self;
 
     _BoneList[I]._RelativeMatrix := Bone.RelativeMatrix;
@@ -362,7 +374,7 @@ Begin
   For I:=0 To Pred(Self.BoneCount) Do
   Begin
     Bone := Self.GetBoneByIndex(I);
-    CurrentPos[Bone.Index] := Bone.AbsolutePosition;
+    CurrentPos[Bone.ID] := Bone.AbsolutePosition;
   End;
 
   For I:=0 To Pred(Self.BoneCount) Do

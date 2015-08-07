@@ -136,6 +136,8 @@ Var
   Q:Quaternion;
 Begin
   Result := Matrix4x4Identity;
+  Exit;
+  {
 
   SourceBone := OriginalInstance.Geometry.Skeleton.GetBoneByName(Bone.Name);
   If SourceBone = Nil Then
@@ -177,6 +179,7 @@ Begin
   Q := QuaternionFromAxisAngle(crossResult, turnAngle);	// ACTUALLY TURN THE LINK
 
   //Result := QuaternionMatrix4x4(Q);
+  }
 End;
 
 Function AnimationRetargeter.FinalTransform(State:AnimationState; Bone:AnimationBoneState):Matrix4x4;
@@ -216,7 +219,7 @@ Begin
   //Exit;
 
   SourceBoneState := OriginalInstance.Animation.GetBoneByName(SourceBone.Name);
-  SourceAbs := OriginalInstance.Animation.Transforms[SourceBone.Index + 1];
+  SourceAbs := OriginalInstance.Animation.Transforms[SourceBone.ID + 1];
 
 (*  SourceAbs := SourceBoneState._FrameAbsoluteMatrix;
   SourceParentAbs := SourceBoneState._Parent._FrameAbsoluteMatrix;*)
@@ -227,7 +230,7 @@ Begin
 
   If Assigned(SourceBone.Parent) Then
   Begin
-    SourceParentAbs := OriginalInstance.Animation.Transforms[SourceBone.Parent.Index + 1];
+    SourceParentAbs := OriginalInstance.Animation.Transforms[SourceBone.Parent.ID  + 1];
     //Result := Matrix4x4Multiply4x3(Matrix4x4Inverse(SourceParentAbs), SourceAbs);
 
 (*    A := SourceAbs.Transform(VectorZero);

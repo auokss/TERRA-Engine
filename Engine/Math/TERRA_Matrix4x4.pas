@@ -39,6 +39,8 @@ Type
     Function Transform(Const P:Vector3D):Vector3D;
     Function TransformNormal(Const P:Vector3D):Vector3D;
 
+    Function Multiply(Const Other:Matrix4x4):Matrix4x4;
+
     Procedure MoveTransformOrigin(Const NewOrigin:Vector3D);
 
     Procedure OrthoNormalize;
@@ -466,6 +468,11 @@ Begin
   Result.X := P.X*V[0] + P.Y*V[4] + P.Z*V[8];
   Result.Y := P.X*V[1] + P.Y*V[5] + P.Z*V[9];
   Result.Z := P.X*V[2] + P.Y*V[6] + P.Z*V[10];
+End;
+
+Function Matrix4x4.Multiply(Const Other:Matrix4x4):Matrix4x4;
+Begin
+  Result := Matrix4x4Multiply4x4(Self, Other);
 End;
 
 Function Matrix4x4Transform(Const Position,Rotation,Scale:Vector3D):Matrix4x4;

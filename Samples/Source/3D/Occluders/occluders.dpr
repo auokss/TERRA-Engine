@@ -14,20 +14,19 @@ Type
 			Procedure OnIdle; Override;
   End;
 
-  MyScene = Class(Scene)
-      Sky:Skybox;
+  MyScene = Class(TERRAScene)
+      Sky:TERRASkybox;
 
       Constructor Create;
       Procedure Release; Override;
 
-      Procedure RenderSprites(V:Viewport); Override;
-      Procedure RenderViewport(V:Viewport); Override;
-      Procedure RenderSky(V:Viewport); Override;
+      Procedure RenderSprites(V:TERRAViewport); Override;
+      Procedure RenderViewport(V:TERRAViewport); Override;
   End;
 
 Var
   Sphere:MeshInstance;
-  P:Occluder;
+  P:TERRAOccluder;
   Fnt:FontRenderer;
   Sun:DirectionalLight;
   Main:Viewport;

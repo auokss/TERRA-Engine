@@ -124,7 +124,7 @@ Begin
   {$IFDEF TRUE_VBO}
   glGenBuffers(1, @_Handle);
   glBindBuffer(GL_ARRAY_BUFFER, _Handle);
-  glBufferData(GL_ARRAY_BUFFER, Vertices.Size * Vertices.Count, Vertices.Buffer, Flags);
+  glBufferData(GL_ARRAY_BUFFER, Vertices.GetVertexSizeInBytes() * Vertices.Count, Vertices.Buffer, Flags);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   {$ENDIF}
 
@@ -236,7 +236,7 @@ Begin
   End;
 
   glBindBuffer(GL_ARRAY_BUFFER, _Handle);
-  glBufferSubData(GL_ARRAY_BUFFER, 0, _Vertices.Count * _Vertices.Size, Data);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, _Vertices.Count * _Vertices.GetVertexSizeInBytes(), Data);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   Result := True;
 End;

@@ -301,15 +301,14 @@ Begin
     Source.Read(@NumGroups,SizeOf(NumGroups));
     SetLength(Groups,NumGroups);
     For I:=0 To Pred(NumGroups) Do
-    With Groups[I] Do
     Begin
-      Source.Read(@Flags,SizeOf(Flags));
-      Source.Read(@Name,SizeOf(Name));
-      Source.Read(@NumTriangles,SizeOf(NumTriangles));
-      SetLength(TriangleIndices,NumTriangles);
-      If NumTriangles>0 Then
-        Source.Read(@TriangleIndices[0],SizeOf(Word)*NumTriangles);
-      Source.Read(@MaterialIndex,SizeOf(MaterialIndex));
+      Source.ReadByte(Groups[I].Flags);
+      Source.Read(@Groups[I].Name, 32);
+      Source.ReadWord(Groups[I].NumTriangles);
+      SetLength(Groups[I].TriangleIndices, Groups[I].NumTriangles);
+      If Groups[I].NumTriangles>0 Then
+        Source.Read(@Groups[I].TriangleIndices[0], SizeOf(Word)* Groups[I].NumTriangles);
+      Source.ReadShortInt(Groups[I].MaterialIndex);
     End;
 
     Source.Read(@NumMaterials,SizeOf(NumMaterials));
@@ -325,21 +324,23 @@ Begin
     Source.Read(@NumJoints,SizeOf(NumJoints));
     SetLength(Joints,NumJoints);
     For I:=0 To NumJoints-1 Do
-    With Joints[I] Do
     Begin
-      Source.Read(@Flags,SizeOf(Flags));
-      Source.Read(@Name,SizeOf(Name));
-      Source.Read(@ParentName,SizeOf(ParentName));
-      Source.Read(@RelativeRotation,SizeOf(RelativeRotation));
-      Source.Read(@RelativePosition,SizeOf(RelativePosition));
-      Source.Read(@NumKeyFramesRot,SizeOf(NumKeyFramesRot));
-      Source.Read(@NumKeyFramesTrans,SizeOf(NumKeyFramesTrans));
-      SetLength(KeyFramesRot,NumKeyFramesRot);
-      SetLength(KeyFramesTrans,NumKeyFramesTrans);
-      If (NumKeyFramesRot>0) Then
-	      Source.Read(@KeyFramesRot[0],SizeOf(Milkshape3DKeyFrame)*NumKeyFramesRot);
-	  If (NumKeyFramesTrans>0) Then
-	      Source.Read(@KeyFramesTrans[0],SizeOf(Milkshape3DKeyFrame)*NumKeyFramesTrans);
+      Source.ReadByte(Joints[I].Flags);
+      Source.Read(@Joints[I].Name, 32);
+      Source.Read(@Joints[I].ParentName, 32);
+      Source.Read(@Joints[I].RelativeRotation, SizeOf(Joints[I].RelativeRotation));
+      Source.Read(@Joints[I].RelativePosition, SizeOf(Joints[I].RelativePosition));
+      Source.ReadSmallInt(Joints[I].NumKeyFramesRot);
+      Source.ReadSmallInt(Joints[I].NumKeyFramesTrans);
+
+      SetLength(Joints[I].KeyFramesRot, Joints[I].NumKeyFramesRot);
+      SetLength(Joints[I].KeyFramesTrans, Joints[I].NumKeyFramesTrans);
+
+      If (Joints[I].NumKeyFramesRot>0) Then
+	      Source.Read(@Joints[I].KeyFramesRot[0], SizeOf(Milkshape3DKeyFrame) * Joints[I].NumKeyFramesRot);
+
+  	  If (Joints[I].NumKeyFramesTrans>0) Then
+	      Source.Read(@Joints[I].KeyFramesTrans[0],SizeOf(Milkshape3DKeyFrame) * Joints[I].NumKeyFramesTrans);
     End;
 
     If Source.Position<Source.Size Then

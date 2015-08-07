@@ -10,22 +10,24 @@ Const
   vertexPosition  = 0;
   vertexNormal    = 1;
   vertexTangent   = 2;
-  vertexBone      = 3;
-  vertexColor     = 4;
-  vertexHue       = 5;
-  vertexUV0       = 6;
-  vertexUV1       = 7;
-  vertexUV2       = 8;
-  vertexUV3       = 9;
-  vertexUV4       = 10;
+  vertexBiTangent = 3;
+  vertexBone      = 4;
+  vertexColor     = 5;
+  vertexHue       = 6;
+  vertexUV0       = 7;
+  vertexUV1       = 8;
+  vertexUV2       = 9;
+  vertexUV3       = 10;
+  vertexUV4       = 11;
 
-  MaxVertexAttributes = 11;
+  MaxVertexAttributes = 12;
 
 Type
   VertexFormatAttribute = (
     vertexFormatPosition,
     vertexFormatNormal,
     vertexFormatTangent,
+    vertexFormatBiTangent,
     vertexFormatBone,
     vertexFormatHue,
     vertexFormatColor,
@@ -122,7 +124,6 @@ Type
       Function GetAttributeSizeInFloats(Attribute:Cardinal):Integer;
 
       Function GetAttributePosition(Index, Attribute:Cardinal):Integer;
-      Function GetVertexPosition(Index:Cardinal):Integer;
 
       Procedure ExpectAttributeFormat(Attribute:Cardinal; Format:DataFormat);
 
@@ -134,7 +135,8 @@ Type
 
       Procedure ConvertToFormat(NewFormat:VertexFormat);
 
-      Procedure Read(Source:Stream);
+      Procedure ReadAttribute(Attribute:VertexFormatAttribute; Format:DataFormat; Source:Stream);
+
       Procedure Write(Dest:Stream);
 
       Function HasAttribute(Attribute:Cardinal):Boolean;
@@ -171,6 +173,9 @@ Type
 
       Procedure Resize(NewSize:Cardinal);
 
+      Function GetVertexPosition(Index:Cardinal):Integer;
+      Function GetVertexSizeInBytes():Integer;
+      
       {Procedure SetFloat(Index, Attribute:Cardinal; Value:Single);
       Procedure SetColor(Index, Attribute:Cardinal; Const Value:Color);
       Procedure SetVector2D(Index, Attribute:Cardinal; Const Value:Vector2D);
@@ -178,7 +183,6 @@ Type
       Procedure SetVector4D(Index, Attribute:Cardinal; Const Value:Vector4D);}
 
       Property Format:VertexFormat Read _Format;
-      Property Size:Cardinal Read _VertexSize;
       Property Buffer:Pointer Read GetBuffer;
   End;
 
@@ -194,6 +198,7 @@ Const
       ('terra_position',
       'terra_normal',
       'terra_tangent',
+      'terra_bitangent',
       'terra_bone',
       'terra_color',
       'terra_hue',
@@ -222,6 +227,7 @@ Begin
     vertexFormatPosition: Result := vertexPosition;
     vertexFormatNormal:   Result := vertexNormal;
     vertexFormatTangent:  Result := vertexTangent;
+    vertexFormatBiTangent:  Result := vertexBiTangent;
     vertexFormatBone:     Result := vertexBone;
     vertexFormatHue:      Result := vertexHue;
     vertexFormatColor:    Result := vertexColor;
@@ -264,16 +270,21 @@ End;
 Function GetDefaultAttributeFormat(Attribute:Cardinal):DataFormat;
 Begin
   Case Attribute Of
-    vertexPosition: Result := typeVector3D;
-    vertexNormal: Result := typeVector3D;
-    vertexTangent: Result := typeVector4D;
-    vertexColor: Result := typeColor;
+    vertexPosition,
+    vertexNormal,
+    vertexTangent,
+    vertexBiTangent:
+      Result := typeVector3D;
+
+    vertexColor:
+      Result := typeColor;
 
     vertexUV0,
     vertexUV1,
     vertexUV2,
     vertexUV3,
-    vertexUV4: Result := typeVector2D;
+    vertexUV4:
+      Result := typeVector2D;
   Else
     Result := typeFloat;
   End;
@@ -441,14 +452,30 @@ Begin
   //RaiseError('Attribute '+GetDefaultAttributeName(Attribute) +' does not exist in this buffer!');
 End;
 
-Procedure VertexData.Read(Source:Stream);
+Procedure VertexData.ReadAttribute(Attribute:VertexFormatAttribute; Format:DataFormat; Source:Stream);
 Var
-  NewSize:Integer;
+  I:Integer;
+  Ofs, AttrSize, BlockSize:Integer;
+  AttrID:Cardinal;
+  Dest:PByte;
 Begin
-  Source.ReadInteger(NewSize);
-  Self.Resize(NewSize);
-  If Self.Count>0 Then
-    Source.Read(@_Values[0], Self._VertexSize * Self.Count);
+  Self.AddAttribute(Attribute);
+  AttrID := VertexFormatAttributeValue(Attribute);
+
+  Self.SetAttributeFormat(AttrID, Format);
+
+  AttrSize := Self.GetAttributeSizeInBytes(AttrID);
+  Ofs := Self.GetAttributeOffsetInBytes(AttrID);
+  BlockSize := Self.GetVertexSizeInBytes();
+
+  Dest := Self.GetBuffer();
+  Inc(Dest, Ofs);
+
+  For I:=0 To Pred(Self.Count) Do
+  Begin
+    Source.Read(Dest, AttrSize);
+    Inc(Dest, BlockSize);
+  End;
 End;
 
 Procedure VertexData.Write(Dest:Stream);
@@ -456,6 +483,11 @@ Begin
   Dest.WriteInteger(Self.Count);
   If Self.Count>0 Then
     Dest.Write(@_Values[0], Self._VertexSize * Self.Count);
+End;
+
+Function VertexData.GetVertexSizeInBytes():Integer;
+Begin
+  Result := _VertexSize;
 End;
 
 Function VertexData.GetVertexPosition(Index: Cardinal):Integer;

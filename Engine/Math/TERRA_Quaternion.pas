@@ -52,6 +52,8 @@ Type
 
     Function Mult(Const B:Quaternion):Quaternion;
 
+    Function Matrix():Matrix4x4;
+
     Function Inverse:Quaternion;
 
     Function Length:Single;
@@ -611,44 +613,44 @@ Begin
   Result.W := Cos(angle/2);
 End;
 
+Function Quaternion.Matrix():Matrix4x4;
+Var
+  q0, q1, q2, q3, qda, qdb, qdc, qaa, qab, qac, qbb, qbc, qcc:Double;
+Begin
+	q0 := M_SQRT2 * Self.X;
+	q1 := M_SQRT2 * Self.Y;
+	q2 := M_SQRT2 * Self.Z;
+	q3 := M_SQRT2 * Self.W;
+
+	qda := q0 * q1;
+	qdb := q0 * q2;
+	qdc := q0 * q3;
+	qaa := q1 * q1;
+	qab := q1 * q2;
+	qac := q1 * q3;
+	qbb := q2 * q2;
+	qbc := q2 * q3;
+	qcc := q3 * q3;
+
+  Result.V[0] := (1.0 - qbb - qcc);
+  Result.V[1] := (qdc + qab);
+	Result.V[2] := (-qdb + qac);
+
+	Result.V[4] := (-qdc + qab);
+	Result.V[5] := (1.0 - qaa - qcc);
+	Result.V[6] := (qda + qbc);
+
+  Result.V[8] := (qdb + qac);
+	Result.V[9] := (-qda + qbc);
+	Result.V[10] := (1.0 - qaa - qbb);
+End;
+
 Function QuaternionToEuler(Const Q:Quaternion):Vector3D;
 Var
-  sqx, sqy, sqz:Single;
-  N:Single;
+  M:Matrix4x4;
 Begin
-{  Result.X := Atan2(2 * q.Y * q.W - 2 * q.X * q.Z,
- 	                1 - 2* Pow(q.Y, 2) - 2*Pow(q.Z, 2)   );
-
-  Result.Y := Arcsin(2*q.X*q.Y + 2*q.Z*q.W);
-
-  Result.Z := Atan2(2*q.X*q.W-2*q.Y*q.Z,
- 	                1 - 2*Pow(q.X, 2) - 2*Pow(q.Z, 2)     );
-
-  If (q.X*q.Y + q.Z*q.W = 0.5) Then
-  Begin
-    Result.X := (2 * Atan2(q.X,q.W));
- 	  Result.Z := 0;
-  End Else
-  If (q.X*q.Y + q.Z*q.W = -0.5) Then
-  Begin
-    Result.X := (-2 * Atan2(q.X, q.W));
-    Result.Z := 0;
-  End;}
-
-	sqx := Sqr(Q.X);
-	sqy := Sqr(Q.Y);
-	sqz := Sqr(Q.Z);
-
-  N := -2 * (Q.x*Q.z - Q.y*Q.W);
-  If N>1 Then
-    N := 1
-  Else
-  If (N<-1) Then
-    N := -1;
-
-  Result.x := atan2(2 * (Q.z*Q.y + Q.x*Q.W), 1 - 2*(sqx + sqy));
-  Result.y := arcsin(N);
-  Result.z := atan2(2 * (Q.x*Q.y + Q.z*Q.W), 1 - 2*(sqy + sqz));
+  M := Q.Matrix();
+  Result := M.GetEulerAngles();
 End;
 
 End.

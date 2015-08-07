@@ -29,36 +29,65 @@ Interface
 Uses TERRA_Mesh, TERRA_Object, TERRA_String, TERRA_Math, TERRA_Utils, TERRA_Stream,
   TERRA_FileStream, TERRA_FileUtils, TERRA_MeshFilter, TERRA_OS, TERRA_Quaternion, TERRA_Renderer,
   TERRA_Vector2D, TERRA_Vector3D, TERRA_Vector4D, TERRA_Color, TERRA_Matrix4x4, TERRA_VertexFormat,
+  TERRA_MeshAnimationNodes,
   AssimpDelphi;
   //Assimp, aiTypes, aiMatrix4x4, aiMatrix3x3, aiMesh, aiScene, aiMaterial, aiColor4d, aiVector3D;
 
 Type
   AssimpBone = Class(TERRAObject)
     Name:TERRAString;
-    LocalTransform:Matrix4x4;
-    GlobalTransform:Matrix4x4;
     Parent:AssimpBone;
-    Level:Integer;
-    Node:PAINode;
 
-    Function GetParentCount():Integer;
+    BoneOffset:Matrix4x4;
+    FinalTransformation:Matrix4x4;
+  End;
+
+  AssimpModel = Class(AnimationProcessor)
+    Protected
+      Scene:PaiScene;
+
+      Bones:Array Of AssimpBone;
+      BoneCount:Integer;
+
+      GlobalTransform:Matrix4x4;
+      GlobalInverseTransform:Matrix4x4;
+
+      LastFrame:Cardinal;
+
+      Function FindBone(Name:TERRAString):Integer;
+
+      Procedure LoadBones(MeshIndex:Integer; Mesh:PaiMesh);
+
+      Function FindPosition(AnimationTime:Single; NodeAnim:PaiNodeAnim):Integer;
+      Function FindRotation(AnimationTime:Single; NodeAnim:PaiNodeAnim):Integer;
+      Function FindScaling(AnimationTime:Single; NodeAnim:PaiNodeAnim):Integer;
+
+      Function CalcInterpolatedPosition(AnimationTime:Single; NodeAnim:PaiNodeAnim):aiVector3D;
+      Function CalcInterpolatedRotation(AnimationTime:Single; NodeAnim:PaiNodeAnim):aiQuaternion;
+      Function CalcInterpolatedScaling(AnimationTime:Single; NodeAnim:PaiNodeAnim):aiVector3D;
+
+      Procedure BoneTransform(TimeInSeconds:Single);
+
+
+      Function FindNodeAnim(Animation:PaiAnimation; const NodeName:TERRAString):PaiNodeAnim;
+      Procedure ReadNodeHeirarchy(AnimationTime:Single; Node:paiNode; Const ParentTransform:Matrix4x4);
+
+      Procedure InitParents(Node:paiNode; Prev:AssimpBone);
+
+    Public
+      Constructor Create(Scene:PaiScene);
+      Function FinalTransform(State: AnimationState; Bone: AnimationBoneState): Matrix4x4; Override;
+
+      Procedure Update();
   End;
 
   AssimpFilter = Class(MeshFilter)
     Protected
       scene:PaiScene;
 
-      Bones:Array Of AssimpBone;
-      BoneCount:Integer;
-
-      RootTransform:Matrix4x4;
-
-      Function FindNode(Name:TERRAString; Root:pAiNode):pAiNode;
-
-      //Function GetBoneAt(Var BoneID:Integer):Integer;
-      Function GetBoneIDByName(Name:TERRAString):Integer;
-
     Public
+      Model:AssimpModel;
+
       Function Load(Source:Stream):Boolean; Override;
       Procedure Release; Override;
 
@@ -106,55 +135,317 @@ Type
 Implementation
 Uses TERRA_GraphicsManager;
 
-{ AssimpBone }
-Function AssimpBone.GetParentCount: Integer;
+{ AssimpModel }
+Constructor AssimpModel.Create(Scene:pAIScene);
 Var
-  Bone:AssimpBone;
+  I:Integer;
 Begin
-  Result := 0;
-  Bone := Self.Parent;
-  While Assigned(Bone) Do
+  Self.Scene := Scene;
+  GlobalTransform := Matrix4x4Transpose(Scene.mRootNode.mTransformation);
+  GlobalInverseTransform := Matrix4x4Inverse(GlobalTransform);
+
+  For I:=0 To Pred(Scene.mNumMeshes) Do
   Begin
-    Inc(Result);
-    Bone := Bone.Parent;
+    LoadBones(I, Scene.mMeshes[I]);
+    Break;
   End;
+
+  Self.InitParents(Scene.mRootNode, Nil);
 End;
 
-(*Function ASSIMP_Import(SourceFile, TargetDir:TERRAString):TERRAString;
+Function AssimpModel.FindBone(Name:TERRAString): Integer;
 Var
-  dest:FileStream;
-  mymesh:TERRAMesh;
-  group:MeshGroup;
-  I, J, K, N:Integer;
-  X,Y,Z:Single;
-  T:Triangle;
-  Filter:MeshFilter;
+  I, J, N:Integer;
 Begin
-  WriteLn('ASSIMP_Import: ',SourceFile);
-  filter := ASSimpFilter.Create(SourceFile);
-  If Assigned(ASSimpFilter(Filter).scene) Then
+  For I:=0 To Pred(BoneCount) Do
+  If (Bones[I].Name = Name) Then
   Begin
-    MyMesh := Mesh.CreateFromFilter(Filter);
-
-    //ModelMilkshape3D.Save(TargetDir + PathSeparator + GetFileName(SourceFile, True)+'.ms3d', Filter);
-
-    WriteLn('Saving...');
-    Result := TargetDir + PathSeparator + GetFileName(SourceFile, True)+'.mesh';
-    Dest := FileStream.Create(Result);
-    MyMesh.Save(Dest);
-    Dest.Release;
-    MyMesh.Release;
-
-    Filter.Release;
-  End Else
-  Begin
-    Writeln('ASSIMP:Error!');
-    Result := '';
+    Result := I;
+    Exit;
   End;
-End;*)
 
-(*Var
-  c:aiLogStream;*)
+  Result := -1;
+End;
+
+Procedure AssimpModel.LoadBones(MeshIndex:Integer; Mesh:PaiMesh);
+Var
+  I, BoneIndex:Integer;
+  BoneName:TERRAString;
+  BoneInfo:AssimpBone;
+Begin
+  For I:=0 To Pred(Mesh.mNumBones) Do
+  Begin
+    BoneIndex := 0;
+    BoneName := aiStringGetValue(Mesh.mBones[i].mName);
+
+    If (Self.FindBone(BoneName)<0) Then
+    Begin
+      // Allocate an index for a new bone
+      BoneIndex := BoneCount;
+
+      BoneInfo := AssimpBone.Create();
+      BoneInfo.Name := BoneName;
+      BoneInfo.BoneOffset := Matrix4x4Transpose(Mesh.mBones[i].mOffsetMatrix);
+
+      Inc(BoneCount);
+      SetLength(Bones, BoneCount);
+      Bones[BoneIndex] := BoneInfo;
+    End;
+  End;
+
+    (*
+        for (uint j = 0 ; j < pMesh->mBones[i]->mNumWeights ; j++) {
+            uint VertexID = m_Entries[MeshIndex].BaseVertex + pMesh->mBones[i]->mWeights[j].mVertexId;
+            float Weight  = pMesh->mBones[i]->mWeights[j].mWeight;
+            Bones[VertexID].AddBoneData(BoneIndex, Weight);
+*)
+End;
+
+Function AssimpModel.FindPosition(AnimationTime:Single; NodeAnim:PaiNodeAnim):Integer;
+Var
+  I:Integer;
+Begin
+  For I:=0 To (NodeAnim.mNumPositionKeys-2) Do
+  If (AnimationTime < NodeAnim.mPositionKeys[i + 1].mTime) Then
+  Begin
+    Result := I;
+    Exit;
+  End;
+
+
+  Result := 0;
+End;
+
+
+Function AssimpModel.FindRotation(AnimationTime:Single; NodeAnim:PaiNodeAnim):Integer;
+Var
+  I:Integer;
+Begin
+  For I:=0 To (NodeAnim.mNumRotationKeys-2) Do
+  If (AnimationTime < NodeAnim.mRotationKeys[i + 1].mTime) Then
+  Begin
+    Result := I;
+    Exit;
+  End;
+
+
+  Result := 0;
+End;
+
+Function AssimpModel.FindScaling(AnimationTime:Single; NodeAnim:PaiNodeAnim):Integer;
+Var
+  I:Integer;
+Begin
+  For I:=0 To (NodeAnim.mNumScalingKeys-2) Do
+  If (AnimationTime < NodeAnim.mScalingKeys[i + 1].mTime) Then
+  Begin
+    Result := I;
+    Exit;
+  End;
+
+
+  Result := 0;
+End;
+
+Function AssimpModel.CalcInterpolatedPosition(AnimationTime:Single; NodeAnim:PaiNodeAnim):aiVector3D;
+Var
+  PositionIndex, NextPositionIndex:Integer;
+  Factor, DeltaTime:Single;
+  Start, Dest, Delta:aiVector3D;
+Begin
+  If (NodeAnim.mNumPositionKeys = 1) Then
+  Begin
+    Result := NodeAnim.mPositionKeys[0].mValue;
+    Exit;
+  End;
+
+  PositionIndex := FindPosition(AnimationTime, NodeAnim);
+  NextPositionIndex := (PositionIndex + 1);
+
+  DeltaTime := (NodeAnim.mPositionKeys[NextPositionIndex].mTime - NodeAnim.mPositionKeys[PositionIndex].mTime);
+  Factor := (AnimationTime - NodeAnim.mPositionKeys[PositionIndex].mTime) / DeltaTime;
+
+  Start := NodeAnim.mPositionKeys[PositionIndex].mValue;
+  Dest := NodeAnim.mPositionKeys[NextPositionIndex].mValue;
+  Delta := VectorSubtract(Dest, Start);
+  Result := VectorAdd(Start, VectorScale(Delta, Factor));
+End;
+
+
+Function AssimpModel.CalcInterpolatedRotation(AnimationTime:Single; NodeAnim:PaiNodeAnim):aiQuaternion;
+Var
+  RotationIndex, NextRotationIndex:Integer;
+  Factor, DeltaTime:Single;
+  StartRotation, EndRotation:aiQuaternion;
+Begin
+	// we need at least two values to interpolate...
+  If (NodeAnim.mNumRotationKeys = 1) Then
+  Begin
+    Result := NodeAnim.mRotationKeys[0].mValue;
+    Exit;
+  End;
+
+  RotationIndex := FindRotation(AnimationTime, NodeAnim);
+  NextRotationIndex := (RotationIndex + 1);
+
+  DeltaTime := (NodeAnim.mRotationKeys[NextRotationIndex].mTime - NodeAnim.mRotationKeys[RotationIndex].mTime);
+  Factor := (AnimationTime - NodeAnim.mRotationKeys[RotationIndex].mTime) / DeltaTime;
+
+  StartRotation := NodeAnim.mRotationKeys[RotationIndex].mValue;
+  EndRotation := NodeAnim.mRotationKeys[NextRotationIndex].mValue;
+  Result := QuaternionSlerp(StartRotation, EndRotation, Factor);
+  Result.Normalize();
+End;
+
+
+Function AssimpModel.CalcInterpolatedScaling(AnimationTime:Single; NodeAnim:PaiNodeAnim):aiVector3D;
+Var
+  ScalingIndex, NextScalingIndex:Integer;
+  Factor, DeltaTime:Single;
+  Delta, StartScale, EndScale:aiVector3D;
+Begin
+  If (NodeAnim.mNumScalingKeys = 1) Then
+  Begin
+    Result := NodeAnim.mScalingKeys[0].mValue;
+    Exit;
+  End;
+
+  ScalingIndex := FindScaling(AnimationTime, NodeAnim);
+  NextScalingIndex := (ScalingIndex + 1);
+
+  DeltaTime := (NodeAnim.mScalingKeys[NextScalingIndex].mTime - NodeAnim.mScalingKeys[ScalingIndex].mTime);
+  Factor := (AnimationTime - NodeAnim.mScalingKeys[ScalingIndex].mTime) / DeltaTime;
+
+  StartScale := NodeAnim.mScalingKeys[ScalingIndex].mValue;
+  EndScale := NodeAnim.mScalingKeys[NextScalingIndex].mValue;
+  Delta := VectorSubtract(EndScale, StartScale);
+  Result := VectorAdd(StartScale, VectorScale(Delta, Factor));
+End;
+
+Procedure AssimpModel.Update();
+Begin
+  If (LastFrame = GraphicsManager.Instance.FrameID) Then
+    Exit;
+
+  LastFrame := GraphicsManager.Instance.FrameID;
+
+  Self.BoneTransform(Application.GetTime / 1000);
+End;
+
+
+Function AssimpModel.FinalTransform(State: AnimationState; Bone: AnimationBoneState): Matrix4x4;
+Begin
+  Self.Update();
+  Result := Bones[Bone._ID].FinalTransformation;
+End;
+
+Procedure AssimpModel.BoneTransform(TimeInSeconds:Single);
+Var
+  TicksPerSecond, TimeInTicks, AnimationTime:Single;
+Begin
+  If Scene.mAnimations[0].mTicksPerSecond>Epsilon Then
+    TicksPerSecond := Scene.mAnimations[0].mTicksPerSecond
+   Else
+    TicksPerSecond := 25.0;
+
+  TimeInTicks := TimeInSeconds * TicksPerSecond;
+  AnimationTime := TimeInTicks;
+  //AnimationTime := FloatMod(TimeInTicks, Scene.mAnimations[0].mDuration);
+
+  ReadNodeHeirarchy(AnimationTime, Scene.mRootNode, Matrix4x4Identity);
+End;
+
+Function AssimpModel.FindNodeAnim(Animation:PaiAnimation; const NodeName:TERRAString):PaiNodeAnim;
+Var
+  I:Integer;
+Begin
+  For I:=0 To Pred(Animation.mNumChannels) Do
+  Begin
+    Result := Animation.mChannels[i];
+
+    If (StringEquals(aiStringGetValue(Result.mNodeName) , NodeName)) Then
+      Exit;
+  End;
+
+  Result := Nil;
+End;
+
+Procedure AssimpModel.InitParents(Node:paiNode; Prev:AssimpBone);
+Var
+  NodeName:TERRAString;
+  I, BoneIndex:Integer;
+Begin
+  NodeName := aiStringGetValue(Node.mName);
+
+  BoneIndex := Self.FindBone(NodeName);
+  If BoneIndex>=0 Then
+  Begin
+    Bones[BoneIndex].Parent := Prev;
+
+    Prev := Bones[BoneIndex];
+  End;
+
+  For I:=0 To Pred(Node.mNumChildren) Do
+    InitParents(Node.mChildren[I], Prev);
+End;
+
+Procedure AssimpModel.ReadNodeHeirarchy(AnimationTime:Single; Node:paiNode; Const ParentTransform:Matrix4x4);
+Var
+  NodeName:TERRAString;
+  I, BoneIndex:Integer;
+  Animation:PaiAnimation;
+  NodeTransformation, GlobalTransformation:Matrix4x4;
+  NodeAnim:PaiNodeAnim;
+  Scaling, Translation:aiVector3D;
+  ScalingM, RotationM, TranslationM:Matrix4x4;
+  RotationQ:aiQuaternion;
+Begin
+  NodeName := aiStringGetValue(Node.mName);
+
+  Animation := Scene.mAnimations[0];
+
+  NodeTransformation := Matrix4x4Transpose(Node.mTransformation);
+
+  NodeAnim := FindNodeAnim(Animation, NodeName);
+
+  If (Assigned(NodeAnim)) Then
+  Begin
+    // Interpolate scaling and generate scaling transformation matrix
+    Scaling := CalcInterpolatedScaling(AnimationTime, NodeAnim);
+    ScalingM := Matrix4x4Scale(Scaling);
+
+    // Interpolate rotation and generate rotation transformation matrix
+    RotationQ := CalcInterpolatedRotation(AnimationTime, NodeAnim);
+    RotationM := QuaternionMatrix4x4(RotationQ);
+
+    // Interpolate translation and generate translation transformation matrix
+    Translation := CalcInterpolatedPosition(AnimationTime, NodeAnim);
+    TranslationM := Matrix4x4Translation(Translation);
+
+    // Combine the above transformations
+    //NodeTransformation := Matrix4x4Multiply4x3(TranslationM, Matrix4x4Multiply4x3(RotationM, ScalingM));
+
+    //NodeTransformation := Matrix4x4Multiply4x3(TranslationM, RotationM);
+
+    NodeTransformation := TranslationM;
+    //NodeTransformation := Matrix4x4Transpose(NodeTransformation);
+  End;
+
+  GlobalTransformation := Matrix4x4Multiply4x3(ParentTransform, NodeTransformation);
+
+  BoneIndex := Self.FindBone(NodeName);
+  If BoneIndex>=0 Then
+  Begin
+    //Bones[BoneIndex].FinalTransformation := Matrix4x4Multiply4x3(GlobalInverseTransform, Matrix4x4Multiply4x3(GlobalTransformation, Bones[BoneIndex].BoneOffset));
+
+    //Bones[BoneIndex].FinalTransformation := Matrix4x4Multiply4x3(GlobalTransformation, Bones[BoneIndex].BoneOffset);
+
+    Bones[BoneIndex].FinalTransformation := Matrix4x4Inverse(Bones[BoneIndex].BoneOffset);
+  End;
+
+  For I:=0 To Pred(Node.mNumChildren) Do
+    ReadNodeHeirarchy(AnimationTime, Node.mChildren[I], GlobalTransformation);
+End;
 
 { AssimpFilter }
 Function AssimpFilter.Load(Source:Stream):Boolean;
@@ -167,11 +458,11 @@ Var
   Temp:AssimpBone;
 Begin
   flags := 	aiProcess_CalcTangentSpace Or
-	aiProcess_GenSmoothNormals				Or
+ //	aiProcess_GenSmoothNormals				Or
 //	aiProcess_JoinIdenticalVertices			Or
 	aiProcess_ImproveCacheLocality			Or
-	aiProcess_LimitBoneWeights				Or
-	aiProcess_RemoveRedundantMaterials  Or
+//	aiProcess_LimitBoneWeights				Or
+//	aiProcess_RemoveRedundantMaterials  Or
 	aiProcess_SplitLargeMeshes				Or
 	aiProcess_Triangulate					Or
 	aiProcess_GenUVCoords            Or
@@ -183,79 +474,12 @@ Begin
   If (Scene = Nil) Then
     Exit;
 
-  BoneCount := 0;
-(*  For I:=0 To Pred(scene.mNumMeshes) Do
-  If (scene.mMeshes[I].mNumBones>0) Then
-  Begin
-    BoneCount := 1;
-    SetLength(Bones, BoneCount);
-    Bones[0] := AssimpBone.Create;
-    Bones[0].Name := aiStringGetValue(Scene.mRootNode.mName);
-    Bones[0].Parent := Nil;
-    Bones[0].Node := Scene.mRootNode;
-    Bones[0].GlobalTransform := Matrix4x4Rotation(0, 90*RAD, 90*RAD); //Scene.mRootNode.mTransformation;
-    Break;
-  End;*)
-
-  For I:=0 To Pred(scene.mNumMeshes) Do
-    For J:=0 To Pred(Scene.mMeshes[I].mNumBones) Do
-    If (Self.GetBoneIDByName(aiStringGetValue(Scene.mMeshes[I].mBones[J].mName))<0) Then
-    Begin
-      Inc(BoneCount);
-      SetLength(Bones, BoneCount);
-      Bones[Pred(BoneCount)] := AssimpBone.Create;
-      Bones[Pred(BoneCount)].Name := aiStringGetValue(Scene.mMeshes[I].mBones[J].mName);
-      Bones[Pred(BoneCount)].Parent := Nil;
-      Bones[Pred(BoneCount)].Node := Self.FindNode(Bones[Pred(BoneCount)].Name, Scene.mRootNode);
-      Bones[Pred(BoneCount)].GlobalTransform := Matrix4x4Inverse(Matrix4x4Transpose(Scene.mMeshes[I].mBones[J].mOffsetMatrix));
-   End;
-
-  For I:=1 To Pred(BoneCount) Do
-  Begin
-    Node := Bones[I].Node;
-
-    //N := Self.GetBoneIDByName(aiStringGetValue(Node.mName));
-    If Assigned(Node.mParent) Then
-    Begin
-      N := Self.GetBoneIDByName(Node.mParent.mName.data);
-      If (N>=0) Then
-      Begin
-        Bones[I].Parent := Bones[N];
-      //  WriteLn(Bones[I].Name ,' parent is ', Bones[N].Name);
-      End;
-    End; //Else      Bones[I].Parent := Bones[0];
-  End;
-
-  For I:=0 To Pred(BoneCount) Do
-  Begin
-    Bones[I].Level := Bones[I].GetParentCount();
-
-    If Assigned(Bones[I].Parent) Then
-    Begin
-      Bones[I].LocalTransform := Matrix4x4Multiply4x3(Matrix4x4Inverse(Bones[I].Parent.GlobalTransform), Bones[I].GlobalTransform);
-    End Else
-      Bones[I].LocalTransform := Bones[I].GlobalTransform;
-  End;
-
-  For J:=1 To Pred(BoneCount) Do
-    For I:=J+1 To Pred(BoneCount) Do
-    If (Bones[I].Level<Bones[J].Level) Then
-    Begin
-      Temp := Bones[I];
-      Bones[I] := Bones[J];
-      Bones[J] := Temp;
-    End;
-
-(*  For I:=0 To Pred(BoneCount) Do
-  Begin
-    WriteLn(Bones[I].Name,'   ', Bones[I].Level);
-  End;
-  //ReadLn;*)
+  Model := AssimpModel.Create(Scene);
 End;
 
 Procedure AssimpFilter.Release;
 Begin
-    aiReleaseImport(scene);
+  aiReleaseImport(scene);
 End;
 
 Function AssimpFilter.GetDiffuseColor(GroupID: Integer): Color;
@@ -341,8 +565,11 @@ Begin
     Begin
       If (scene.mMeshes[K].mBones[I].mWeights[J].mVertexId=Index) And (scene.mMeshes[K].mBones[I].mWeights[J].mWeight>W) Then
       Begin
-        Result := GetBoneIDByName(aiStringGetValue(scene.mMeshes[K].mBones[I].mName));
+        Result := Model.FindBone(aiStringGetValue(scene.mMeshes[K].mBones[I].mName));
         W := scene.mMeshes[K].mBones[I].mWeights[J].mWeight;
+
+        Inc(Result);
+        Exit;
       End;
     End;
   End;
@@ -406,12 +633,12 @@ End;
 
 Function AssimpFilter.GetBoneCount: Integer;
 Begin
-  Result := Self.BoneCount;
+  Result := Self.Model.BoneCount;
 end;
 
 Function AssimpFilter.GetBoneName(BoneID: Integer):TERRAString;
 Begin
-  Result := Bones[boneID].Name;
+  Result := Model.Bones[boneID].Name;
 End;
 
 Function AssimpFilter.GetAnimationDuration(Index:Integer):Single;
@@ -432,12 +659,13 @@ Begin
     Exit;
   End;
 
-  Channel := aiAnimationGetChannel(Scene.mAnimations[AnimationID], Bones[BoneID].Name);
+  Channel := aiAnimationGetChannel(Scene.mAnimations[AnimationID], Model.Bones[BoneID].Name);
   If (Channel<0) Then
   Begin
     Result := 0;
     Exit;
   End;
+  
   Result := Scene.mAnimations[AnimationID].mChannels[Channel].mNumPositionKeys;
 End;
 
@@ -451,7 +679,7 @@ Begin
     Exit;
   End;
 
-  Channel := aiAnimationGetChannel(Scene.mAnimations[AnimationID], Bones[BoneID].Name);
+  Channel := aiAnimationGetChannel(Scene.mAnimations[AnimationID], Model.Bones[BoneID].Name);
   If (Channel<0) Then
   Begin
     Result := 0;
@@ -470,7 +698,7 @@ Begin
     Exit;
   End;
 
-  Channel := aiAnimationGetChannel(Scene.mAnimations[AnimationID], Bones[BoneID].Name);
+  Channel := aiAnimationGetChannel(Scene.mAnimations[AnimationID], Model.Bones[BoneID].Name);
   If (Channel<0) Then
   Begin
     Result := 0;
@@ -483,7 +711,7 @@ Function AssimpFilter.GetPositionKey(AnimationID, BoneID:Integer; Index:Integer)
 Var
   Channel:Integer;
 Begin
-  Channel := aiAnimationGetChannel(Scene.mAnimations[AnimationID], Bones[BoneID].Name);
+  Channel := aiAnimationGetChannel(Scene.mAnimations[AnimationID], Model.Bones[BoneID].Name);
   If (Channel<0) Then
     Exit;
 
@@ -497,7 +725,7 @@ Function AssimpFilter.GetScaleKey(AnimationID, BoneID:Integer; Index:Integer):Me
 Var
   Channel:Integer;
 Begin
-  Channel := aiAnimationGetChannel(Scene.mAnimations[AnimationID], Bones[BoneID].Name);
+  Channel := aiAnimationGetChannel(Scene.mAnimations[AnimationID], Model.Bones[BoneID].Name);
   If (Channel<0) Then
     Exit;
 
@@ -512,7 +740,7 @@ Var
   Channel:Integer;
   Q:Quaternion;
 Begin
-  Channel := aiAnimationGetChannel(Scene.mAnimations[AnimationID], Bones[BoneID].Name);
+  Channel := aiAnimationGetChannel(Scene.mAnimations[AnimationID], Model.Bones[BoneID].Name);
   If (Channel<0) Then
     Exit;
 
@@ -523,8 +751,7 @@ Begin
   Result.Time := Scene.mAnimations[AnimationID].mChannels[Channel].mRotationKeys[Index].mTime;
 End;
 
-
-Function AssimpFilter.FindNode(Name:TERRAString; Root:pAiNode): pAiNode;
+(*Function AssimpFilter.FindNode(Name:TERRAString; Root:pAiNode): pAiNode;
 Var
   I:Integer;
 Begin
@@ -542,34 +769,25 @@ Begin
   End;
 
   Result := Nil;
-End;
+End;*)
 
 Function AssimpFilter.GetBoneParent(BoneID: Integer): Integer;
 Begin
-  If Assigned(Bones[BoneID].Parent) Then
-    Result := GetBoneIDByName(Bones[BoneID].Parent.Name)
+  If Assigned(Model.Bones[BoneID].Parent) Then
+    Result := Model.FindBone(Model.Bones[BoneID].Parent.Name)
   Else
     Result := -1;
 End;
 
-Function AssimpFilter.GetBoneIDByName(Name:TERRAString): Integer;
-Var
-  I, J, N:Integer;
+
+Function AssimpFilter.GetBoneOffsetMatrix(BoneID:Integer):Matrix4x4;
 Begin
-  Result := -1;
-  For I:=0 To Pred(BoneCount) Do
-  If (Bones[I].Name = Name) Then
-  Begin
-    Result := I;
-    Exit;
-  End;
+  //Result := Matrix4x4Inverse(Model.Bones[BoneID].BoneOffset);
+  Result := Matrix4x4Identity;
 End;
 
-Function AssimpFilter.GetBoneOffsetMatrix(BoneID:Integer):Matrix4x4; 
-Begin
-  Result := Bones[BoneID].LocalTransform;
-End;
-
+(*Var
+  c:aiLogStream;*)
 
 Initialization
 //  c:= aiGetPredefinedLogStream(aiDefaultLogStream_STDOUT, Nil);

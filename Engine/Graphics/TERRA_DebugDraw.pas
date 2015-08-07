@@ -307,10 +307,14 @@ Begin
   If (Bone = Nil) Or (Bone.Parent = Nil) Then
     Exit;
 
-  M := Matrix4x4Multiply4x3(Transform, Matrix4x4Multiply4x3(State.Transforms[Bone.Index+1], Bone.AbsoluteMatrix));
+  //M := Matrix4x4Multiply4x3(Transform, Matrix4x4Multiply4x3(State.GetAbsoluteMatrix(Bone.ID), Bone.AbsoluteMatrix));
+  M := Matrix4x4Multiply4x3(Transform, Bone.AbsoluteMatrix);
   A := M.Transform(VectorZero);
 
-  M := Matrix4x4Multiply4x3(Transform, Matrix4x4Multiply4x3(State.Transforms[Bone.Parent.Index+1], Bone.Parent.AbsoluteMatrix));
+  //DrawPoint3D(View, A, LineColor, 10);
+
+  //M := Matrix4x4Multiply4x3(Transform, Matrix4x4Multiply4x3(State.GetAbsoluteMatrix(Bone.Parent.ID), Bone.Parent.AbsoluteMatrix));
+  M := Matrix4x4Multiply4x3(Transform, Bone.Parent.AbsoluteMatrix);
   B := M.Transform(VectorZero);
 
   DrawLine3D(View, A, B, LineColor, LineWidth);

@@ -110,7 +110,7 @@ End;  // !struct aiColor3D
 *)
 aiString = Packed Record
 	(* Binary length of the string excluding the terminal 0. This is NOT the
-	 *  logical length Of TERRAStrings containing UTF-8 multibyte sequences! It's
+	 *  logical length Of Strings containing UTF-8 multibyte sequences! It's
 	 *  the number of bytes from the beginning of the string to its end.*)
 	length:Integer;
 
@@ -528,10 +528,6 @@ Const
 	 * @endcode
 	*)
 	aiProcess_FlipWindingOrder  = $1000000;
-
-	// aiProcess_GenEntityMeshes = 0x100000;
-	// aiProcess_OptimizeAnimations = 0x200000
-	// aiProcess_FixTexturePaths = 0x200000
 
 (* @def aiProcessPreset_TargetRealtimeUse_Fast
  *  @brief Default postprocess configuration optimizing the data for real-time rendering.
@@ -1476,15 +1472,13 @@ End;
 
 
 // A time-value pair specifying a certain 3D vector for the given time. */
-PaiVectorKey  = ^aiVectorKey ;
 aiVectorKey = Packed Record
-	mTime:double;     	// The time of this key
+	mTime:Double;     	// The time of this key
 	mValue:aiVector3D; 	// The value of this key
 End;
 
 // A time-value pair specifying a rotation for the given time.
 // Rotations are expressed with quaternions.
-PaiQuatKey =^aiQuatKey;
 aiQuatKey = Packed Record
 	mTime:double;	// The time of this key
 	mValue:aiQuaternion; // The value of this key

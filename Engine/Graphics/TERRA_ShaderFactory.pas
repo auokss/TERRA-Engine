@@ -539,7 +539,10 @@ Begin
   Line('attribute mediump vec3 terra_normal;');
 
   If (FxFlags and shaderNormalMap<>0) Then
-	  Line('attribute mediump vec4 terra_tangent;');
+  Begin
+	  Line('attribute mediump vec3 terra_tangent;');
+	  //Line('attribute mediump vec3 terra_bitangent;');
+  End;
 
   If (FxFlags and shaderSkinning<>0) Then
   	Line('attribute highp float terra_bone;');
@@ -604,8 +607,8 @@ Begin
 
   If (FxFlags and shaderNormalMap<>0) Then
   Begin
-    Line('  tangent = normalize(mat3(modelMatrix) * terra_tangent.xyz);');
-    Line('  binormal = normalize(cross(vertex_normal, tangent)) * terra_tangent.w;');
+    Line('  tangent = normalize(mat3(modelMatrix) * terra_tangent);');
+    //Line('  binormal = normalize(cross(vertex_normal, tangent)) * terra_tangent.w;');
   End;
 
   If (OutFlags And shader_OutputOutline<>0) Then

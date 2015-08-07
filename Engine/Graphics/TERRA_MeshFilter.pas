@@ -75,15 +75,14 @@ Const
 }
 
 Type
-  MeshVectorKey = Record
-    Value:Vector3D;
+  MeshAnimationKeyframe = Object
+    Value:Vector4D;
     Time:Single;
-  End;
 
-  {MeshQuaternionKey = Record
-    Value:Quaternion;
-    Time:Single;
-  End;}
+    Function GetVector3D():Vector3D;
+    Function GetQuaternion():Quaternion;
+    Function GetColor():Color;
+  End;
 
   MeshFilter = Class(TERRAObject)
     Public
@@ -99,7 +98,8 @@ Type
       Function GetVertexFormat(GroupID:Integer):VertexFormat; Virtual;
       Function GetVertexPosition(GroupID, Index:Integer):Vector3D; Virtual;
       Function GetVertexNormal(GroupID, Index:Integer):Vector3D; Virtual;
-      Function GetVertexTangent(GroupID, Index:Integer):Vector4D; Virtual;
+      Function GetVertexTangent(GroupID, Index:Integer):Vector3D; Virtual;
+      Function GetVertexBiTangent(GroupID, Index:Integer):Vector3D; Virtual;
       Function GetVertexBone(GroupID, Index:Integer):Integer; Virtual;
       Function GetVertexColor(GroupID, Index:Integer):Color; Virtual;
       Function GetVertexUV(GroupID, Index, Channel:Integer):Vector2D; Virtual;
@@ -132,9 +132,9 @@ Type
       Function GetRotationKeyCount(AnimationID, BoneID:Integer):Integer; Virtual;
       Function GetScaleKeyCount(AnimationID, BoneID:Integer):Integer; Virtual;
 
-      Function GetPositionKey(AnimationID, BoneID:Integer; KeyID:Integer):MeshVectorKey; Virtual;
-      Function GetScaleKey(AnimationID, BoneID:Integer; KeyID:Integer):MeshVectorKey; Virtual;
-      Function GetRotationKey(AnimationID, BoneID:Integer; KeyID:Integer):MeshVectorKey; Virtual;
+      Function GetPositionKey(AnimationID, BoneID:Integer; KeyID:Integer):MeshAnimationKeyframe; Virtual;
+      Function GetScaleKey(AnimationID, BoneID:Integer; KeyID:Integer):MeshAnimationKeyframe; Virtual;
+      Function GetRotationKey(AnimationID, BoneID:Integer; KeyID:Integer):MeshAnimationKeyframe; Virtual;
 
       Function Load(Source:Stream):Boolean; Overload; Virtual;
       Function Load(FileName:TERRAString):Boolean; Overload;
@@ -267,9 +267,14 @@ Begin
   Result := VectorZero;
 End;
 
-Function MeshFilter.GetVertexTangent(GroupID, Index: Integer): Vector4D;
+Function MeshFilter.GetVertexTangent(GroupID, Index: Integer): Vector3D;
 Begin
-  Result := VectorCreate4D(0,1,0,1);
+  Result := VectorCreate(1,0,0);
+End;
+
+Function MeshFilter.GetVertexBiTangent(GroupID, Index: Integer): Vector3D;
+Begin
+  Result := VectorCreate(0,0,1);
 End;
 
 Function MeshFilter.GetVertexUV(GroupID, Index, Channel: Integer): Vector2D;
@@ -336,21 +341,21 @@ Begin
   Result := 0;
 End;
 
-Function MeshFilter.GetPositionKey(AnimationID, BoneID:Integer; KeyID:Integer):MeshVectorKey;
+Function MeshFilter.GetPositionKey(AnimationID, BoneID:Integer; KeyID:Integer):MeshAnimationKeyframe;
 Begin
-  Result.Value := VectorZero;
+  Result.Value := VectorCreate4D(0, 0, 0, 1);
   Result.Time := 0;
 End;
 
-Function MeshFilter.GetScaleKey(AnimationID, BoneID:Integer; KeyID:Integer):MeshVectorKey;
+Function MeshFilter.GetScaleKey(AnimationID, BoneID:Integer; KeyID:Integer):MeshAnimationKeyframe;
 Begin
-  Result.Value := VectorOne;
+  Result.Value := VectorCreate4D(1, 1, 1, 1);
   Result.Time := 0;
 End;
 
-Function MeshFilter.GetRotationKey(AnimationID, BoneID:Integer; KeyID:Integer):MeshVectorKey;
+Function MeshFilter.GetRotationKey(AnimationID, BoneID:Integer; KeyID:Integer):MeshAnimationKeyframe;
 Begin
-  Result.Value := VectorZero;
+  Result.Value := VectorCreate4D(0, 0, 0, 1);
   Result.Time := 0;
 End;
 
@@ -422,6 +427,22 @@ End;
 Function MeshFilter.GetTriplanarMapName(GroupID: Integer):TERRAString;
 Begin
   Result := '';
+End;
+
+{ MeshAnimationKeyframe }
+Function MeshAnimationKeyframe.GetColor: Color;
+Begin
+  Result := ColorCreateFromFloat(Value.X, Value.Y, Value.Z, Value.W);
+End;
+
+Function MeshAnimationKeyframe.GetQuaternion: Quaternion;
+Begin
+  Result := QuaternionCreate(Value.X, Value.Y, Value.Z, Value.W);
+End;
+
+function MeshAnimationKeyframe.GetVector3D: Vector3D;
+Begin
+  Result := VectorCreate(Value.X, Value.Y, Value.Z);
 End;
 
 End.

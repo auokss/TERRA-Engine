@@ -1199,41 +1199,41 @@ Begin
     If (AttributeKind = vertexPosition) Then
     Begin
       glEnableClientState(GL_VERTEX_ARRAY);
-      glVertexPointer(Count, Format, _CurrentSource.Size, AttributeSource);
+      glVertexPointer(Count, Format, _CurrentSource.GetVertexSizeInBytes() , AttributeSource);
     End Else
     If (AttributeKind = vertexNormal) Then
     Begin
       glEnableClientState(GL_NORMAL_ARRAY);
-      glNormalPointer(Format, _CurrentSource.Size, AttributeSource);
+      glNormalPointer(Format, _CurrentSource.GetVertexSizeInBytes(), AttributeSource);
     End Else
     If (AttributeKind = vertexColor) Then
     Begin
       glEnableClientState(GL_COLOR_ARRAY);
-      glColorPointer(Count, Format, _CurrentSource.Size, AttributeSource);
+      glColorPointer(Count, Format, _CurrentSource.GetVertexSizeInBytes(), AttributeSource);
     End Else
     If (AttributeKind = vertexUV0) Then
     Begin
       glClientActiveTexture(GL_TEXTURE0);
       glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-      glTexCoordPointer(Count, Format, _CurrentSource.Size, AttributeSource);
+      glTexCoordPointer(Count, Format, _CurrentSource.GetVertexSizeInBytes(), AttributeSource);
     End Else
     If (AttributeKind = vertexUV1) Then
     Begin
       glClientActiveTexture(GL_TEXTURE1);
       glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-      glTexCoordPointer(Count, Format, _CurrentSource.Size, AttributeSource);
+      glTexCoordPointer(Count, Format, _CurrentSource.GetVertexSizeInBytes(), AttributeSource);
     End Else
     If (AttributeKind = vertexUV2) Then
     Begin
       glClientActiveTexture(GL_TEXTURE2);
       glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-      glTexCoordPointer(Count, Format, _CurrentSource.Size, AttributeSource);
+      glTexCoordPointer(Count, Format, _CurrentSource.GetVertexSizeInBytes(), AttributeSource);
     End Else
     If (AttributeKind = vertexUV3) Then
     Begin
       glClientActiveTexture(GL_TEXTURE3);
       glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-      glTexCoordPointer(Count, Format, _CurrentSource.Size, AttributeSource);
+      glTexCoordPointer(Count, Format, _CurrentSource.GetVertexSizeInBytes(), AttributeSource);
     End Else
     Begin
       RaiseError('Unknown attribute: '+Name);
@@ -1250,7 +1250,7 @@ Begin
   If (Handle<0) Then
     Exit;
 
-  glVertexAttribPointer(Handle, Count, Format, Norm, _CurrentSource.Size, AttributeSource);
+  glVertexAttribPointer(Handle, Count, Format, Norm, _CurrentSource.GetVertexSizeInBytes(), AttributeSource);
   Result := True;
 End;
 

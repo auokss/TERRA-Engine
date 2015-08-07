@@ -26,7 +26,7 @@ Unit TERRA_MeshAnimation;
 
 Interface
 Uses TERRA_String, TERRA_Utils, TERRA_Object, TERRA_Stream, TERRA_Resource, TERRA_Vector3D, TERRA_Math,
-  TERRA_Matrix4x4, TERRA_Vector2D, TERRA_Color, TERRA_Quaternion, TERRA_ResourceManager,
+  TERRA_Matrix4x4, TERRA_Vector2D, TERRA_Vector4D, TERRA_Color, TERRA_Quaternion, TERRA_ResourceManager,
   TERRA_MeshFilter, TERRA_MeshSkeleton;
 
 Const
@@ -37,14 +37,14 @@ Const
 Type
   BoneAnimation = Class;
 
-  VectorKeyFrame = MeshVectorKey;
-
   VectorKeyframeArray = Class(TERRAObject)
     Protected
       _Owner:BoneAnimation;
 
+      Procedure AddValueKey(Time:Single; Const Value:Vector4D);
+
     Public
-      Keyframes:Array Of VectorKeyFrame;
+      KeyFrames:Array Of MeshAnimationKeyframe;
       Count:Integer;
 
       Constructor Create(Owner:BoneAnimation);
@@ -52,7 +52,10 @@ Type
       Procedure Clone(Other:VectorKeyframeArray);
 
       Function GetKey(Time:Single):Integer;
-      Procedure AddKey(Time:Single; Value:Vector3D);
+
+      Procedure AddVector3DKey(Const Time:Single; Const Value:Vector3D);
+      Procedure AddQuaternionKey(Const Time:Single; Const Value:Quaternion);
+      Procedure AddColorKey(Const Time:Single; Const Value:Color);
 
       Function GetExactKey(Time:Single):Integer;
 
@@ -68,7 +71,7 @@ Type
 
       Property Owner:BoneAnimation Read _Owner;
       Property Length:Single Read GetLength;
-    End;
+  End;
 
   Animation = Class;
 
@@ -266,7 +269,7 @@ Begin
   End;
 End;
 
-Procedure VectorKeyframeArray.AddKey(Time:Single; Value:Vector3D);
+Procedure VectorKeyframeArray.AddValueKey(Time:Single; Const Value:Vector4D);
 Var
   I, N:Integer;
 Begin
@@ -294,95 +297,59 @@ Begin
   KeyFrames[N].Value := Value;
 End;
 
+Procedure VectorKeyframeArray.AddVector3DKey(Const Time:Single; Const Value:Vector3D);
+Begin
+  Self.AddValueKey(Time, VectorCreate4D(Value.X, Value.Y, Value.Z, 1.0));
+End;
+
+Procedure VectorKeyframeArray.AddQuaternionKey(Const Time:Single; Const Value:Quaternion);
+Begin
+  Self.AddValueKey(Time, VectorCreate4D(Value.X, Value.Y, Value.Z, Value.Z));
+End;
+
+Procedure VectorKeyframeArray.AddColorKey(Const Time:Single; Const Value:Color);
+Begin
+  Self.AddValueKey(Time, VectorCreate4D(Value.R/255, Value.G/255, Value.B/255, Value.A/255));
+End;
+
+
 Procedure VectorKeyframeArray.Load(Source:Stream);
 Var
   I:Integer;
-  Time:Word;
+  Time:Single;
   Range:Vector3D;
   MaxTime:Single;
   PX,PY,PZ:SmallInt;
   SX,SY,SZ:ShortInt;
 Begin
-  Source.Read(@Count, 4);
-  Source.Read(@Range, SizeOf(Vector3D));
-  Source.Read(@MaxTime, 4);
-
+  Source.ReadInteger(Count);
  { If (StringLower(_Owner.Owner.Name)='monster084_idle') Then
     IntToString(2);}
 
   SetLength(KeyFrames, Count);
   For I:=0 To Pred(Count) Do
   Begin
-    Source.Read(@Time, 2);
-
-    KeyFrames[I].Time := (Time/TimeCompressionLimit) * MaxTime;
-    If (KeyFrames[I].Time>MaxTime) Then
-      IntToString(TRunc(KeyFrames[I].Time+MaxTime));
-
-    {Source.Read(@PX, 2);
-    Source.Read(@PY, 2);
-    Source.Read(@PZ, 2);
-    KeyFrames[I].Value.X := (PX/CompressionLimit2)* Range.X;
-    KeyFrames[I].Value.Y := (PY/CompressionLimit2)* Range.Y;
-    KeyFrames[I].Value.Z := (PZ/CompressionLimit2)* Range.Z;}
-
-    Source.Read(@SX, 1);
-    Source.Read(@SY, 1);
-    Source.Read(@SZ, 1);
-    KeyFrames[I].Value.X := (SX/CompressionLimit1)* Range.X;
-    KeyFrames[I].Value.Y := (SY/CompressionLimit1)* Range.Y;
-    KeyFrames[I].Value.Z := (SZ/CompressionLimit1)* Range.Z;
-
-    //Source.Read(@KeyFrames[I].Value, SizeOf(Vector3D));
+    Source.ReadSingle(KeyFrames[I].Time);
+    Source.ReadSingle(KeyFrames[I].Value.X);
+    Source.ReadSingle(KeyFrames[I].Value.Y);
+    Source.ReadSingle(KeyFrames[I].Value.Z);
+    Source.ReadSingle(KeyFrames[I].Value.W);
   End;
 End;
 
 Procedure VectorKeyframeArray.Save(Dest:Stream);
 Var
   I:Integer;
-  Time:Word;
-  MaxTime:Single;
-  PX,PY,PZ:SmallInt;
-  SX,SY,SZ:ShortInt;
-  Range:Vector3D;
 Begin
-  Range := VectorZero;
-  MaxTime := 0;
-  For I:=0 To Pred(Count) Do
-  Begin
-    Range.X := FloatMax(Range.X, Abs(KeyFrames[I].Value.X));
-    Range.Y := FloatMax(Range.Y, Abs(KeyFrames[I].Value.Y));
-    Range.Z := FloatMax(Range.Z, Abs(KeyFrames[I].Value.Z));
-    MaxTime := FloatMax(MaxTime, KeyFrames[I].Time);
-  End;
-
-  If Range.Length<=0 Then
-    Count := 0;
-
-  Dest.Write(@Count, 4);
-  Dest.Write(@Range, SizeOf(Vector3D));
-  Dest.Write(@MaxTime, 4);
+  Dest.WriteInteger(Count);
 
   For I:=0 To Pred(Count) Do
   Begin
-    Time := Trunc(SafeDiv(KeyFrames[I].Time, MaxTime)*TimeCompressionLimit);
-    Dest.Write(@Time, 2);
-
-    SX := Trunc(SafeDiv(KeyFrames[I].Value.X,Range.X)*CompressionLimit1);
-    SY := Trunc(SafeDiv(KeyFrames[I].Value.Y,Range.Y)*CompressionLimit1);
-    SZ := Trunc(SafeDiv(KeyFrames[I].Value.Z,Range.Z)*CompressionLimit1);
-    Dest.Write(@SX, 1);
-    Dest.Write(@SY, 1);
-    Dest.Write(@SZ, 1);
-
-    {PX := Trunc((KeyFrames[I].Value.X/Range.X)*CompressionLimit2);
-    PY := Trunc((KeyFrames[I].Value.Y/Range.Y)*CompressionLimit2);
-    PZ := Trunc((KeyFrames[I].Value.Z/Range.Z)*CompressionLimit2);
-    Dest.Write(@PX, 2);
-    Dest.Write(@PY, 2);
-    Dest.Write(@PZ, 2);}
-
-//  Dest.Write(@KeyFrames[I].Value, SizeOf(Vector3D));
+    Dest.WriteSingle(KeyFrames[I].Time);
+    Dest.WriteSingle(KeyFrames[I].Value.X);
+    Dest.WriteSingle(KeyFrames[I].Value.Y);
+    Dest.WriteSingle(KeyFrames[I].Value.Z);
+    Dest.WriteSingle(KeyFrames[I].Value.W);
   End;
 End;
 
@@ -480,7 +447,7 @@ Begin
   	Block.Translation.Z := Positions.KeyFrames[LastKey].Value.Z + fraction * (Positions.KeyFrames[Key].Value.Z - Positions.KeyFrames[LastKey].Value.Z);
   End Else
   If (Key=0) And (Positions.Count>0) Then
- 	  Block.Translation := Positions.KeyFrames[Key].Value
+ 	  Block.Translation := Positions.KeyFrames[Key].GetVector3D()
   Else
     Block.Translation := VectorZero;
 
@@ -502,15 +469,15 @@ Begin
     If (Fraction>1.0) Then
       Fraction := 1.0;
 
-   	Q1 := QuaternionRotation(Rotations.Keyframes[LastKey].Value);
-	  Q2 := QuaternionRotation(Rotations.Keyframes[Key].Value);
+   	Q1 := Rotations.Keyframes[LastKey].GetQuaternion();
+	  Q2 := Rotations.Keyframes[Key].GetQuaternion();
   	Block.Rotation := QuaternionSlerp(Q1,Q2, Fraction);
   End Else
   If (Key=0) And (Rotations.Count>0) Then
   Begin
-    Block.Rotation := QuaternionRotation(Rotations.Keyframes[Key].Value);
+    Block.Rotation := Rotations.Keyframes[Key].GetQuaternion();
   End Else
-    Block.Rotation := QuaternionRotation(VectorZero);
+    Block.Rotation := QuaternionZero;
 
     //TODO
   Block.Scale := VectorOne;
@@ -582,13 +549,13 @@ Begin
     Exit;
   End;
 
-  Source.Read(@FPS, 4);
-  Source.Read(@Loop, 1);
-  Source.Read(@LoopPoint, 4);
-  Source.Read(@Speed, 4);
+  Source.ReadSingle(FPS);
+  Source.ReadBoolean(Loop);
+  Source.ReadSingle(LoopPoint);
+  Source.ReadSingle(Speed);
   Source.ReadString(Next);
 
-  Source.Read(@Count, 4);
+  Source.ReadInteger(Count);
   For I:=0 To Pred(Count) Do
   Begin
     Bone := Self.AddBone('');
@@ -812,7 +779,7 @@ Begin
     Exit;
   End;
 
-  For I:=0 To Pred(TargetAnimation.Rotations.Count) Do
+(*  For I:=0 To Pred(TargetAnimation.Rotations.Count) Do
     Begin
       CalcMatrices(SourceBone, TargetAnimation.Rotations.KeyFrames[I].Value, BindMatrix, FrameMatrix);
 
@@ -837,7 +804,7 @@ Begin
 
 
       TargetAnimation.Rotations.KeyFrames[I].Value := QuaternionToEuler(Q);
-    End;
+    End;*)
 End;
 
 Function Animation.Retarget(SourceSkeleton, TargetSkeleton: MeshSkeleton): Animation;
