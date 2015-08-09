@@ -77,8 +77,8 @@ Type
 
   AnimationTransformBlock = Object
     Translation:Vector3D;
-    Scale:Vector3D;
     Rotation:Quaternion;
+    Scale:Vector3D;
   End;
 
   BoneAnimation = Class(TERRAObject)

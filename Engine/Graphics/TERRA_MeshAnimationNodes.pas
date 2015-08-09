@@ -47,7 +47,7 @@ Type
       Function GetActiveAnimation:Animation; Virtual;
 
       //Function HasBone(Bone:Integer):Boolean; Virtual; Abstract;
-      Function GetTransform(BoneIndex:Integer):AnimationTransformBlock; Virtual; Abstract;
+      Function GetTransform(BoneIndex:Integer; Var Block:AnimationTransformBlock):Boolean; Virtual; Abstract;
 
       Function Finished:Boolean; Virtual;
 
@@ -68,7 +68,7 @@ Type
 
       Function HasAnimation(MyAnimation:Animation):Boolean; Override;
       //Function HasBone(Bone:Integer):Boolean; Override;
-      Function GetTransform(BoneIndex:Integer):AnimationTransformBlock; Override;
+      Function GetTransform(BoneIndex:Integer; Var Block:AnimationTransformBlock):Boolean; Override;
   End;
 
   AnimationCrossfader = Class(AnimationMixer)
@@ -82,7 +82,7 @@ Type
       Function Collapse:AnimationObject; Override;
 
       Function Finished:Boolean; Override;
-      Function GetTransform(BoneIndex:Integer):AnimationTransformBlock; Override;
+      Function GetTransform(BoneIndex:Integer; Var Block:AnimationTransformBlock):Boolean; Override;
   End;
 
   AnimationNode = Class(AnimationObject)
@@ -115,7 +115,7 @@ Type
       Function GetActiveAnimation:Animation; Override;
 
       //Function HasBone(Bone:Integer):Boolean; Override;
-      Function GetTransform(BoneIndex:Integer):AnimationTransformBlock; Override;
+      Function GetTransform(BoneIndex:Integer; Var Block:AnimationTransformBlock):Boolean; Override;
 
       Procedure SetCurrentFrame(Frame:Integer);
 
@@ -320,17 +320,16 @@ Begin
   // Get all bones tranformations
   For I:=0 To Pred(_BoneCount) Do
   Begin
+    _BoneStates[I]._Ready := False;
+
+    _BoneStates[I]._Block.Translation := VectorZero;
+    _BoneStates[I]._Block.Rotation := QuaternionZero;
+    _BoneStates[I]._Block.Scale := VectorOne;
+
     If Assigned(_Root) Then
     Begin
-      _BoneStates[I]._Block := _Root.GetTransform(I);
-    End Else
-    Begin
-      _BoneStates[I]._Block.Translation := VectorZero;
-      _BoneStates[I]._Block.Rotation := QuaternionZero;
-      _BoneStates[I]._Block.Scale := VectorOne;
+      _Root.GetTransform(I, _BoneStates[I]._Block);
     End;
-
-    _BoneStates[I]._Ready := False;
   End;
 
 
@@ -574,9 +573,9 @@ Begin
 	// Create a transformation matrix from the position and rotation
 	// m_frame: additional transformation for this frame of the animation
 
-  //AnimationMatrix := _Owner.Processor.PreTransform(_Owner, Self, _Block);
+  AnimationMatrix := _Owner.Processor.PreTransform(_Owner, Self, _Block);
 
-  LocalTransform :=  Self._Bone.RelativeMatrix;
+  LocalTransform :=  Matrix4x4Multiply4x3(AnimationMatrix, Self._Bone.RelativeMatrix);
   //_FrameGlobalTransform := BoneState._Bone.AbsoluteMatrix;
 
   // m_final := parent's m_final * m_rel (matrix concatenation)
@@ -600,38 +599,38 @@ Begin
   Result := (_A.HasBone(Bone)) Or (_B.HasBone(Bone));
 End;*)
 
-Function AnimationMixer.GetTransform(BoneIndex:Integer):AnimationTransformBlock;
+Function AnimationMixer.GetTransform(BoneIndex:Integer; Var Block:AnimationTransformBlock):Boolean;
 Var
   SA, SB:AnimationTransformBlock;
   Beta:Single;
 Begin
-  SA := _A.GetTransform(BoneIndex);
-  SB := _B.GetTransform(BoneIndex);
+  _A.GetTransform(BoneIndex, SA);
+  _B.GetTransform(BoneIndex, SB);
 
   Beta := 1.0 - Alpha;
 
   If (Alpha<=0) Then
   Begin
-    Result.Translation := SA.Translation;
-    Result.Rotation := SA.Rotation;
-    Result.Scale:= SA.Scale;
+    Block.Translation := SA.Translation;
+    Block.Rotation := SA.Rotation;
+    Block.Scale:= SA.Scale;
   End Else
   If (Alpha>=1) Then
   Begin
-    Result.Translation := SB.Translation;
-    Result.Rotation := SB.Rotation;
-    Result.Scale:= SB.Scale;
+    Block.Translation := SB.Translation;
+    Block.Rotation := SB.Rotation;
+    Block.Scale:= SB.Scale;
   End Else
   Begin
-    Result.Translation.X := SB.Translation.X * Alpha + SA.Translation.X * Beta;
-    Result.Translation.Y := SB.Translation.Y * Alpha + SA.Translation.Y * Beta;
-    Result.Translation.Z := SB.Translation.Z * Alpha + SA.Translation.Z * Beta;
+    Block.Translation.X := SB.Translation.X * Alpha + SA.Translation.X * Beta;
+    Block.Translation.Y := SB.Translation.Y * Alpha + SA.Translation.Y * Beta;
+    Block.Translation.Z := SB.Translation.Z * Alpha + SA.Translation.Z * Beta;
 
-    Result.Rotation := QuaternionSlerp(SA.Rotation, SB.Rotation, Alpha);
+    Block.Rotation := QuaternionSlerp(SA.Rotation, SB.Rotation, Alpha);
 
-    Result.Scale.X := SB.Scale.X * Alpha + SA.Scale.X * Beta;
-    Result.Scale.Y := SB.Scale.Y * Alpha + SA.Scale.Y * Beta;
-    Result.Scale.Z := SB.Scale.Z * Alpha + SA.Scale.Z * Beta;
+    Block.Scale.X := SB.Scale.X * Alpha + SA.Scale.X * Beta;
+    Block.Scale.Y := SB.Scale.Y * Alpha + SA.Scale.Y * Beta;
+    Block.Scale.Z := SB.Scale.Z * Alpha + SA.Scale.Z * Beta;
   End;
 End;
 
@@ -678,14 +677,14 @@ Begin
   Result := (Alpha>=1);
 End;
 
-Function AnimationCrossfader.GetTransform(BoneIndex:Integer):AnimationTransformBlock;
+Function AnimationCrossfader.GetTransform(BoneIndex:Integer; Var Block:AnimationTransformBlock):Boolean;
 Begin
   Alpha := Application.Instance.GetElapsedTime() - _StartTime;
   Alpha := Alpha / _Duration;
   If (Alpha>=1) Then
     Alpha := 1;
 
-  Result := Inherited GetTransform(BoneIndex);
+  Result := Inherited GetTransform(BoneIndex, Block);
 End;
 
 Function AnimationCrossfader.Collapse: AnimationObject;
@@ -748,10 +747,11 @@ Begin
   Result := (_IndexList[Bone] >= 0);
 End;*)
 
-Function AnimationNode.GetTransform(BoneIndex:Integer): AnimationTransformBlock;
+Function AnimationNode.GetTransform(BoneIndex:Integer; Var Block:AnimationTransformBlock):Boolean;
 Var
   Bone:BoneAnimation;
 Begin
+  Result := False;
   _Animation.Touch();
 
   Self.UpdateAnimation();
@@ -762,14 +762,11 @@ Begin
 
     If Assigned(Bone) Then
     Begin
-      Bone.GetTransform(_Time, Result);
+      Bone.GetTransform(_Time, Block);
+      Result := True;
       Exit;
     End;
   End;
-
-  Result.Translation := VectorZero;
-  Result.Rotation := QuaternionZero;
-  Result.Scale := VectorOne;
 End;
 
 Function AnimationNode.HasAnimation(MyAnimation: Animation): Boolean;
