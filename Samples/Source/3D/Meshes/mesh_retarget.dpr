@@ -325,7 +325,7 @@ Begin
   RetargetedAnimation := OriginalAnimation.Retarget(OriginalInstance.Geometry.Skeleton, ClonedInstance.Geometry.Skeleton);
   //RetargetedAnimation := Animation.Create(rtDynamic, ''); RetargetedAnimation.Clone(OriginalAnimation);
 
-  ClonedInstance.Animation.Play(RetargetedAnimation, RescaleDuration);
+//  ClonedInstance.Animation.Play(RetargetedAnimation, RescaleDuration);
   //ClonedInstance.Animation.Processor := AnimationTwister.Create();
   ClonedInstance.Animation.Processor := AnimationRetargeter.Create();
 End;

@@ -821,6 +821,7 @@ Var
 
   M:Matrix4x4;
 Begin
+Exit;
   TargetSkeleton.NormalizeJoints();
 
   Result := Animation.Create(rtDynamic, '');
