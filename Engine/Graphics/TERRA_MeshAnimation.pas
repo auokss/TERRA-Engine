@@ -471,7 +471,8 @@ Begin
 
    	Q1 := Rotations.Keyframes[LastKey].GetQuaternion();
 	  Q2 := Rotations.Keyframes[Key].GetQuaternion();
-  	Block.Rotation := QuaternionSlerp(Q1,Q2, Fraction);
+  	Block.Rotation := QuaternionSlerp(Q1, Q2, Fraction);
+    Block.Rotation.Normalize();
   End Else
   If (Key=0) And (Rotations.Count>0) Then
   Begin
@@ -555,6 +556,8 @@ Begin
   Source.ReadSingle(Speed);
   Source.ReadString(Next);
 
+//  Speed := 0.1;
+
   Source.ReadInteger(Count);
   For I:=0 To Pred(Count) Do
   Begin
@@ -583,13 +586,13 @@ Begin
   Header := 'ANIM';
   Dest.Write(@Header, 4);
 
-  Dest.Write(@FPS, 4);
-  Dest.Write(@Loop, 1);
-  Dest.Write(@LoopPoint, 4);
-  Dest.Write(@Speed, 4);
+  Dest.WriteSingle(FPS);
+  Dest.WriteBoolean(Loop);
+  Dest.WriteSingle(LoopPoint);
+  Dest.WriteSingle(Speed);
   Dest.WriteString(Next);
 
-  Dest.Write(@_BoneCount, 4);
+  Dest.WriteInteger(_BoneCount);
   For I:=0 To Pred(_BoneCount) Do
     _Bones[I].Save(Dest);
 End;
