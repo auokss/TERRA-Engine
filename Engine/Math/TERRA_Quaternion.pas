@@ -393,9 +393,17 @@ Var
   Cosine:Single;
 Begin
   Cosine := a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w;
-  Cosine := Abs(Cosine);
 
-  If ((1-cosine)>Epsilon) Then
+  If(Cosine<0.0) Then
+  Begin
+    Cosine := -Cosine;
+    B.x := -B.x;   // Reverse all signs
+    B.y := -B.y;
+    B.z := -B.z;
+    B.w := -B.w;
+  End;
+
+  If ((1-cosine) > Epsilon) Then
   Begin
     Theta := ArcCos(cosine);
   	Sine := Sin(theta);
