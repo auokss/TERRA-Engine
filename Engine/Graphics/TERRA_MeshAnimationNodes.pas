@@ -158,6 +158,9 @@ Type
       _OffsetMatrix:Matrix4x4;
       _FinalTransform:Matrix4x4;
 
+      _SkinningIndex:Integer;
+      _Kind:MeshBoneKind;
+
       Procedure UpdateTransform(Node:AnimationObject);
 
     Public
@@ -183,6 +186,8 @@ Type
       _BoneCount:Integer;
       _BoneStates:Array Of AnimationBoneState;
 
+      _MaxActiveBones:Integer;
+
       _LastTime:Cardinal;
       _Root:AnimationObject;
 
@@ -198,6 +203,8 @@ Type
 
       _Processor:AnimationProcessor;
 
+      _Transforms:Array Of Matrix4x4;
+
       Procedure AddBone(Bone:MeshBone);
 
       Procedure CollapseNode(Var Node:AnimationObject);
@@ -207,7 +214,6 @@ Type
       Procedure SetProcessor(Value:AnimationProcessor);
 
     Public
-      Transforms:Array Of Matrix4x4;
 
       //AllowRootMovement:Boolean;
 
@@ -222,6 +228,7 @@ Type
       Procedure SetCallback(Callback:AnimationCallback; CallbackTarget:TERRAObject = Nil; CallbackFrame:Integer=-1);
 
       Function GetAbsoluteMatrix(Index:Integer):Matrix4x4;
+      Function GetBonePoseMatrix(Index:Integer):Matrix4x4;
 
       Function GetBoneByName(Const Name:TERRAString):AnimationBoneState;
 
@@ -235,6 +242,8 @@ Type
       Property Root:AnimationObject Read _Root Write SetRoot;
 
       Property LastAnimation:TERRAString Read _LastAnimation;
+
+      Property MaxActiveBones:Integer Read _MaxActiveBones;
 
       Property Processor:AnimationProcessor Read _Processor Write SetProcessor;
   End;
@@ -263,6 +272,13 @@ Begin
 
   For I:=0 To Pred(TargetSkeleton.BoneCount) Do
     Self.AddBone(TargetSkeleton.GetBoneByIndex(I));
+
+  _MaxActiveBones := 0;
+  For I:=0 To Pred(TargetSkeleton.BoneCount) Do
+  If (_BoneStates[I]._Kind <> meshBone_Dummy) And (_BoneStates[I]._SkinningIndex >= _MaxActiveBones) Then
+    _MaxActiveBones := Succ(_BoneStates[I]._SkinningIndex);
+
+  SetLength(_Transforms, _MaxActiveBones);
 End;
 
 Procedure AnimationState.AddBone(Bone:MeshBone);
@@ -271,13 +287,14 @@ Var
 Begin
   Inc(_BoneCount);
   SetLength(_BoneStates, _BoneCount);
-  SetLength(Transforms, Succ(_BoneCount));
 
   _BoneStates[Pred(_BoneCount)] := AnimationBoneState.Create;
   _BoneStates[Pred(_BoneCount)]._ObjectName := Bone.Name;
 
   _BoneStates[Pred(_BoneCount)]._OffsetMatrix := Bone.OffsetMatrix;
   _BoneStates[Pred(_BoneCount)]._RelativeMatrix := Bone.RelativeMatrix;
+  _BoneStates[Pred(_BoneCount)]._Kind := Bone.Kind;
+  _BoneStates[Pred(_BoneCount)]._SkinningIndex := Bone.SkinningIndex;
 
 
   _BoneStates[Pred(_BoneCount)]._Owner := Self;
@@ -302,12 +319,10 @@ Var
   BoneState:AnimationBoneState;
   M:Matrix4x4;
 Begin
-  If (Length(Transforms)<=0) Then
-  Begin
-    SetLength(Transforms, Succ(_BoneCount));
-  End;
-
-  Transforms[0] := Matrix4x4Identity;
+  If (Length(_Transforms)<=0) Then
+    Exit;
+    
+  _Transforms[0] := Matrix4x4Identity;
 
   If (_Next<>'') Then
   Begin
@@ -346,10 +361,13 @@ Begin
   For I:=0 To Pred(_BoneCount) Do
     _BoneStates[I].UpdateTransform(_Root);
 
-  For I:=1 To _BoneCount Do
+  For I:=0 To Pred(_BoneCount) Do
   Begin
-    BoneState := _BoneStates[Pred(I)];
-    Transforms[I] := Matrix4x4Multiply4x3(BoneState._FinalTransform, BoneState._OffsetMatrix);
+    BoneState := _BoneStates[I];
+    If BoneState._SkinningIndex<=0 Then
+      Continue;
+      
+    _Transforms[BoneState._SkinningIndex] := Matrix4x4Multiply4x3(BoneState._FinalTransform, BoneState._OffsetMatrix);
   End;
 
 //  FloatToString(Transforms[1].V[1]);
@@ -492,8 +510,15 @@ End;
 
 Function AnimationState.GetAbsoluteMatrix(Index: Integer): Matrix4x4;
 Begin
-  //Result := Transforms[Index+1];
   Result := _BoneStates[Index]._FinalTransform;
+End;
+
+Function AnimationState.GetBonePoseMatrix(Index: Integer): Matrix4x4;
+Begin
+  If (Index<0) Or (Index>=Length(_Transforms)) Then
+    Result := Matrix4x4Identity
+  Else
+    Result := _Transforms[Index];
 End;
 
 Procedure AnimationState.SetSpeed(Value: Single);
@@ -945,13 +970,20 @@ End;
 Procedure AnimationProcessor.GetTransform(Target:AnimationBoneState; Node:AnimationObject; Out Transform:Matrix4x4);
 Var
   Block:AnimationTransformBlock;
+  Offset:Vector3D;
 begin
   If (Assigned(Node)) And (Node.HasTransform(Target.ID)) Then
   Begin
     Node.GetTransform(Target.ID, Block);
     Transform := Matrix4x4Multiply4x3(Matrix4x4Translation(Block.Translation), QuaternionMatrix4x4(Block.Rotation));
 
-//    If (Target.Parent = Nil) And (Not _Owner.AllowRootMovement) Then   Transform.SetTranslation(VectorZero);
+    If (Target._Kind = meshBone_Root) {And (Not _Owner.AllowRootMovement)} Then
+    Begin
+      Offset := Transform.GetTranslation();
+      Offset.X := 0;
+      Offset.Y := 0;
+      Transform.SetTranslation(Offset);
+    End;
   End Else
     Transform := Target._RelativeMatrix;
 End;

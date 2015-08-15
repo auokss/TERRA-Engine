@@ -31,23 +31,23 @@ Uses TERRA_String, TERRA_Utils, TERRA_Object, TERRA_Stream, TERRA_Resource, TERR
 Type
   MeshSkeleton = Class;
 
+  MeshBoneKind = (
+    meshBone_Default = 0,
+    meshBone_Root = 1,
+    meshBone_Dummy = 2
+  );
+
   MeshBone = Class(TERRAObject)
     Protected
       _ID:Integer;
+      _SkinningIndex:Byte;
       _Parent:MeshBone;
       _Owner:MeshSkeleton;
 
       _RelativeMatrix:Matrix4x4;
       _OffsetMatrix:Matrix4x4;
 
-      //_Translation:Vector3D;
-      //_Orientation:Quaternion;
-
-      //_AbsoluteMatrix:Matrix4x4;
-      //_RelativeMatrix:Matrix4x4;
-
-      _RetargetMatrix:Matrix4x4;
-
+      _Kind:MeshBoneKind;
 
       Function GetLength():Single;
 
@@ -71,12 +71,11 @@ Type
       Function GetRoot():MeshBone;
 
       Property ID:Integer Read _ID;
+      Property SkinningIndex:Byte Read _SkinningIndex;
       Property Parent:MeshBone Read _Parent;
       Property Owner:MeshSkeleton Read _Owner;
 
       Property Length:Single Read GetLength; // Write SetLength;
-      //Property Translation:Vector3D Read _Translation Write _Translation;
-      //Property Orientation:Quaternion Read _Orientation Write _Orientation;
 
       Property Normal:Vector3D Read GetNormal;
 
@@ -84,9 +83,9 @@ Type
       Property RelativeMatrix:Matrix4x4 Read _RelativeMatrix Write SetRelativeMatrix;
       Property OffsetMatrix:Matrix4x4 Read _OffsetMatrix;
 
-      Property RetargetMatrix:Matrix4x4 Read _RetargetMatrix Write _RetargetMatrix;
-
       Property AbsolutePosition:Vector3D Read GetAbsolutePosition;
+
+      Property Kind:MeshBoneKind Read _Kind;
   End;
 
   MeshSkeleton = Class(TERRAObject)
@@ -184,26 +183,35 @@ Begin
 End;
 
 Function MeshBone.Read(Source:Stream):TERRAString;
+Var
+  N:Byte;
+  ParentName:TERRAString;
 Begin
   Source.ReadString(_ObjectName);
-  Source.ReadString(Result);
+  Source.ReadString(ParentName);
   _Parent := Nil;
 
+  Source.ReadByte(N);
+  _Kind := MeshBoneKind(N);
+
   Source.Read(@_RelativeMatrix, SizeOf(_RelativeMatrix));
-  Source.Read(@_OffsetMatrix, SizeOf(_OffsetMatrix));
+
+  If (_Kind = meshBone_Dummy) Then
+  Begin
+    _OffsetMatrix := Matrix4x4Identity;
+    _SkinningIndex := 0;
+  End Else
+  Begin
+    Source.ReadByte(_SkinningIndex);
+    Source.Read(@_OffsetMatrix, SizeOf(_OffsetMatrix));
+  End;
+
+  Result := ParentName;
 End;
 
-Procedure MeshBone.Write(Dest:Stream);
-Var
-  Angles:Vector3D;
+Procedure MeshBone.Write(Dest: Stream);
 Begin
-  Dest.WriteString(Name);
-  If (Assigned(Parent)) Then
-    Dest.WriteString(Parent.Name)
-  Else
-    Dest.WriteString('');
-
-  Dest.Write(@_RelativeMatrix, SizeOf(_RelativeMatrix));
+  RaiseError('Not implemented');
 End;
 
 Function MeshBone.GetAbsolutePosition: Vector3D;
@@ -290,12 +298,8 @@ Begin
 End;
 
 Procedure MeshSkeleton.Write(Dest: Stream);
-Var
-  I:Integer;
 Begin
-  Dest.Write(@_BoneCount, 4);
-  For I:=0 To Pred(_BoneCount) Do
-    _BoneList[I].Write(Dest);
+  RaiseError('Not implemented');
 End;
 
 Procedure MeshSkeleton.Release;
@@ -380,43 +384,17 @@ Begin
   For I:=0 To Pred(Self.BoneCount) Do
   Begin
     Bone := Self.GetBoneByIndex(I);
-{
-    A := Matrix4x4Inverse(QuaternionMatrix4x4(Bone._Orientation));
-    (*B := Matrix4x4Translation(CurrentPos[Bone.Index]);
 
     If Assigned(Bone.Parent) Then
-      C := Matrix4x4Inverse(Matrix4x4Translation(CurrentPos[Bone.Parent.Index]))
-    Else
-      C := Matrix4x4Identity;*)
-
-    If Assigned(Bone.Parent) Then
-      B := Matrix4x4Translation(VectorSubtract(CurrentPos[Bone.Index], CurrentPos[Bone.Parent.Index]))
+      B := Matrix4x4Translation(VectorSubtract(CurrentPos[Bone.ID], CurrentPos[Bone.Parent.ID]))
     Else
       B := Matrix4x4Translation(Bone.AbsolutePosition);
 
-    //M := Matrix4x4Multiply4x3(A, B);
-    M := B;
-
-
-    C := Matrix4x4Multiply4x3(Matrix4x4Inverse(QuaternionMatrix4x4(Bone._Orientation)), Matrix4x4Inverse(B));
-
-    //M := Matrix4x4Multiply4x3(C, B);
-
-    Angles := M.GetEulerAngles();
-
-    Bone._Translation := M.GetTranslation;
-    Bone._Orientation := QuaternionRotation(Angles);
-
-    Bone._RetargetMatrix := M;
-
-    (*If Assigned(Bone.Parent) Then
-      Bone._Translation := VectorSubtract(CurrentPos[Bone.Index], CurrentPos[Bone.Parent.Index])
-    Else
-      Bone._Translation := Bone.AbsolutePosition;*)
-      }
+    Bone._RelativeMatrix := B;
   End;
 
   CurrentPos := Nil;
 End;
+
 
 End.

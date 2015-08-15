@@ -34,7 +34,11 @@ Uses {$IFDEF USEDEBUGUNIT}TERRA_Debug,{$ENDIF}
   TERRA_Matrix3x3, TERRA_Matrix4x4, TERRA_ParticleRenderer, TERRA_ParticleEmitters, TERRA_Lights, TERRA_Renderable, TERRA_Viewport;
 
 Const
-  MaxBones    = 36;
+  {$IFDEF PC}
+  MaxBones    = 64;
+  {$ELSE}
+  MaxBones    = 34;
+  {$ENDIF}
 
   MaxTrailSize = 5;
   TrailDelay = 500;
@@ -502,6 +506,9 @@ Type
       _Fur:Fur;
       _Cloth:VerletCloth;
       {$ENDIF}
+
+      _BoneVectors:Array Of Vector4D;
+      _BoneVectorCount:Integer;
 
       _EmitterFX:TERRAString;
 
@@ -2260,7 +2267,7 @@ Begin
     P := MyLight.Position;
     If (MyLight.BoneIndex>=0) Then
     Begin
-      M := Animation.Transforms[Succ(MyLight.BoneIndex)];
+      M := Animation.GetAbsoluteMatrix(MyLight.BoneIndex);
       M := Matrix4x4Multiply4x3(_Transform, M);
     End Else
       M := _Transform;
@@ -2361,7 +2368,7 @@ Begin
       P := Emitter.Position;
       If (Emitter.BoneIndex>=0) Then
       Begin
-        M := Animation.Transforms[Succ(Emitter.BoneIndex)];
+        M := Animation.GetAbsoluteMatrix(Emitter.BoneIndex);
         M := Matrix4x4Multiply4x3(_Transform, M);
       End Else
         M := _Transform;
@@ -2528,7 +2535,7 @@ Begin
     For I:=0 To Pred(_AttachCount) Do
     If (_AttachList[I].IsStencil) Then
     Begin
-      M := Matrix4x4Multiply4x3(_Transform, Matrix4x4Multiply4x3(Animation.Transforms[Succ(_AttachList[I].BoneIndex)], _AttachList[I].Matrix));
+      M := Matrix4x4Multiply4x3(_Transform, Matrix4x4Multiply4x3(Animation.GetAbsoluteMatrix(_AttachList[I].BoneIndex), _AttachList[I].Matrix));
 
       _AttachList[I].AttachMesh.Prefetch();
 
@@ -2608,7 +2615,7 @@ Begin
 {$IFDEF DEBUG_GRAPHICS}Log(logDebug, 'MeshGroup', 'Rendering attach '+IntToString(I));{$ENDIF}
 
     //M := MatrixMultiply4x3(_Transform, MatrixMultiply4x3(Animation.Transforms[Succ(_AttachList[I].BoneIndex)], _AttachList[I].Matrix));
-    M := Matrix4x4Multiply4x3(_Transform, Matrix4x4Multiply4x3(Animation.Transforms[Succ(_AttachList[I].BoneIndex)], _AttachList[I].Matrix));
+    M := Matrix4x4Multiply4x3(_Transform, Matrix4x4Multiply4x3(Animation.GetAbsoluteMatrix(_AttachList[I].BoneIndex), _AttachList[I].Matrix));
 
     If Not _AttachList[I].AttachMesh.IsReady() Then
       Continue;
@@ -3237,14 +3244,11 @@ Begin
 
       If V.BoneIndex>0 Then
       Begin
-        If (State.Animation = Nil) Then
-          //M := _Owner.Skeleton.BindPose[V.BoneIndex]
-          M := Matrix4x4Identity
-        Else
-          M := State.Animation.Transforms[V.BoneIndex];
-                    
+        M := State.Animation.GetBonePoseMatrix(V.BoneIndex);
         V.Position := M.Transform(V.Position);
         V.Normal := M.TransformNormal(V.Normal);
+        V.Tangent := M.TransformNormal(V.Tangent);
+        V.BiTangent := M.TransformNormal(V.BiTangent);
       End;
     End;
     ReleaseObject(It);
@@ -4065,7 +4069,7 @@ Var
   TextureMatrix, M, M2:Matrix4x4;
   C:Color;
   BoneVectorLocation:Integer;
-  BoneVectors:Array[0..(Succ(MaxBones)*3)] Of Vector4D;
+
   M2D:Matrix3x3;
   Bend,Delta:Single;
   Graphics:GraphicsManager;
@@ -4090,13 +4094,13 @@ Var
     B3.Z := Mat.Get(2, 2);
     B3.W := Mat.Get(2, 3);
 
-    BoneVectors[ID*3 + 0] := B1;
-    BoneVectors[ID*3 + 1] := B2;
-    BoneVectors[ID*3 + 2] := B3;
+    _BoneVectors[ID*3 + 0] := B1;
+    _BoneVectors[ID*3 + 1] := B2;
+    _BoneVectors[ID*3 + 2] := B3;
   End;
 Begin
   Graphics := GraphicsManager.Instance;
-                     
+
   If (Graphics.ReflectionActive) Then
     Transform := Matrix4x4Multiply4x4(GraphicsManager.Instance.ReflectionMatrix, Transform);
 
@@ -4190,20 +4194,20 @@ Begin
       Exit;
     End;
 
+    _BoneVectorCount := Succ(State.Animation.MaxActiveBones)*3;
+
+    If (Length(_BoneVectors)<_BoneVectorCount) Then
+      SetLength(_BoneVectors, _BoneVectorCount);
+
     EncodeBoneMatrix(0, Matrix4x4Identity);
 
-    For I:=1 To _Owner.Skeleton.BoneCount Do
+    For I:=1 To State.Animation.MaxActiveBones Do
     Begin
-      If (State.Animation = Nil) Or (State.Animation.Root = Nil) Then
-        //M := _Owner.Skeleton.BindPose[I]
-        M := Matrix4x4Identity
-      Else
-        M := State.Animation.Transforms[I];
-
-        EncodeBoneMatrix(I, M);
+      M := State.Animation.GetBonePoseMatrix(I);
+      EncodeBoneMatrix(I, M);
     End;
 
-    Graphics.Renderer.ActiveShader.SetVec4ArrayUniform('boneVectors', Succ(_Owner.Skeleton.BoneCount)*3, @(BoneVectors[0]));
+    Graphics.Renderer.ActiveShader.SetVec4ArrayUniform('boneVectors', _BoneVectorCount, @(_BoneVectors[0]));
   End;
 End;
 
