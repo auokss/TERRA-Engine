@@ -47,7 +47,7 @@ Type
       Function GetActiveAnimation:Animation; Virtual;
 
       Function HasTransform(Bone:Integer):Boolean; Virtual; Abstract;
-      Function GetTransform(BoneIndex:Integer; Out Block:AnimationTransformBlock):Boolean; Virtual; Abstract;
+      Function GetTransform(BoneIndex:Integer; Var Block:AnimationTransformBlock):Boolean; Virtual; Abstract;
 
       Function Finished:Boolean; Virtual;
 
@@ -56,9 +56,14 @@ Type
       Procedure Release; Override;
   End;
 
-(*  AnimationMixer = Class(AnimationObject)
+  AnimationMixer = Class(AnimationObject)
+    Protected
       _A, _B:AnimationObject;
+
+    Public
       Alpha:Single;
+
+      Constructor Create(Src,Dest:AnimationObject);
 
       Procedure Release; Override;
 
@@ -67,7 +72,9 @@ Type
       Function GetActiveAnimation:Animation; Override;
 
       Function HasAnimation(MyAnimation:Animation):Boolean; Override;
-      //Function HasBone(Bone:Integer):Boolean; Override;
+
+
+      Function HasTransform(Bone:Integer):Boolean; Override;
       Function GetTransform(BoneIndex:Integer; Var Block:AnimationTransformBlock):Boolean; Override;
   End;
 
@@ -77,13 +84,16 @@ Type
       _Duration:Cardinal;
 
     Public
-      Constructor Create(Src,Dest:AnimationObject; Duration:Cardinal);
+      Constructor Create(Src,Dest:AnimationObject; Const Duration:Cardinal);
+
+      Procedure Reset(Const Duration:Cardinal);
 
       Function Collapse:AnimationObject; Override;
 
       Function Finished:Boolean; Override;
+
       Function GetTransform(BoneIndex:Integer; Var Block:AnimationTransformBlock):Boolean; Override;
-  End;*)
+  End;
 
   AnimationNode = Class(AnimationObject)
     Protected
@@ -115,7 +125,7 @@ Type
       Function GetActiveAnimation:Animation; Override;
 
       Function HasTransform(Bone:Integer):Boolean; Override;
-      Function GetTransform(BoneIndex:Integer; Out Block:AnimationTransformBlock):Boolean; Override;
+      Function GetTransform(BoneIndex:Integer; Var Block:AnimationTransformBlock):Boolean; Override;
 
       Procedure SetCurrentFrame(Frame:Integer);
 
@@ -147,7 +157,7 @@ Type
 
     _FinalTransform:Matrix4x4;
 
-    Procedure UpdateTransform(Node:AnimationNode);
+    Procedure UpdateTransform(Node:AnimationObject);
 
     Procedure Release; Override;
   End;
@@ -209,8 +219,8 @@ Type
       Function Find(Name:TERRAString):Animation;
       Function Play(MyAnimation:Animation; Rescale:Single=0):Boolean;
 
-(*      Function Crossfade(Name:TERRAString; Duration:Cardinal = DefaultCrossfadeDuration):Boolean; Overload;
-      Function Crossfade(MyAnimation:Animation; Duration:Cardinal = DefaultCrossfadeDuration):Boolean; Overload;*)
+      Function Crossfade(Name:TERRAString; Duration:Cardinal = DefaultCrossfadeDuration):Boolean; Overload;
+      Function Crossfade(MyAnimation:Animation; Duration:Cardinal = DefaultCrossfadeDuration):Boolean; Overload;
 
       Property Speed:Single Read _Speed Write SetSpeed;
       Property Root:AnimationObject Read _Root Write SetRoot;
@@ -321,40 +331,16 @@ Begin
   For I:=0 To Pred(_BoneCount) Do
   Begin
     _BoneStates[I]._Ready := False;
-
-    (*_BoneStates[I]._Block.Translation := VectorZero;
-    _BoneStates[I]._Block.Rotation := QuaternionZero;
-    _BoneStates[I]._Block.Scale := VectorOne;
-
-    If Assigned(_Root) Then
-    Begin
-      _Root.GetTransform(I, _BoneStates[I]._Block);
-    End;*)
   End;
 
-
   For I:=0 To Pred(_BoneCount) Do
-    _BoneStates[I].UpdateTransform(AnimationNode(_Root));
+    _BoneStates[I].UpdateTransform(_Root);
 
   Root := _BoneStates[0]._Bone;
   For I:=1 To _BoneCount Do
   Begin
     BoneState := _BoneStates[Pred(I)];
-
-    //Transforms[I] := Matrix4x4Multiply4x3(BoneState._FrameAbsoluteMatrix, Matrix4x4Inverse(BoneState._BindAbsoluteMatrix));
-
-    //Transforms[I] := Matrix4x4Multiply4x3(Self._Processor.FinalTransform(Self, BoneState), Matrix4x4Inverse(BoneState._BindAbsoluteMatrix));
-
-
-    //Transforms[I] := Self._Processor.FinalTransform(Self, BoneState);
-
     Transforms[I] := Matrix4x4Multiply4x3(BoneState._FinalTransform, BoneState._Bone.OffsetMatrix);
-
-(*    M := Self._Processor.FinalTransform(Self, BoneState);
-//    M.MoveTransformOrigin(BoneState._FrameAbsoluteMatrix.Transform(VectorZero));
-    Transforms[I] := Matrix4x4Multiply4x3(M, Transforms[I]);
-  *)
-
   End;
 
 //  FloatToString(Transforms[1].V[1]);
@@ -428,7 +414,7 @@ Begin
   Result := True;
 End;
 
-(*Function AnimationState.Crossfade(Name:TERRAString; Duration:Cardinal):Boolean;
+Function AnimationState.Crossfade(Name:TERRAString; Duration:Cardinal):Boolean;
 Var
   MyAnimation: Animation;
 Begin
@@ -493,7 +479,7 @@ Begin
 
   Result := True;
   _Root := AnimationCrossfader.Create(_Root, AnimationNode.Create(Self, MyAnimation), Duration);
-End;*)
+End;
 
 Function AnimationState.GetAbsoluteMatrix(Index: Integer): Matrix4x4;
 Begin
@@ -559,7 +545,7 @@ Begin
   // do nothing
 End;
 
-Procedure AnimationBoneState.UpdateTransform(Node:AnimationNode);
+Procedure AnimationBoneState.UpdateTransform(Node:AnimationObject);
 Var
   I:Integer;
   Block:AnimationTransformBlock;
@@ -601,9 +587,16 @@ Begin
 End;
 
 { AnimationMixer }
-(*Function AnimationMixer.HasBone(Bone:Integer):Boolean;
+Constructor AnimationMixer.Create(Src, Dest: AnimationObject);
 Begin
-  Result := (_A.HasBone(Bone)) Or (_B.HasBone(Bone));
+  Self.Name := Src.Name + ' -> ' + Dest.Name;
+  _A := Src;
+  _B := Dest;
+End;
+
+Function AnimationMixer.HasTransform(Bone:Integer):Boolean;
+Begin
+  Result := (_A.HasTransform(Bone)) Or (_B.HasTransform(Bone));
 End;
 
 Function AnimationMixer.GetTransform(BoneIndex:Integer; Var Block:AnimationTransformBlock):Boolean;
@@ -666,13 +659,17 @@ Begin
 End;
 
 { AnimationCrossfader }
-Constructor AnimationCrossfader.Create(Src,Dest:AnimationObject;  Duration: Cardinal);
+Constructor AnimationCrossfader.Create(Src,Dest:AnimationObject;  Const Duration: Cardinal);
 Begin
-  Self.Name := Src.Name + ' -> ' + Dest.Name;
+  Inherited Create(Src, Dest);
+
+  Reset(Duration);
+End;
+
+Procedure AnimationCrossfader.Reset(Const Duration:Cardinal);
+Begin
   _StartTime := Application.Instance.GetElapsedTime();
   _Duration := Duration;
-  _A := Src;
-  _B := Dest;
 End;
 
 Function AnimationCrossfader.Finished: Boolean;
@@ -710,8 +707,7 @@ Begin
   // we no longer control B, and A was destroyed
   _A := Nil;
   _B := Nil;
-End;*)
-
+End;
 { AnimationNode }
 Constructor AnimationNode.Create(Owner:AnimationState; MyAnimation:Animation);
 Var
@@ -754,7 +750,7 @@ Begin
   Result := (_IndexList[Bone] >= 0);
 End;
 
-Function AnimationNode.GetTransform(BoneIndex:Integer; Out Block:AnimationTransformBlock):Boolean;
+Function AnimationNode.GetTransform(BoneIndex:Integer; Var Block:AnimationTransformBlock):Boolean;
 Var
   Bone:BoneAnimation;
 Begin
