@@ -536,8 +536,8 @@ Begin
 
   If (Not GraphicsManager.Instance.Renderer.Features.NPOT.Avaliable) Then
   Begin
-    _Width := IntMax(NearestPowerOfTwo(_Width), MinTextureSize);
-    _Height := IntMax(NearestPowerOfTwo(_Height), MinTextureSize);
+    _Width := IntMax(PreviousPowerOfTwo(_Width), MinTextureSize);
+    _Height := IntMax(PreviousPowerOfTwo(_Height), MinTextureSize);
 
     If GraphicsManager.Instance.Renderer.Features.MaxTextureSize>0 Then
     Begin
@@ -850,8 +850,8 @@ Begin
 
   If (Not GraphicsManager.Instance.Renderer.Features.NPOT.Avaliable) Then
   Begin
-    W := IntMax(NearestPowerOfTwo(Source.Width), MinTextureSize);
-    H := IntMax(NearestPowerOfTwo(Source.Height), MinTextureSize);
+    W := IntMax(PreviousPowerOfTwo(Source.Width), MinTextureSize);
+    H := IntMax(PreviousPowerOfTwo(Source.Height), MinTextureSize);
 
     If GraphicsManager.Instance.Renderer.Features.MaxTextureSize>0 Then
     Begin
@@ -1092,8 +1092,8 @@ Function Texture.IsNPOT: Boolean;
 Var
   W, H:Cardinal;
 Begin
-  W := NearestPowerOfTwo(Self.Width);
-  H := NearestPowerOfTwo(Self.Height);
+  W := PreviousPowerOfTwo(Self.Width);
+  H := PreviousPowerOfTwo(Self.Height);
 
   Result := (W<>Self.Width) Or (H<>Self.Height);
 End;

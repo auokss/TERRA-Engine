@@ -66,7 +66,8 @@ Function Tan(X:Float):Float;
 
 Function SmoothStep(A,B,X:Float):Float;
 
-Function NearestPowerOfTwo(P:Cardinal):Cardinal;
+Function PreviousPowerOfTwo(P:Cardinal):Cardinal;
+Function NextPowerOfTwo(P:Cardinal):Cardinal;
 
 Function LinearInterpolate(a,b, mu:Float):Float; {$IFDEF FPC} Inline;{$ENDIF}
 Function CubicInterpolate(y0, y1, y2, y3, mu:Float):Float; {$IFDEF FPC} Inline;{$ENDIF}
@@ -391,18 +392,34 @@ Begin
     Result := Exp(Y * Ln(X));
 End;}
 
-Function NearestPowerOfTwo(P:Cardinal):Cardinal;
+Function PreviousPowerOfTwo(P:Cardinal):Cardinal;
 Var
   I,N:Cardinal;
 Begin
   Result := 0;
   For I:=14 DownTo 2 Do
   Begin
-    N:=(1 Shl I);
+    N := (1 Shl I);
     If N<P Then
-     Break
+      Break
     Else
       Result:=N;
+  End;
+End;
+
+Function NextPowerOfTwo(P:Cardinal):Cardinal;
+Var
+  I,N:Cardinal;
+Begin
+  Result := 0;
+  For I:=0 To 31 Do
+  Begin
+    N := (1 Shl I);
+    If N>P Then
+    Begin
+      Result := N;
+      Exit;
+    End;
   End;
 End;
 

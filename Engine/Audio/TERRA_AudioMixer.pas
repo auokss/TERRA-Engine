@@ -3,7 +3,9 @@ Unit TERRA_AudioMixer;
 {$I terra.inc}
 
 Interface
-Uses TERRA_Utils, TERRA_String, TERRA_Threads, TERRA_Mutex, TERRA_Sound, TERRA_SoundSource, TERRA_AudioBuffer;
+Uses TERRA_Utils, TERRA_String, TERRA_Threads, TERRA_Mutex, TERRA_Sound, TERRA_SoundSource, TERRA_AudioBuffer,
+  TERRA_AudioEcho// TERRA_AudioReverb
+  ;
 
 Const
   {$IFDEF MOBILE}
@@ -12,7 +14,7 @@ Const
   DefaultSampleFrequency = 44100;
   {$ENDIF}
 
-  DefaultAudioSampleCount = 1024 * 16;
+  DefaultAudioSampleCount = 1024 * 10;
 
 Type
   TERRAAudioMixer = Class;

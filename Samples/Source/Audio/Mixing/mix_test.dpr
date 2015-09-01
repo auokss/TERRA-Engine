@@ -82,7 +82,7 @@ Begin
   If (Tex = Nil) Then
     Exit;
 
-  GhostPos.X := Sin(Application.GetTime()/4000);
+  GhostPos.X := Abs(Sin(Application.GetTime()/3500));
   GhostPos.Y := 0.5;
   GhostPos.Z := 0;
 

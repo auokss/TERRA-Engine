@@ -119,7 +119,7 @@ Begin
   _Status := soundSource_Finished;
   _Mode := soundSource_Static;
 
-  Self.SetVolume(1.0);
+  Self.SetVolume(0.2);
 End;
 
 Procedure SoundSource.SetPitch(Const Value: Single);
