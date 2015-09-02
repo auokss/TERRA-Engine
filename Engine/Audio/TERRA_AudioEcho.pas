@@ -178,6 +178,10 @@ Begin
     For I:=0 To Pred(Td) Do
     Begin
       CurrentSample := temps[i, 0];
+      CurrentSample.Scale(_PanningGain[0]);
+
+      temps[i, 1].Scale(_PanningGain[1]);
+      CurrentSample.Add(temps[i, 1]);
 
       DestBuffer^ := CurrentSample;
       Inc(DestBuffer);

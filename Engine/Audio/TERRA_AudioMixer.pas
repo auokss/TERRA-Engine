@@ -260,7 +260,7 @@ Begin
   End Else
     Leftovers := 0;
 
-  {$IFNDEF DRY}
+  {$IFDEF DRY}
   SrcData := Self._CurrentBuffer.GetSampleAt(_CurrentSample);
   {$ELSE}
   SrcData := _CurrentFilter.Process(Self._CurrentBuffer, _CurrentSample, SampleCount);
