@@ -29,13 +29,6 @@ Type
 
 Implementation
 
-(*Procedure waveOutProc(hWaveOut:HWAVEOUT; uMsg, dwInstance, dwParam1, dwParam2:Cardinal); Stdcall;
-Var
-  Driver:WindowsAudioDriver;
-Begin
-  IntToString(uMsg);
-End;*)
-
 { WindowsAudioDriver }
 Function WindowsAudioDriver.Reset(Mixer:TERRAAudioMixer):Boolean;
 Var
@@ -107,7 +100,10 @@ End;
 
 Function WindowsAudioDriver.QueueBuffer():Boolean;
 Var
-  I:Integer;
+  I, J:Integer;
+  N:Single;
+
+  OutBuffer:PSmallInt;
 Begin
   For I:=0 To Pred(WaveBufferCount) Do
   If (_WaveHandler[I].dwFlags And WHDR_DONE)<>0 Then
@@ -116,6 +112,7 @@ Begin
     Begin
       _WaveHandler[I].dwFlags := _WaveHandler[I].dwFlags Xor WHDR_DONE;
       _Mixer.RequestSamples(PAudioSample(_WaveHandler[I].lpData), InternalBufferSampleCount);
+
       //waveOutPrepareHeader(_WaveOutHandle, _WaveHandler[I], SizeOf(TWAVEHDR));
       waveOutWrite(_WaveOutHandle, @_WaveHandler[I], SizeOf(TWAVEHDR));
 

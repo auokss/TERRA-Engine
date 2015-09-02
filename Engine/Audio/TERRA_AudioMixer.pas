@@ -35,9 +35,9 @@ Type
        _Ready:Boolean;
        _Active:Boolean;
 
-       _BufferA:TERRAAudioBuffer;
-       _BufferB:TERRAAudioBuffer;
-       _CurrentBuffer:TERRAAudioBuffer;
+       _BufferA:TERRAAudioMixingBuffer;
+       _BufferB:TERRAAudioMixingBuffer;
+       _CurrentBuffer:TERRAAudioMixingBuffer;
 
        _Thread:TERRAThread;
        _Mutex:CriticalSection;
@@ -68,7 +68,7 @@ Type
        Procedure AddSource(Source:SoundSource);
        Procedure RemoveSource(Source:SoundSource);
 
-       Property Buffer:TERRAAudioBuffer Read _CurrentBuffer;
+       Property Buffer:TERRAAudioMixingBuffer Read _CurrentBuffer;
 
        Property Active:Boolean Read _Active;
   End;
@@ -96,8 +96,8 @@ Constructor TERRAAudioMixer.Create(Frequency, MaxSamples:Cardinal);
 Var
   I:Integer;
 Begin
-  _BufferA := TERRAAudioBuffer.Create(MaxSamples, Frequency, True);
-  _BufferB := TERRAAudioBuffer.Create(MaxSamples, Frequency, True);
+  _BufferA := TERRAAudioMixingBuffer.Create(MaxSamples, Frequency);
+  _BufferB := TERRAAudioMixingBuffer.Create(MaxSamples, Frequency);
   _CurrentBuffer := _BufferA;
 
   SetLength(_Sources, 8);
@@ -238,8 +238,10 @@ End;
 
 Function TERRAAudioMixer.RequestSamples(Dest:PAudioSample; SampleCount:Cardinal):Cardinal;
 Var
+  I:Integer;
   Leftovers, Temp:Integer;
-  SrcData:PAudioSample;
+  SrcData:PFloatAudioSample;
+  Val:Single;
 Begin
   If (SampleCount + _CurrentSample > _CurrentBuffer.SampleCount) Then
   Begin
@@ -251,10 +253,21 @@ Begin
 
   SrcData := Self._CurrentBuffer.GetSampleAt(_CurrentSample, 0);
   Inc(_CurrentSample, SampleCount);
-
-  Move(SrcData^, Dest^, SampleCount * SizeOf(AudioSample) * 2);
-
   Result := SampleCount;
+
+  SampleCount := SampleCount Shl 1;
+  For I:=1 To SampleCount Do
+  Begin
+    Val := SrcData^;
+    Inc(SrcData);
+
+    Dest^ := Trunc(Val * 32767);
+    Inc(Dest);
+
+    Dec(SampleCount);
+  End;
+
+  //Move(SrcData^, Dest^, SampleCount * SizeOf(AudioSample) * 2);
 End;
 
 Procedure TERRAAudioMixer.SwapBuffers;

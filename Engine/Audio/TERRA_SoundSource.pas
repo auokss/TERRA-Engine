@@ -80,7 +80,7 @@ Type
 
       Procedure SetCallback(Callback:SoundSourceCallback);
 
-      Procedure RenderSamples(Dest:TERRAAudioBuffer); Virtual;
+      Procedure RenderSamples(Dest:TERRAAudioMixingBuffer); Virtual;
 
       Property Status:SoundSourceStatus Read _Status;
 
@@ -99,7 +99,7 @@ Type
       Constructor Create(MySound:Sound);
       Procedure Release; Override;
 
-      Procedure RenderSamples(Dest:TERRAAudioBuffer); Override;
+      Procedure RenderSamples(Dest:TERRAAudioMixingBuffer); Override;
 
       Property Sound:TERRA_Sound.Sound Read _Sound;
   End;
@@ -172,7 +172,7 @@ Begin
   End;
 End;
 
-Procedure SoundSource.RenderSamples(Dest:TERRAAudioBuffer);
+Procedure SoundSource.RenderSamples(Dest:TERRAAudioMixingBuffer);
 Var
   SampleCount, CopyTotal, Temp, Leftovers:Integer;
   FreqRate:Single;
@@ -263,7 +263,7 @@ Begin
     _Sound.RemoveSource(Self);
 End;
 
-Procedure ResourceSoundSource.RenderSamples(Dest:TERRAAudioBuffer);
+Procedure ResourceSoundSource.RenderSamples(Dest:TERRAAudioMixingBuffer);
 Begin
   If (Self._Sound = Nil) Or (Self._Sound.Status = rsInvalid) Then
   Begin
