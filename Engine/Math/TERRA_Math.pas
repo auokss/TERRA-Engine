@@ -65,6 +65,7 @@ Function RealMod(Const n,d: Float): Float;
 
 Function Atan2(Y,X :Float):Float;
 Function Tan(X:Float):Float;
+Function SinH(X:Float):Float;
 
 Function SmoothStep(A,B,X:Float):Float;
 
@@ -220,6 +221,11 @@ End;
 Function Tan(X:Float):Float;
 Begin
   Result := Math.Tan(X);
+End;
+
+Function SinH(X:Float):Float;
+Begin
+  Result := Math.Sinh(X);
 End;
 
 Function RealMod(Const n,d: Float): Float;

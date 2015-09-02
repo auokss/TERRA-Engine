@@ -1,3 +1,5 @@
+//https://github.com/mono/opentk/blob/master/Source/OpenTK/Audio/OpenAL/AL/EffectsExtensionPresets.cs
+
 Unit TERRA_AudioReverb;
 
 Interface

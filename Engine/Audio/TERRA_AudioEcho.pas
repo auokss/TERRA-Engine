@@ -37,48 +37,54 @@ Type
   End;
 
   AudioEchoEffect = Class(AudioFilter)
-    SampleBuffer:Array Of Single;
-    BufferLength:Cardinal;
+  private
+    procedure SetDamping(const Value: Single);
+    procedure SetDelay(const Value: Single);
+    procedure SetFeedback(const Value: Single);
+    procedure SetLRDelay(const Value: Single);
+    procedure SetSpread(const Value: Single);
+    Protected
+      _SampleBuffer:Array Of Single;
+      _BufferLength:Cardinal;
 
-    // The echo is two tap. The delay is the number of samples from before the current offset
-    Tap:Array[0..1] Of ALTap;
+      // The echo is two tap. The delay is the number of samples from before the current offset
+      Tap:Array[0..1] Of ALTap;
 
-    Offset:Cardinal;
+      _Offset:Cardinal;
 
-    // The panning gains for the two taps
-    PanningGain:Array[0..1] Of AudioChannelGain;
+      // The panning gains for the two taps
+      _PanningGain:Array[0..1] Of AudioChannelGain;
 
-    FeedGain:Single;
+      _FeedGain:Single;
 
-    Filter:AudioFilterState;
+      _Delay:Single;
+      _LRDelay:Single;
 
-    Delay:Single;
-    LRDelay:Single;
+      _Damping:Single;
+      _Feedback:Single;
 
-    Damping:Single;
-    Feedback:Single;
+      _Spread:Single;
 
-    Spread:Single;
+    Public
+      Function Initialize(Target:TERRAAudioBuffer):Boolean; Override;
+      Procedure Release(); Override;
 
-    Procedure Release(); Override;
+      Procedure Update(Target:TERRAAudioBuffer); Override;
+      Procedure Process(samplesToDo:Integer; samplesIn:PSingleArray; Var samplesOut:AudioEffectBuffer; numChannels:Cardinal); Override;
 
-    Function deviceUpdate(Target:TERRAAudioBuffer):Boolean; Override;
-    Procedure Update(Target:TERRAAudioBuffer); Override;
-    Procedure Process(Target:TERRAAudioBuffer; samplesToDo:Integer; samplesIn:PSingleArray; Var samplesOut:AudioEffectBuffer; numChannels:Cardinal); Override;
+      Property Delay:Single Read _Delay Write SetDelay;
+      Property LRDelay:Single Read _LRDelay Write SetLRDelay;
 
-    Procedure SetParamf(param:Integer; Const val:Single); Override;
-    Procedure getParamf(param:Integer; Out val:Single); Override;
+      Property Spread:Single Read _Spread Write SetSpread;
+      Property Damping:Single Read _Damping Write SetDamping;
+
+      Property Feedback:Single Read _Feedback Write SetFeedback;
   End;
 
 Implementation
 Uses TERRA_Math;
 
-Procedure AudioEchoEffect.Release();
-Begin
-  SetLength(SampleBuffer, 0);
-End;
-
-Function AudioEchoEffect.deviceUpdate(Target:TERRAAudioBuffer):Boolean;
+Function AudioEchoEffect.Initialize(Target:TERRAAudioBuffer):Boolean;
 Var
   maxlen, i:Integer;
 Begin
@@ -88,16 +94,18 @@ Begin
   maxlen := maxlen + Trunc(AL_ECHO_MAX_LRDELAY * Target.Frequency) + 1;
   maxlen  := NextPowerOfTwo(maxlen);
 
-  If (maxlen <> Self.BufferLength) Then
-  Begin
-    SetLength(SampleBuffer, maxlen);
-    Self.BufferLength := maxlen;
-  End;
+  SetLength(_SampleBuffer, maxlen);
+  _BufferLength := maxlen;
 
-  For I:=0 To Pred(BufferLength) Do
-    Self.SampleBuffer[i] := 0.0;
+  For I:=0 To Pred(_BufferLength) Do
+    _SampleBuffer[i] := 0.0;
 
   Result := True;
+End;
+
+Procedure AudioEchoEffect.Release();
+Begin
+  SetLength(_SampleBuffer, 0);
 End;
 
 Procedure AudioEchoEffect.update(Target:TERRAAudioBuffer);
@@ -117,20 +125,20 @@ Begin
 
   lrpan := Self.Spread;
 
-  Self.FeedGain := Self.Feedback;
+  Self._FeedGain := Self.Feedback;
 
-  Self.Filter.setParams(ALfilterType_HighShelf, 1.0 - Self.Damping, LOWPASSFREQREF/frequency, 0.0);
+  Self.setParams(ALfilterType_HighShelf, 1.0 - Self.Damping, LOWPASSFREQREF/frequency, 0.0);
 
   // First tap panning
   pandir.X := -lrpan;
-  ComputeDirectionalGains(Target, pandir, gain, Self.PanningGain[0]);
+  ComputeDirectionalGains(Target, pandir, gain, _PanningGain[0]);
 
   // Second tap panning
   pandir.X := +lrpan;
-  ComputeDirectionalGains(Target, pandir, gain, Self.PanningGain[1]);
+  ComputeDirectionalGains(Target, pandir, gain, _PanningGain[1]);
 End;
 
-Procedure AudioEchoEffect.Process(Target:TERRAAudioBuffer; samplesToDo:Integer; samplesIn:PSingleArray; Var samplesOut:AudioEffectBuffer; numChannels:Cardinal);
+Procedure AudioEchoEffect.Process(samplesToDo:Integer; samplesIn:PSingleArray; Var samplesOut:AudioEffectBuffer; numChannels:Cardinal);
 Var
   mask:Cardinal;
   tap1:Cardinal;
@@ -141,10 +149,10 @@ Var
   temps:Array[0..127, 0..1] Of Single;
   gain:Single;
 Begin
-  mask := Self.BufferLength-1;
+  mask := _BufferLength-1;
   tap1 := Self.Tap[0].delay;
   tap2 := Self.Tap[1].delay;
-  offset := Self.Offset;
+  offset := _Offset;
 
   Base := 0;
   While (Base<SamplesToDo) Do
@@ -154,20 +162,20 @@ Begin
     For I:=0 To Pred(Td) Do
     Begin
       // First tap
-      temps[i][0] := Self.SampleBuffer[(offset-tap1) And mask];
+      temps[i][0] := _SampleBuffer[(offset-tap1) And mask];
 
       // Second tap
-      temps[i][1] := Self.SampleBuffer[(offset-tap2) And mask];
+      temps[i][1] := _SampleBuffer[(offset-tap2) And mask];
 
       // Apply damping and feedback gain to the second tap, and mix in the new sample
-      smp := Self.Filter.processSingle(temps[i, 1] + SamplesIn[i+base]);
-      Self.SampleBuffer[offset And mask] := smp * Self.FeedGain;
+      smp := Self.processSingle(temps[i, 1] + SamplesIn[i+base]);
+      _SampleBuffer[offset And mask] := smp * _FeedGain;
       Inc(offset);
     End;
 
     For K:=0 To Pred(NumChannels) Do
     Begin
-      gain := Self.PanningGain[0][k];
+      gain := _PanningGain[0][k];
 
       If (Abs(gain) > GAIN_SILENCE_THRESHOLD) Then
       Begin
@@ -179,7 +187,7 @@ Begin
         End;
       End;
 
-      gain := Self.PanningGain[1][k];
+      gain := _PanningGain[1][k];
       If (Abs(gain) > GAIN_SILENCE_THRESHOLD) Then
       Begin
         For I:=0 To Pred(Td) Do
@@ -195,57 +203,37 @@ Begin
     Inc(base, td);
   End;
 
-  Self.Offset := offset;
+  _Offset := offset;
 End;
 
-Procedure AudioEchoEffect.SetParamf(param:Integer; Const val:Single);
+Procedure AudioEchoEffect.SetDamping(const Value: Single);
 Begin
-  Case param Of
-    AL_ECHO_DELAY:
-      If (Val >= AL_ECHO_MIN_DELAY) And (val <= AL_ECHO_MAX_DELAY) Then
-        Self.Delay := val;
-
-    AL_ECHO_LRDELAY:
-      If (val >= AL_ECHO_MIN_LRDELAY) And (val <= AL_ECHO_MAX_LRDELAY) Then
-        Self.LRDelay := val;
-
-    AL_ECHO_DAMPING:
-      If (val >= AL_ECHO_MIN_DAMPING) And (val <= AL_ECHO_MAX_DAMPING) Then
-        Self.Damping := val;
-
-    AL_ECHO_FEEDBACK:
-      If (val >= AL_ECHO_MIN_FEEDBACK) And (val <= AL_ECHO_MAX_FEEDBACK) Then
-        Self.Feedback := val;
-
-    AL_ECHO_SPREAD:
-      If (val >= AL_ECHO_MIN_SPREAD) And (val <= AL_ECHO_MAX_SPREAD) Then
-        Self.Spread := val;
-  End;
+  If (value >= AL_ECHO_MIN_DAMPING) And (value <= AL_ECHO_MAX_DAMPING) Then
+    _Damping := Value;
 End;
 
-
-Procedure AudioEchoEffect.getParamf(param:Integer; Out val:Single);
+procedure AudioEchoEffect.SetDelay(const Value: Single);
 Begin
-  Case param Of
-    AL_ECHO_DELAY:
-      val := Self.Delay;
-
-    AL_ECHO_LRDELAY:
-      val := Self.LRDelay;
-
-    AL_ECHO_DAMPING:
-      val := Self.Damping;
-
-    AL_ECHO_FEEDBACK:
-      val := Self.Feedback;
-
-    AL_ECHO_SPREAD:
-      val := Self.Spread;
-
-  Else
-    Val := 0;
-  End;
+  If (Value >= AL_ECHO_MIN_DELAY) And (Value <= AL_ECHO_MAX_DELAY) Then
+    _Delay := Value;
 End;
 
+Procedure AudioEchoEffect.SetLRDelay(const Value: Single);
+Begin
+  If (Value >= AL_ECHO_MIN_LRDELAY) And (Value <= AL_ECHO_MAX_LRDELAY) Then
+    _LRDelay := Value;
+End;
+
+Procedure AudioEchoEffect.SetFeedback(const Value: Single);
+Begin
+  If (Value >= AL_ECHO_MIN_FEEDBACK) And (Value <= AL_ECHO_MAX_FEEDBACK) Then
+    _Feedback := Value;
+End;
+
+Procedure AudioEchoEffect.SetSpread(const Value: Single);
+Begin
+  If (Value >= AL_ECHO_MIN_SPREAD) And (Value <= AL_ECHO_MAX_SPREAD) Then
+    _Spread := Value;
+End;
 
 End.

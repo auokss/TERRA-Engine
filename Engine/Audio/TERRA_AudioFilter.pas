@@ -669,24 +669,6 @@ Type
     Samples:Array[0..Pred(MAX_OUTPUT_CHANNELS)] Of PSingleArray;
   End;
 
-  AudioFilterState = Class(TERRAObject)
-    Protected
-      _x:Array[0..1] Of Single; // History of two last input samples
-      _y:Array[0..1] Of Single; // History of two last output samples
-      _a:Array[0..2] Of Single; // Transfer function coefficients "a"
-      _b:Array[0..2] Of Single; // Transfer function coefficients "b"
-
-    Public
-      Procedure Process(dst, src:PSingleArray; numsamples:Cardinal); Virtual; Abstract;
-
-      Procedure Clear(); Virtual; Abstract;
-
-      Procedure setParams(FilterType:ALfilterType; gain, freq_mult, bandwidth:Single); Virtual; Abstract;
-
-      Function processSingle(Const sample:Single):Single;
-  End;
-
-
 (*
 typedef union ALeffectProps {
     struct {
@@ -797,42 +779,36 @@ typedef union ALeffectProps {
       _WetBuffer:Array[0..Pred(BUFFERSIZE)] Of Single;
       ID:Integer;
 
-      _Type:ALfilterType; // Filter type (AL_FILTER_NULL, ...)
-
       _GainHF:Single;
       _HFReference:Single;
       _GainLF:Single;
       _LFReference:Single;
 
+      _x:Array[0..1] Of Single; // History of two last input samples
+      _y:Array[0..1] Of Single; // History of two last output samples
+      _a:Array[0..2] Of Single; // Transfer function coefficients "a"
+      _b:Array[0..2] Of Single; // Transfer function coefficients "b"
+
+      Procedure ProcessState(dst, src:PSingleArray; numsamples:Cardinal); Virtual; Abstract;
+
+      Procedure Clear(); Virtual; Abstract;
+
+      Function processSingle(Const sample:Single):Single;
+
+      Procedure SetParams(FilterType:ALfilterType; Const gain, freq_mult, bandwidth:Single);
+
     Public
-      Procedure SetParami(param:Integer; Const val:Integer); Virtual; Abstract;
-      Procedure SetParamiv(param:Integer; vals:PIntegerArray); Virtual; Abstract;
-      Procedure SetParamf(param:Integer; Const val:Single); Virtual; Abstract;
-      Procedure SetParamfv(param:Integer; vals:PSingleArray); Virtual; Abstract;
+      Function Initialize(Target: TERRAAudioBuffer): Boolean; Virtual;
 
-      Procedure GetParami(param:Integer; Out val:Integer); Virtual; Abstract;
-      Procedure GetParamiv(param:Integer; vals:PIntegerArray); Virtual; Abstract;
-      Procedure GetParamf(param:Integer; Out val:Single); Virtual; Abstract;
-      Procedure GetParamfv(param:Integer; vals:PSingleArray); Virtual; Abstract;
-
-      Function DeviceUpdate(Target:TERRAAudioBuffer):Boolean; Virtual; Abstract;
       Procedure Update(Target:TERRAAudioBuffer); Virtual; Abstract;
-      Procedure Process(Target:TERRAAudioBuffer; samplesToDo:Integer; samplesIn:PSingleArray; Var samplesOut:AudioEffectBuffer; numChannels:Cardinal); Virtual; Abstract;
+      Procedure Process(samplesToDo:Integer; samplesIn:PSingleArray; Var samplesOut:AudioEffectBuffer; numChannels:Cardinal); Virtual; Abstract;
 
       Property Gain:Single Read _Gain;
   End;
 
 
 Implementation
-
-Function AudioFilterState.processSingle(Const sample:Single):Single;
-Begin
-  Result := _b[0] * sample + _b[1] * _x[0] + _b[2] * _x[1] -  _a[1] * _y[0] - _a[2] * _y[1];
-  _x[1] := _x[0];
-  _x[0] := Sample;
-  _y[1] := _y[0];
-  _y[0] := Result;
-End;
+Uses TERRA_Math;
 
 //void ALfilterState_processC(ALfilterState *filter, ALfloat *restrict dst, const ALfloat *src, ALuint numsamples);
 
@@ -844,5 +820,109 @@ inline struct ALfilter *RemoveFilter(ALCdevice *device, ALuint id)
  return (struct ALfilter*)RemoveUIntMapKey(&device->FilterMap, id);
 
 }
+
+{ AudioFilter }
+Function AudioFilter.Initialize(Target: TERRAAudioBuffer): Boolean;
+Begin
+  Result := True;
+End;
+
+Function AudioFilter.processSingle(Const sample:Single):Single;
+Begin
+  Result := _b[0] * sample + _b[1] * _x[0] + _b[2] * _x[1] -  _a[1] * _y[0] - _a[2] * _y[1];
+  _x[1] := _x[0];
+  _x[0] := Sample;
+  _y[1] := _y[0];
+  _y[0] := Result;
+End;
+
+
+Procedure AudioFilter.SetParams(FilterType:ALfilterType; Const gain, freq_mult, bandwidth:Single);
+Var
+  alpha, w0:Single;
+Begin
+  // Limit gain to -100dB
+  _Gain := FloatMax(gain, 0.00001);
+
+  w0 := PI * 2 * freq_mult;
+
+  // Calculate filter coefficients depending on filter type
+  Case FilterType Of
+  ALfilterType_HighShelf:
+    Begin
+      alpha := Sin(w0)/2.0 * Sqrt((gain + 1.0/gain)*(1.0/0.75 - 1.0) + 2.0);
+      _b[0] :=       gain*((gain+1.0) + (gain-1.0)*Cos(w0) + 2.0*Sqrt(gain)*alpha);
+      _b[1] := -2.0*gain*((gain-1.0) + (gain+1.0)*Cos(w0)                         );
+      _b[2] :=       gain*((gain+1.0) + (gain-1.0)*Cos(w0) - 2.0*Sqrt(gain)*alpha);
+      _a[0] :=             (gain+1.0) - (gain-1.0)*Cos(w0) + 2.0*Sqrt(gain)*alpha;
+      _a[1] :=  2.0*     ((gain-1.0) - (gain+1.0)*Cos(w0)                         );
+      _a[2] :=             (gain+1.0) - (gain-1.0)*Cos(w0) - 2.0*Sqrt(gain)*alpha;
+    End;
+
+    ALfilterType_LowShelf:
+      Begin
+        alpha := Sin(w0)/2.0*Sqrt((gain + 1.0/gain)*(1.0/0.75 - 1.0) + 2.0);
+        _b[0] :=       gain*((gain+1.0) - (gain-1.0)*Cos(w0) + 2.0*Sqrt(gain)*alpha);
+        _b[1] :=  2.0*gain*((gain-1.0) - (gain+1.0)*Cos(w0)                         );
+        _b[2] :=       gain*((gain+1.0) - (gain-1.0)*Cos(w0) - 2.0*Sqrt(gain)*alpha);
+        _a[0] :=             (gain+1.0) + (gain-1.0)*Cos(w0) + 2.0*Sqrt(gain)*alpha;
+        _a[1] := -2.0*     ((gain-1.0) + (gain+1.0)*Cos(w0)                         );
+        _a[2] :=             (gain+1.0) + (gain-1.0)*Cos(w0) - 2.0*Sqrt(gain)*alpha;
+      End;
+
+    ALfilterType_Peaking:
+      Begin
+        alpha := Sin(w0) * Sinh(Log2(2.0) / 2.0 * bandwidth * w0 / Sin(w0));
+        _b[0] :=  1.0 + alpha * gain;
+        _b[1] := -2.0 * Cos(w0);
+        _b[2] :=  1.0 - alpha * gain;
+        _a[0] :=  1.0 + alpha / gain;
+        _a[1] := -2.0 * Cos(w0);
+        _a[2] :=  1.0 - alpha / gain;
+      End;
+
+      ALfilterType_LowPass:
+        Begin
+            alpha := Sin(w0) * sinh(Log2(2.0) / 2.0 * bandwidth * w0 / Sin(w0));
+            _b[0] := (1.0 - Cos(w0)) / 2.0;
+            _b[1] :=  1.0 - Cos(w0);
+            _b[2] := (1.0 - Cos(w0)) / 2.0;
+            _a[0] :=  1.0 + alpha;
+            _a[1] := -2.0 * Cos(w0);
+            _a[2] :=  1.0 - alpha;
+        End;
+
+      ALfilterType_HighPass:
+        Begin
+            alpha := Sin(w0) * sinh(Log2(2.0) / 2.0 * bandwidth * w0 / Sin(w0));
+            _b[0] :=  (1.0 + Cos(w0)) / 2.0;
+            _b[1] := -(1.0 + Cos(w0));
+            _b[2] :=  (1.0 + Cos(w0)) / 2.0;
+            _a[0] :=   1.0 + alpha;
+            _a[1] :=  -2.0 * Cos(w0);
+            _a[2] :=   1.0 - alpha;
+        End;
+
+      ALfilterType_BandPass:
+        Begin
+            alpha := Sin(w0) * sinh(Log2(2.0) / 2.0 * bandwidth * w0 / Sin(w0));
+            _b[0] :=  alpha;
+            _b[1] :=  0;
+            _b[2] := -alpha;
+            _a[0] :=  1.0 + alpha;
+            _a[1] := -2.0 * Cos(w0);
+            _a[2] :=  1.0 - alpha;
+        End;
+    End;
+
+  _b[2] := _b[2] / _a[0];
+  _b[1] := _b[1]/ _a[0];
+  _b[0] := _b[0] / _a[0];
+  _a[2] :=  _a[2] / _a[0];
+  _a[1] :=  _a[1] / _a[0];
+  _a[0] :=  _a[0] / _a[0];
+
+//  _process := ALfilterState_processC;
+End;
 
 End.
