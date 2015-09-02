@@ -38,8 +38,8 @@ Type
 
   AudioEchoEffect = Class(AudioHighShelfFilter)
     Protected
-      _SampleBuffer:Array Of Single;
-      _BufferLength:Cardinal;
+      _EchoBuffer:Array Of MixingAudioSample;
+      _EchoBufferSize:Integer;
 
       // The echo is two tap. The delay is the number of samples from before the current offset
       Tap:Array[0..1] Of ALTap;
@@ -47,9 +47,7 @@ Type
       _Offset:Cardinal;
 
       // The panning gains for the two taps
-      _PanningGain:Array[0..1] Of AudioChannelGain;
-
-      _FeedGain:Single;
+      _PanningGain:Array[0..1] Of MixingAudioSample;
 
       _Delay:Single;
       _LRDelay:Single;
@@ -64,13 +62,12 @@ Type
       Procedure SetFeedback(const Value: Single);
       Procedure SetLRDelay(const Value: Single);
       Procedure SetSpread(const Value: Single);
-      
+
     Public
-      Function Initialize(Frequency:Cardinal):Boolean; Override;
-      Procedure Release(); Override;
+      Constructor Create(Frequency:Cardinal);
 
       Procedure Update(); Override;
-      Procedure Process(samplesToDo:Integer; samplesIn:PSingleArray; Var samplesOut:AudioEffectBuffer); Override;
+      Function Process(Var InputSamples:TERRAAudioMixingBuffer; SampleOffset, samplesToDo:Integer):PMixingAudioSample; Override;
 
       Property Delay:Single Read _Delay Write SetDelay;
       Property LRDelay:Single Read _LRDelay Write SetLRDelay;
@@ -84,12 +81,10 @@ Type
 Implementation
 Uses TERRA_Math;
 
-Function AudioEchoEffect.Initialize(Frequency:Cardinal):Boolean;
+Constructor AudioEchoEffect.Create(Frequency:Cardinal);
 Var
   maxlen, i:Integer;
 Begin
-  Inherited Initialize(Frequency);
-
   Self.Delay    := AL_ECHO_DEFAULT_DELAY;
   Self.LRDelay  := AL_ECHO_DEFAULT_LRDELAY;
   Self.Damping  := AL_ECHO_DEFAULT_DAMPING;
@@ -98,23 +93,16 @@ Begin
 
   // Use the next power of 2 for the buffer length, so the tap offsets can be
   // wrapped using a mask instead of a modulo
-  maxlen := Trunc(AL_ECHO_MAX_DELAY * _TargetFrequency) + 1;
-  maxlen := maxlen + Trunc(AL_ECHO_MAX_LRDELAY * _TargetFrequency) + 1;
+  maxlen := Trunc(AL_ECHO_MAX_DELAY * Frequency) + 1;
+  maxlen := maxlen + Trunc(AL_ECHO_MAX_LRDELAY * Frequency) + 1;
   maxlen  := NextPowerOfTwo(maxlen);
 
-  SetLength(_SampleBuffer, maxlen);
-  _BufferLength := maxlen;
+  Inherited Create(MaxLen, Frequency);
 
-  For I:=0 To Pred(_BufferLength) Do
-    _SampleBuffer[i] := 0.0;
-
-  Result := True;
+  _EchoBufferSize := MaxLen;
+  SetLength(_EchoBuffer, _EchoBufferSize);
 End;
 
-Procedure AudioEchoEffect.Release();
-Begin
-  SetLength(_SampleBuffer, 0);
-End;
 
 Procedure AudioEchoEffect.update();
 Var
@@ -123,14 +111,12 @@ Var
 Begin
   pandir := VectorZero;
 
-  Tap[0].delay := Trunc(Self.Delay * _TargetFrequency) + 1;
-  Tap[1].delay := Trunc(Self.LRDelay * _TargetFrequency) + Tap[0].delay;
+  Tap[0].delay := Trunc(Self.Delay * Self.Frequency) + 1;
+  Tap[1].delay := Trunc(Self.LRDelay * Self.Frequency) + Tap[0].delay;
 
   lrpan := Self.Spread;
 
-  Self._FeedGain := Self.Feedback;
-
-  Self.setParams(1.0 - Self.Damping, LOWPASSFREQREF/_TargetFrequency, 0.0);
+  Self.setParams(1.0 - Self.Damping, LOWPASSFREQREF/ Self.Frequency, 0.0);
 
   // First tap panning
   pandir.X := -lrpan;
@@ -141,19 +127,20 @@ Begin
   ComputeDirectionalGains(pandir, gain, _PanningGain[1]);
 End;
 
-Procedure AudioEchoEffect.Process(samplesToDo:Integer; samplesIn:PSingleArray; Var samplesOut:AudioEffectBuffer);
+Function AudioEchoEffect.Process(Var InputSamples:TERRAAudioMixingBuffer; SampleOffset, samplesToDo:Integer):PMixingAudioSample;
 Var
-  mask:Cardinal;
   tap1:Cardinal;
   tap2:Cardinal;
   offset:Cardinal;
-  smp, N:Single;
+  N:Single;
   KK:Cardinal;
-  base, i, k, td:Integer;
-  temps:Array[0..127, 0..1] Of Single;
+  base, i, td:Integer;
+  temps:Array[0..127, 0..1] Of MixingAudioSample;
   gain:Single;
+
+  CurrentSample:MixingAudioSample;
+  DestBuffer, SrcBuffer:PMixingAudioSample;
 Begin
-  mask := _BufferLength-1;
   tap1 := Self.Tap[0].delay;
   tap2 := Self.Tap[1].delay;
   offset := _Offset;
@@ -166,50 +153,42 @@ Begin
     For I:=0 To Pred(Td) Do
     Begin
       // First tap
-      KK := (offset-tap1) And mask;
-      temps[i][0] := _SampleBuffer[KK];
+      KK := (offset-tap1) Mod Self._EchoBufferSize;
+      temps[i][0] := Self._EchoBuffer[KK];
 
       // Second tap
-      KK := (offset-tap2) And mask;
-      temps[i][1] := _SampleBuffer[KK];
+      KK := (offset-tap2) Mod Self._EchoBufferSize;
+      temps[i][1] := Self._EchoBuffer[KK];
 
       // Apply damping and feedback gain to the second tap, and mix in the new sample
-      smp := Self.processSingle(temps[I, 1] + SamplesIn[I + Base]);
-      _SampleBuffer[offset And mask] := smp * _FeedGain;
+      SrcBuffer := InputSamples.GetSampleAt(I + Base);
+      CurrentSample := temps[I, 1];
+      CurrentSample.Add(SrcBuffer^);
+
+      CurrentSample := Self.processSample(CurrentSample);
+      CurrentSample.ScaleUniform(Self.Feedback);
+
+      KK := Offset Mod Self._EchoBufferSize;
+      Self._EchoBuffer[KK] := CurrentSample;
+
       Inc(offset);
     End;
 
-    For K:=0 To Pred(MAX_OUTPUT_CHANNELS) Do
+    DestBuffer := Self.GetSampleAt(base);
+    For I:=0 To Pred(Td) Do
     Begin
-      gain := _PanningGain[0][k];
+      CurrentSample := temps[i, 0];
 
-      If (Abs(gain) > GAIN_SILENCE_THRESHOLD) Then
-      Begin
-        For I:=0 To Pred(Td) Do
-        Begin
-          N := SamplesOut.Channels[k].Samples[ i + base];
-          N := N + temps[i, 0] * gain;
-          SamplesOut.Channels[k].Samples[ i + base] := N;
-        End;
-      End;
-
-      gain := _PanningGain[1][k];
-      If (Abs(gain) > GAIN_SILENCE_THRESHOLD) Then
-      Begin
-        For I:=0 To Pred(Td) Do
-        Begin
-          N := SamplesOut.Channels[k].Samples[i + base];
-          N := N + temps[i, 1] * gain;
-          SamplesOut.Channels[k].Samples[i + base] := N;
-        End;
-
-      End;
+      DestBuffer^ := CurrentSample;
+      Inc(DestBuffer);
     End;
 
     Inc(base, td);
   End;
 
   _Offset := offset;
+
+  Result := Self.GetSampleAt(0);
 End;
 
 Procedure AudioEchoEffect.SetDamping(const Value: Single);

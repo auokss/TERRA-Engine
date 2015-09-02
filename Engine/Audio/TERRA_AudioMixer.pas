@@ -4,7 +4,7 @@ Unit TERRA_AudioMixer;
 
 Interface
 Uses TERRA_Utils, TERRA_String, TERRA_Threads, TERRA_Mutex, TERRA_Sound, TERRA_SoundSource, TERRA_AudioBuffer,
-  TERRA_AudioFilter//, TERRA_AudioEcho// TERRA_AudioReverb
+  TERRA_AudioFilter, TERRA_AudioEcho//, TERRA_AudioReverb
   ;
 
 Const
@@ -122,9 +122,9 @@ Begin
   _Driver := SLAudioDriver.Create();
   {$ENDIF}
 
-  _CurrentFilter := AudioNullFilter.Create(DefaultAudioSampleCount, _CurrentBuffer.Frequency);
-  //_CurrentFilter := AudioEchoEffect.Create();
-  //_CurrentFilter.Update();
+  //_CurrentFilter := AudioNullFilter.Create(DefaultAudioSampleCount, _CurrentBuffer.Frequency);
+  _CurrentFilter := AudioEchoEffect.Create(_CurrentBuffer.Frequency);
+  _CurrentFilter.Update();
 
   _Ready := (Assigned(_Driver)) And (_Driver.Reset(Self));
 
@@ -260,7 +260,7 @@ Begin
   End Else
     Leftovers := 0;
 
-  {$IFDEF DRY}
+  {$IFNDEF DRY}
   SrcData := Self._CurrentBuffer.GetSampleAt(_CurrentSample);
   {$ELSE}
   SrcData := _CurrentFilter.Process(Self._CurrentBuffer, _CurrentSample, SampleCount);
@@ -308,7 +308,7 @@ Begin
     Inc(I);
   End;
 
-  _Active := (_SourceCount>0);
+  _Active := True; //(_SourceCount>0);
 End;
 
 { AudioMixerThread }
@@ -324,7 +324,6 @@ Begin
   While Not _Mixer._ThreadTerminated DO
   Begin
     _Mixer.Update();
-    //Application.Sleep(50);
   End;
 End;
 

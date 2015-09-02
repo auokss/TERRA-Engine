@@ -28,7 +28,7 @@ Unit TERRA_SoundSource;
 Interface
 Uses {$IFDEF USEDEBUGUNIT}TERRA_Debug,{$ENDIF}
   TERRA_Utils, TERRA_Math, TERRA_Vector3D, TERRA_Sound,
-  TERRA_OS, TERRA_Resource, TERRA_AudioBuffer;
+  TERRA_OS, TERRA_Resource, TERRA_AudioBuffer, TERRA_AudioPanning;
 
 Type
   SoundSource = Class;
@@ -57,9 +57,8 @@ Type
       _Pitch:Single;
       _Loop:Boolean;
 
-      _OverallVolume:Single;
-      _VolumeLeft:Single;
-      _VolumeRight:Single;
+      _Gain:Single;
+      _Volume:MixingAudioSample;
 
       _Position:Vector3D;
 
@@ -85,7 +84,7 @@ Type
       Property Status:SoundSourceStatus Read _Status;
 
       Property Pitch:Single Read _Pitch Write SetPitch;
-      Property Volume:Single Read _OverallVolume Write SetVolume;
+      Property Volume:Single Read _Gain Write SetVolume;
       Property Loop:Boolean Read _Loop Write SetLoop;
 
       Property Position:Vector3D Read _Position Write SetPosition;
@@ -110,7 +109,7 @@ Uses TERRA_GraphicsManager, TERRA_SoundManager, TERRA_Log;
 { SoundSource }
 Constructor SoundSource.Create();
 Begin
-  _OverallVolume := -0.0;
+  _Gain := 1.0;
   _Pitch := 1.0;
 
   _Position := VectorZero; //GraphicsManager.Instance().MainViewport.Camera.Position;
@@ -132,16 +131,10 @@ End;
 
 Procedure SoundSource.SetVolume(Const Value:Single);
 Begin
-  If (_OverallVolume = Value) Then
+  If (_Gain = Value) Then
     Exit;
 
-  _OverallVolume := Value;
-
-  If (_Mode = soundSource_Static) Then
-  Begin
-    _VolumeLeft := _OverallVolume;
-    _VolumeRight := _OverallVolume;
-  End;
+  _Gain := Value;
 End;
 
 Procedure SoundSource.SetLoop(Value:Boolean);
@@ -188,7 +181,7 @@ Begin
   End Else
     Leftovers := 0;
 
-  CopyTotal := Dest.MixSamples(0, _Buffer, _CurrentSample, SampleCount, _VolumeLeft * _OverallVolume, _VolumeRight * _OverallVolume);
+  CopyTotal := Dest.MixSamples(0, _Buffer, _CurrentSample, SampleCount, _Volume);
   Inc(_CurrentSample, CopyTotal);
 
   If (Leftovers>0) Then
@@ -197,7 +190,7 @@ Begin
 
     If (_Status = soundSource_Playing) Then
     Begin
-      CopyTotal := Dest.MixSamples(SampleCount, _Buffer, _CurrentSample, Leftovers, _VolumeLeft * _OverallVolume, _VolumeRight * _OverallVolume);
+      CopyTotal := Dest.MixSamples(SampleCount, _Buffer, _CurrentSample, Leftovers, _Volume);
       Inc(_CurrentSample, CopyTotal);
     End;
   End;
@@ -216,7 +209,16 @@ End;
 
 Procedure SoundSource.CalculatePositionalVolume;
 Begin
-  If (_Position.X >= 0.0) And (_Position.X<=1.0) Then
+  If (_Mode = soundSource_Static) Then
+  Begin
+    _Volume.Left := _Gain;
+    _Volume.Right := _Gain;
+    Exit;
+  End;
+
+  ComputeDirectionalGains(_Position, Self._Gain, Self._Volume);
+
+(*  If (_Position.X >= 0.0) And (_Position.X<=1.0) Then
   Begin
     _VolumeLeft := (1.0 - _Position.X);
     _VolumeRight := _Position.X;
@@ -238,7 +240,8 @@ Begin
       _VolumeRight := 0;
 
     _VolumeLeft := 0.0;
-  End;
+  End;*)
+
 End;
 
 { ResourceSoundSource }

@@ -3,32 +3,24 @@ Unit TERRA_AudioPanning;
 Interface
 Uses TERRA_AudioBuffer, TERRA_Vector3D;
 
-Procedure ComputeDirectionalGains(dir:Vector3D; ingain:Single; Out gainLeft, gainRight:Single);
+Procedure ComputeDirectionalGains(dir:Vector3D; ingain:Single; Out outputGain:MixingAudioSample);
 
 Implementation
 
 // The maximum number of Ambisonics coefficients. For a given order (o), the  size needed will be (o+1)**2, thus zero-order has 1, first-order has 4,  second-order has 9, and third-order has 16.
 Const
-  MAX_AMBI_COEFFS = 16;
+  MAX_AMBI_COEFFS = 4;
 
-Type
-  AudioChannelConfig = Array[0..Pred(MAX_AMBI_COEFFS)] Of Single;
+  Stereo_Left:Array[0..Pred(MAX_AMBI_COEFFS)] Of Single = (0.7071,  0.5, 0.0, 0.0);
+  Stereo_Right:Array[0..Pred(MAX_AMBI_COEFFS)] Of Single = (0.7071,  -0.5, 0.0, 0.0);
 
-(*Var
-  AmbiCoeffs:Array[0..Pred(MAX_OUTPUT_CHANNELS)] Of AudioChannelConfig;*)
-
-
-Procedure ComputeDirectionalGains(dir:Vector3D; ingain:Single; Out gainLeft, gainRight:Single);
+Procedure ComputeDirectionalGains(dir:Vector3D; ingain:Single; Out outputGain:MixingAudioSample);
 Var
   i, j:Integer;
   coeffs:Array[0..Pred(MAX_AMBI_COEFFS)] Of Single;
   x, y, z:Single;
   gain:Single;
 Begin
-  gainLeft := 1;
-  gainRight := 1;
-  Exit;
-  (*
   // Convert from OpenAL coords to Ambisonics.
   x := -dir.Z;
   y := -dir.X;
@@ -43,7 +35,7 @@ Begin
   coeffs[3] := x; // X = X
 
   // Second-order
-  coeffs[4] := 2.0 * x * y;             // V = 2*X*Y
+(*  coeffs[4] := 2.0 * x * y;             // V = 2*X*Y
   coeffs[5] := 2.0 * y * z;             // T = 2*Y*Z
   coeffs[6] := 0.5 * (3.0 *z*z - 1.0);  // R = 0.5 * (3*Z*Z - 1)
   coeffs[7] := 2.0 * z * x;             // S = 2*Z*X
@@ -51,40 +43,24 @@ Begin
 
   // Third-order
   coeffs[9] := y * (3.0*x*x - y*y);             // Q = Y * (3*X*X - Y*Y)
-  coeffs[10] := 5.1962 * x * y * z;             // O = sqrt(27) * X * Y * Z 
+  coeffs[10] := 5.1962 * x * y * z;             // O = sqrt(27) * X * Y * Z
   coeffs[11] := 0.7262 * y * (5.0*z*z - 1.0); // M = sqrt(135.0 / 256.0) * Y * (5*Z*Z - 1)
   coeffs[12] := 0.5 * z * (5.0*z*z - 3.0);    // K = 0.5 * Z * (5*Z*Z - 3)
   coeffs[13] := 0.7262 * x * (5.0*z*z - 1.0); // L = sqrt(135.0 / 256.0) * X * (5*Z*Z - 1)
   coeffs[14] := 2.5981 * z * (x*x - y*y);       // N = sqrt(27.0 / 4.0) * Z * (X*X - Y*Y)
-  coeffs[15] := x * (x*x - 3.0*y*y);            // P = X * (X*X - 3*Y*Y)
+  coeffs[15] := x * (x*x - 3.0*y*y);            // P = X * (X*X - 3*Y*Y)*)
 
-  For I:=0 To Pred(MAX_OUTPUT_CHANNELS) Do
-  Begin
-    gain := 0.0;
+  outputGain.Left := 0.0;
     For J:=0 To Pred(MAX_AMBI_COEFFS) Do
-      gain := gain +  AmbiCoeffs[i][j] *coeffs[j];
+      outputGain.Left := outputGain.Left + Stereo_Left[j] *coeffs[j];
 
-    gains[I] := gain * ingain;
-  End;*)
+  outputGain.Left := outputGain.Left * ingain;
+
+  outputGain.Right := 0.0;
+    For J:=0 To Pred(MAX_AMBI_COEFFS) Do
+      outputGain.Right := outputGain.Right + Stereo_Right[j] *coeffs[j];
+
+  outputGain.Right := outputGain.Right * ingain;
 End;
 
-Procedure SetChannelMap(ChannelID:Integer; Config:Array Of Single; Const count:Integer);
-Var
-  i, j, k:Integer;
-Begin
-(*  FillChar(AmbiCoeffs[ChannelID], SizeOf(AmbiCoeffs[ChannelID]), 0);
-
-  For J:=0 To Pred(Count) Do
-  Begin
-    AmbiCoeffs[ChannelID][J] := Config[J];
-  End;*)
-End;
-
-Const
-  Stereo_Left:Array[0..3] Of Single = (0.7071,  0.5, 0.0, 0.0);
-  Stereo_Right:Array[0..3] Of Single = (0.7071,  -0.5, 0.0, 0.0);
-
-Initialization
-  SetChannelMap(0, Stereo_Left, 4);
-  SetChannelMap(1, Stereo_Right, 4);
 End.

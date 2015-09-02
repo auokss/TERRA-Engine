@@ -5,7 +5,7 @@ Unit TERRA_AudioReverb;
 Interface
 {$I terra.inc}
 
-Uses TERRA_Utils, TERRA_AudioFilter;
+Uses TERRA_Utils, TERRA_AudioFilter, TERRA_AudioBuffer;
 
 
 Implementation
@@ -35,31 +35,30 @@ Type
 
   AudioEarlyReflection = Record
         // Output gain for early reflections.
-        ALfloat   Gain;
+        Gain:Float;
 
         // Early reflections are done with 4 delay lines.
-        ALfloat   Coeff[4];
-        DelayLine Delay[4];
-        ALuint    Offset[4];
+        Coeff:Array[0..3] Of Single;
+        Delay:Array[0..3] Of DelayLine;
+        Offset:Array[0..3] Of Integer;
 
-        // The gain for each output channel based on 3D panning (only for the
-        // EAX path).
-        ALfloat   PanGain[MAX_OUTPUT_CHANNELS];
+        // The gain for each output channel based on 3D panning (only for the EAX path).
+        PanGain:MixingAudioSample;
   End;
 
   AudioLateReverb = Record
         // Output gain for late reverb.
-        ALfloat   Gain;
+        Gain:Single;
 
         // Attenuation to compensate for the modal density and decay rate of
         // the late lines.
-        ALfloat   DensityGain;
+        DensityGain:Single;
 
         // The feed-back and feed-forward all-pass coefficient.
-        ALfloat   ApFeedCoeff;
+        ApFeedCoeff:Single;
 
         // Mixing matrix coefficient.
-        ALfloat   MixCoeff;
+        MixCoeff:Single;
 
         // Late reverb has 4 parallel all-pass filters.
         ALfloat   ApCoeff[4];
@@ -412,8 +411,7 @@ static inline ALvoid LateReverb(ALreverbState *State, const ALfloat *restrict in
     DelayLineIn(&State->Late.Delay[3], State->Offset, f[3]);
 }
 
-// Given an input sample, this function mixes echo into the four-channel late
-// reverb.
+// Given an input sample, this function mixes echo into the four-channel late reverb.
 static inline ALvoid EAXEcho(ALreverbState *State, ALfloat in, ALfloat *restrict late)
 {
     ALfloat out, feed;
@@ -525,27 +523,8 @@ static inline ALvoid EAXVerbPass(ALreverbState *State, ALfloat in, ALfloat *rest
     State->Offset++;
 }
 
-static ALvoid ALreverbState_processStandard(ALreverbState *State, ALuint SamplesToDo, const ALfloat *restrict SamplesIn, ALfloat (*restrict SamplesOut)[BUFFERSIZE], ALuint NumChannels)
-{
-    ALfloat (*restrict out)[4] = State->ReverbSamples;
-    ALuint index, c;
 
-    /* Process reverb for these samples. */
-    for(index = 0;index < SamplesToDo;index++)
-        VerbPass(State, SamplesIn[index], out[index]);
-
-    for(c = 0;c < NumChannels;c++)
-    {
-        ALfloat gain = State->Gain[c];
-        if(!(fabsf(gain) > GAIN_SILENCE_THRESHOLD))
-            continue;
-
-        for(index = 0;index < SamplesToDo;index++)
-            SamplesOut[c][index] += gain * out[index][c&3];
-    }
-}
-
-static ALvoid ALreverbState_processEax(ALreverbState *State, ALuint SamplesToDo, const ALfloat *restrict SamplesIn, ALfloat (*restrict SamplesOut)[BUFFERSIZE], ALuint NumChannels)
+static ALvoid ALreverbState_process(ALreverbState *State, ALuint SamplesToDo, const ALfloat *restrict SamplesIn, ALfloat (*restrict SamplesOut)[BUFFERSIZE], ALuint NumChannels)
 {
     ALfloat (*restrict early)[4] = State->EarlySamples;
     ALfloat (*restrict late)[4] = State->ReverbSamples;
@@ -574,10 +553,6 @@ static ALvoid ALreverbState_processEax(ALreverbState *State, ALuint SamplesToDo,
     }
 }
 
-static ALvoid ALreverbState_process(ALreverbState *State, ALuint SamplesToDo, const ALfloat *restrict SamplesIn, ALfloat (*restrict SamplesOut)[BUFFERSIZE], ALuint NumChannels)
-{
-        ALreverbState_processEax(State, SamplesToDo, SamplesIn, SamplesOut, NumChannels);
-}
 
 // Given the allocated sample buffer, this function updates each delay line
 // offset.

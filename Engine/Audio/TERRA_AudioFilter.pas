@@ -775,8 +775,8 @@ typedef union ALeffectProps {
       _GainLF:Single;
       _LFReference:Single;
 
-      _x:Array[0..1] Of Single; // History of two last input samples
-      _y:Array[0..1] Of Single; // History of two last output samples
+      _x:Array[0..1] Of MixingAudioSample; // History of two last input samples
+      _y:Array[0..1] Of MixingAudioSample; // History of two last output samples
       _a:Array[0..2] Of Single; // Transfer function coefficients "a"
       _b:Array[0..2] Of Single; // Transfer function coefficients "b"
 
@@ -784,14 +784,14 @@ typedef union ALeffectProps {
 
       //Procedure Clear(); Virtual; Abstract;
 
-      Function processSingle(Const sample:Single):Single;
+      Function processSample(Const sample:MixingAudioSample):MixingAudioSample;
 
       Procedure UpdateParams(Const gain, bandwidth, w0:Single); Virtual; Abstract;
       Procedure SetParams(gain:Single; Const freq_mult, bandwidth:Single);
 
     Public
       Procedure Update(); Virtual;
-      Function Process(Var InputSamples:TERRAAudioMixingBuffer; Offset, SamplesToDo:Integer):PMixingAudioSample; Virtual; Abstract;
+      Function Process(Var InputSamples:TERRAAudioMixingBuffer; SampleOffset, SamplesToDo:Integer):PMixingAudioSample; Virtual; Abstract;
 
       Property Gain:Single Read _Gain;
   End;
@@ -799,7 +799,7 @@ typedef union ALeffectProps {
   AudioNullFilter = Class(AudioFilter)
     Public
       Procedure UpdateParams(Const gain, bandwidth, w0:Single); Override;
-      Function Process(Var InputSamples:TERRAAudioMixingBuffer; Offset, samplesToDo:Integer):PMixingAudioSample; Override;
+      Function Process(Var InputSamples:TERRAAudioMixingBuffer; SampleOffset, samplesToDo:Integer):PMixingAudioSample; Override;
   End;
 
   AudioHighShelfFilter = Class(AudioFilter)
@@ -826,11 +826,14 @@ inline struct ALfilter *RemoveFilter(ALCdevice *device, ALuint id)
 }
 
 { AudioFilter }
-Function AudioFilter.processSingle(Const sample:Single):Single;
+Function AudioFilter.processSample(Const sample:MixingAudioSample):MixingAudioSample;
 Begin
-  Result := _b[0] * sample + _b[1] * _x[0] + _b[2] * _x[1] -  _a[1] * _y[0] - _a[2] * _y[1];
+  Result.Left := _b[0] * sample.Left + _b[1] * _x[0].Left + _b[2] * _x[1].Left -  _a[1] * _y[0].Left - _a[2] * _y[1].Left;
+  Result.Right := _b[0] * sample.Right + _b[1] * _x[0].Right + _b[2] * _x[1].Right -  _a[1] * _y[0].Right - _a[2] * _y[1].Right;
+
   _x[1] := _x[0];
   _x[0] := Sample;
+
   _y[1] := _y[0];
   _y[0] := Result;
 End;
@@ -928,12 +931,12 @@ Begin
 End;
 
 { AudioNullFilter }
-Function AudioNullFilter.Process(Var InputSamples:TERRAAudioMixingBuffer; Offset, samplesToDo:Integer):PMixingAudioSample;
+Function AudioNullFilter.Process(Var InputSamples:TERRAAudioMixingBuffer; SampleOffset, samplesToDo:Integer):PMixingAudioSample;
 Var
   I:Integer;
   DestBuffer, SrcBuffer:PMixingAudioSample;
 Begin
-  SrcBuffer := InputSamples.GetSampleAt(Offset);
+  SrcBuffer := InputSamples.GetSampleAt(SampleOffset);
   DestBuffer := Self.GetSampleAt(0);
   Result := DestBuffer;
   I := 0;
