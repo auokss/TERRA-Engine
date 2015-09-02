@@ -4,7 +4,7 @@ Unit TERRA_AudioMixer;
 
 Interface
 Uses TERRA_Utils, TERRA_String, TERRA_Threads, TERRA_Mutex, TERRA_Sound, TERRA_SoundSource, TERRA_AudioBuffer,
-  TERRA_AudioFilter, TERRA_AudioEcho// TERRA_AudioReverb
+  TERRA_AudioFilter//, TERRA_AudioEcho// TERRA_AudioReverb
   ;
 
 Const
@@ -40,7 +40,6 @@ Type
        _CurrentBuffer:TERRAAudioMixingBuffer;
 
        _CurrentFilter:AudioFilter;
-       _FilterBuf:AudioEffectBuffer;
 
        _Thread:TERRAThread;
        _Mutex:CriticalSection;
@@ -123,12 +122,10 @@ Begin
   _Driver := SLAudioDriver.Create();
   {$ENDIF}
 
-  _CurrentFilter := AudioEchoEffect.Create();
-  _CurrentFilter.Initialize(_CurrentBuffer.Frequency);
+  _CurrentFilter := AudioNullFilter.Create(DefaultAudioSampleCount, _CurrentBuffer.Frequency);
+  //_CurrentFilter := AudioEchoEffect.Create();
+  //_CurrentFilter.Update();
 
-  For I:=0 To 1 Do
-    SetLength(_FilterBuf.Samples[I], DefaultAudioSampleCount);
-  
   _Ready := (Assigned(_Driver)) And (_Driver.Reset(Self));
 
   If Not _Ready Then
@@ -251,8 +248,9 @@ Function TERRAAudioMixer.RequestSamples(Dest:PAudioSample; SampleCount:Cardinal)
 Var
   I:Integer;
   Leftovers, Temp:Integer;
-  SrcData:PFloatAudioSample;
-  Val:Single;
+  InSample:MixingAudioSample;
+
+  SrcData:PMixingAudioSample;
 Begin
   If (SampleCount + _CurrentSample > _CurrentBuffer.SampleCount) Then
   Begin
@@ -262,25 +260,26 @@ Begin
   End Else
     Leftovers := 0;
 
-  SrcData := Self._CurrentBuffer.GetSampleAt(_CurrentSample, 0);
-  Inc(_CurrentSample, SampleCount);
-  Result := SampleCount;
-
-  _CurrentFilter.Update();
-  _CurrentFilter.Process(SampleCount, PSingleArray(SrcData), _FilterBuf);
+  {$IFDEF DRY}
+  SrcData := Self._CurrentBuffer.GetSampleAt(_CurrentSample);
+  {$ELSE}
+  SrcData := _CurrentFilter.Process(Self._CurrentBuffer, _CurrentSample, SampleCount);
+  {$ENDIF}
 
   For I:=0 To Pred(SampleCount) Do
   Begin
-    Val := _FilterBuf.Samples[0][I];
-    Dest^ := Trunc(Val * 32767);
+    InSample := SrcData^;
+    Inc(SrcData);
+
+    Dest^ := Trunc(InSample.Left * 32767);
     Inc(Dest);
 
-    Val := _FilterBuf.Samples[1][I];
-    Dest^ := Trunc(Val * 32767);
+    Dest^ := Trunc(InSample.Right * 32767);
     Inc(Dest);
   End;
 
-  //Move(SrcData^, Dest^, SampleCount * SizeOf(AudioSample) * 2);
+  Inc(_CurrentSample, SampleCount);
+  Result := SampleCount;
 End;
 
 Procedure TERRAAudioMixer.SwapBuffers;

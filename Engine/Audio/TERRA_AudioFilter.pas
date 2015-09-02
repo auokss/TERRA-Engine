@@ -649,11 +649,6 @@ Type
     AudioEffect_DEDICATED
   );
 
-  FloatAudioSampleArray = Array Of FloatAudioSample;
-  AudioEffectBuffer = Record
-    Samples:Array[0..Pred(MAX_OUTPUT_CHANNELS)] Of FloatAudioSampleArray;
-  End;
-
 (*
 typedef union ALeffectProps {
     struct {
@@ -766,22 +761,14 @@ typedef union ALeffectProps {
   );*)
 
 
-  AudioFilter = Class(TERRAObject)
+  AudioFilter = Class(TERRAAudioMixingBuffer)
     Protected
-      _id:Cardinal;
-
-      _TargetFrequency:Cardinal;
-
       _EffectType:ALEffectType;
       //EffectProps:ALeffectProps;
 
       _Gain:Single;
-      _AuxSendAuto:Boolean;
-
-      _NeedsUpdate:Boolean;
 
       _WetBuffer:Array[0..Pred(BUFFERSIZE)] Of Single;
-      ID:Integer;
 
       _GainHF:Single;
       _HFReference:Single;
@@ -793,9 +780,9 @@ typedef union ALeffectProps {
       _a:Array[0..2] Of Single; // Transfer function coefficients "a"
       _b:Array[0..2] Of Single; // Transfer function coefficients "b"
 
-      Procedure ProcessState(dst, src:PSingleArray; numsamples:Cardinal); Virtual; Abstract;
+      //Procedure ProcessState(dst, src:PSingleArray; numsamples:Cardinal); Virtual; Abstract;
 
-      Procedure Clear(); Virtual; Abstract;
+      //Procedure Clear(); Virtual; Abstract;
 
       Function processSingle(Const sample:Single):Single;
 
@@ -803,12 +790,16 @@ typedef union ALeffectProps {
       Procedure SetParams(gain:Single; Const freq_mult, bandwidth:Single);
 
     Public
-      Function Initialize(Frequency:Cardinal): Boolean; Virtual;
-
-      Procedure Update(); Virtual; Abstract;
-      Procedure Process(samplesToDo:Integer; samplesIn:PSingleArray; Var samplesOut:AudioEffectBuffer); Virtual; Abstract;
+      Procedure Update(); Virtual;
+      Function Process(Var InputSamples:TERRAAudioMixingBuffer; Offset, SamplesToDo:Integer):PMixingAudioSample; Virtual; Abstract;
 
       Property Gain:Single Read _Gain;
+  End;
+
+  AudioNullFilter = Class(AudioFilter)
+    Public
+      Procedure UpdateParams(Const gain, bandwidth, w0:Single); Override;
+      Function Process(Var InputSamples:TERRAAudioMixingBuffer; Offset, samplesToDo:Integer):PMixingAudioSample; Override;
   End;
 
   AudioHighShelfFilter = Class(AudioFilter)
@@ -816,7 +807,7 @@ typedef union ALeffectProps {
       Procedure UpdateParams(Const gain, bandwidth, w0:Single); Override;
 
     Public
-      Function Initialize(Frequency:Cardinal): Boolean; Override;
+      Constructor Create(SampleCount, Frequency:Cardinal);
   End;
 
 
@@ -835,12 +826,6 @@ inline struct ALfilter *RemoveFilter(ALCdevice *device, ALuint id)
 }
 
 { AudioFilter }
-Function AudioFilter.Initialize(Frequency:Cardinal): Boolean;
-Begin
-  _TargetFrequency := Frequency;
-  Result := True;
-End;
-
 Function AudioFilter.processSingle(Const sample:Single):Single;
 Begin
   Result := _b[0] * sample + _b[1] * _x[0] + _b[2] * _x[1] -  _a[1] * _y[0] - _a[2] * _y[1];
@@ -928,7 +913,7 @@ Begin
   w0 := PI * 2 * freq_mult;
 
   Self.UpdateParams(gain, bandwidth, w0);
-  
+
   _b[2] := _b[2] / _a[0];
   _b[1] := _b[1]/ _a[0];
   _b[0] := _b[0] / _a[0];
@@ -937,10 +922,40 @@ Begin
   _a[0] :=  _a[0] / _a[0];
 End;
 
-{ AudioHighShelfFilter }
-Function AudioHighShelfFilter.Initialize(Frequency: Cardinal): Boolean;
+Procedure AudioFilter.Update;
 Begin
-  Inherited Initialize(Frequency);
+  // do nothing
+End;
+
+{ AudioNullFilter }
+Function AudioNullFilter.Process(Var InputSamples:TERRAAudioMixingBuffer; Offset, samplesToDo:Integer):PMixingAudioSample;
+Var
+  I:Integer;
+  DestBuffer, SrcBuffer:PMixingAudioSample;
+Begin
+  SrcBuffer := InputSamples.GetSampleAt(Offset);
+  DestBuffer := Self.GetSampleAt(0);
+  Result := DestBuffer;
+  I := 0;
+  While (samplesToDo > 0) Do
+  Begin
+    DestBuffer^ := SrcBuffer^;
+    Inc(DestBuffer);
+    Inc(SrcBuffer);
+    Dec(samplesToDo);
+  End;
+End;
+
+
+Procedure AudioNullFilter.UpdateParams(const gain, bandwidth, w0: Single);
+Begin
+  // do nothing
+End;
+
+{ AudioHighShelfFilter }
+Constructor AudioHighShelfFilter.Create(SampleCount, Frequency:Cardinal);
+Begin
+  Inherited Create(SampleCount, Frequency);
 
   Self._Gain := AL_HIGHPASS_DEFAULT_GAIN;
   Self._GainHF := 1.0;

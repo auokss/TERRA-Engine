@@ -3,13 +3,7 @@ Unit TERRA_AudioPanning;
 Interface
 Uses TERRA_AudioBuffer, TERRA_Vector3D;
 
-Const
-  MAX_OUTPUT_CHANNELS = 2;
-
-Type
-  AudioChannelGain = Array[0.. Pred(MAX_OUTPUT_CHANNELS)] Of Single;
-
-Procedure ComputeDirectionalGains(dir:Vector3D; ingain:Single; Out gains:AudioChannelGain);
+Procedure ComputeDirectionalGains(dir:Vector3D; ingain:Single; Out gainLeft, gainRight:Single);
 
 Implementation
 
@@ -20,21 +14,21 @@ Const
 Type
   AudioChannelConfig = Array[0..Pred(MAX_AMBI_COEFFS)] Of Single;
 
-Var
-  AmbiCoeffs:Array[0..Pred(MAX_OUTPUT_CHANNELS)] Of AudioChannelConfig;
+(*Var
+  AmbiCoeffs:Array[0..Pred(MAX_OUTPUT_CHANNELS)] Of AudioChannelConfig;*)
 
 
-Procedure ComputeDirectionalGains(dir:Vector3D; ingain:Single; Out gains:AudioChannelGain);
+Procedure ComputeDirectionalGains(dir:Vector3D; ingain:Single; Out gainLeft, gainRight:Single);
 Var
   i, j:Integer;
   coeffs:Array[0..Pred(MAX_AMBI_COEFFS)] Of Single;
   x, y, z:Single;
   gain:Single;
 Begin
-  gains[0] := 1;
-  gains[1] := 1;
-Exit;
-
+  gainLeft := 1;
+  gainRight := 1;
+  Exit;
+  (*
   // Convert from OpenAL coords to Ambisonics.
   x := -dir.Z;
   y := -dir.X;
@@ -68,10 +62,29 @@ Exit;
   Begin
     gain := 0.0;
     For J:=0 To Pred(MAX_AMBI_COEFFS) Do
-      gain := gain +  AmbiCoeffs[i, j] *coeffs[j];
+      gain := gain +  AmbiCoeffs[i][j] *coeffs[j];
 
     gains[I] := gain * ingain;
-  End;
+  End;*)
 End;
 
+Procedure SetChannelMap(ChannelID:Integer; Config:Array Of Single; Const count:Integer);
+Var
+  i, j, k:Integer;
+Begin
+(*  FillChar(AmbiCoeffs[ChannelID], SizeOf(AmbiCoeffs[ChannelID]), 0);
+
+  For J:=0 To Pred(Count) Do
+  Begin
+    AmbiCoeffs[ChannelID][J] := Config[J];
+  End;*)
+End;
+
+Const
+  Stereo_Left:Array[0..3] Of Single = (0.7071,  0.5, 0.0, 0.0);
+  Stereo_Right:Array[0..3] Of Single = (0.7071,  -0.5, 0.0, 0.0);
+
+Initialization
+  SetChannelMap(0, Stereo_Left, 4);
+  SetChannelMap(1, Stereo_Right, 4);
 End.

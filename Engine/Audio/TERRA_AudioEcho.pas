@@ -119,15 +119,12 @@ End;
 Procedure AudioEchoEffect.update();
 Var
   pandir:Vector3D;
-  lrpan, Gain:Single;
+  lrpan:Single;
 Begin
   pandir := VectorZero;
 
-  gain := Self.Gain;
-
   Tap[0].delay := Trunc(Self.Delay * _TargetFrequency) + 1;
-  Tap[1].delay := Trunc(Self.LRDelay * _TargetFrequency);
-  Tap[1].delay := Tap[1].delay + Tap[0].delay;
+  Tap[1].delay := Trunc(Self.LRDelay * _TargetFrequency) + Tap[0].delay;
 
   lrpan := Self.Spread;
 
@@ -151,6 +148,7 @@ Var
   tap2:Cardinal;
   offset:Cardinal;
   smp, N:Single;
+  KK:Cardinal;
   base, i, k, td:Integer;
   temps:Array[0..127, 0..1] Of Single;
   gain:Single;
@@ -168,13 +166,15 @@ Begin
     For I:=0 To Pred(Td) Do
     Begin
       // First tap
-      temps[i][0] := _SampleBuffer[(offset-tap1) And mask];
+      KK := (offset-tap1) And mask;
+      temps[i][0] := _SampleBuffer[KK];
 
       // Second tap
-      temps[i][1] := _SampleBuffer[(offset-tap2) And mask];
+      KK := (offset-tap2) And mask;
+      temps[i][1] := _SampleBuffer[KK];
 
       // Apply damping and feedback gain to the second tap, and mix in the new sample
-      smp := Self.processSingle(temps[i, 1] + SamplesIn[i+base]);
+      smp := Self.processSingle(temps[I, 1] + SamplesIn[I + Base]);
       _SampleBuffer[offset And mask] := smp * _FeedGain;
       Inc(offset);
     End;
@@ -187,9 +187,9 @@ Begin
       Begin
         For I:=0 To Pred(Td) Do
         Begin
-          N := SamplesOut.Samples[k][ i + base];
+          N := SamplesOut.Channels[k].Samples[ i + base];
           N := N + temps[i, 0] * gain;
-          SamplesOut.Samples[k][ i + base] := N;
+          SamplesOut.Channels[k].Samples[ i + base] := N;
         End;
       End;
 
@@ -198,9 +198,9 @@ Begin
       Begin
         For I:=0 To Pred(Td) Do
         Begin
-          N := SamplesOut.Samples[k][i + base];
+          N := SamplesOut.Channels[k].Samples[i + base];
           N := N + temps[i, 1] * gain;
-          SamplesOut.Samples[k][i + base] := N;
+          SamplesOut.Channels[k].Samples[i + base] := N;
         End;
 
       End;
