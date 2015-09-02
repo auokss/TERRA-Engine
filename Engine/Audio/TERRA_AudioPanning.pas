@@ -9,7 +9,7 @@ Const
 Type
   AudioChannelGain = Array[0.. Pred(MAX_OUTPUT_CHANNELS)] Of Single;
 
-Procedure ComputeDirectionalGains(Target:TERRAAudioBuffer; dir:Vector3D; ingain:Single; Out gains:AudioChannelGain);
+Procedure ComputeDirectionalGains(dir:Vector3D; ingain:Single; Out gains:AudioChannelGain);
 
 Implementation
 
@@ -24,13 +24,17 @@ Var
   AmbiCoeffs:Array[0..Pred(MAX_OUTPUT_CHANNELS)] Of AudioChannelConfig;
 
 
-Procedure ComputeDirectionalGains(Target:TERRAAudioBuffer; dir:Vector3D; ingain:Single; Out gains:AudioChannelGain);
+Procedure ComputeDirectionalGains(dir:Vector3D; ingain:Single; Out gains:AudioChannelGain);
 Var
   i, j:Integer;
   coeffs:Array[0..Pred(MAX_AMBI_COEFFS)] Of Single;
   x, y, z:Single;
   gain:Single;
 Begin
+  gains[0] := 1;
+  gains[1] := 1;
+Exit;
+
   // Convert from OpenAL coords to Ambisonics.
   x := -dir.Z;
   y := -dir.X;

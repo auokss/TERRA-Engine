@@ -5,11 +5,11 @@ Uses TERRA_Utils, TERRA_AudioFilter, TERRA_AudioBuffer, TERRA_AudioPanning, TERR
 
 Const
   // Echo effect parameters
-  AL_ECHO_DELAY                            = $0001;
+(*  AL_ECHO_DELAY                            = $0001;
   AL_ECHO_LRDELAY                          = $0002;
   AL_ECHO_DAMPING                          = $0003;
   AL_ECHO_FEEDBACK                         = $0004;
-  AL_ECHO_SPREAD                           = $0005;
+  AL_ECHO_SPREAD                           = $0005;*)
 
   AL_ECHO_MIN_DELAY                        = 0.0;
   AL_ECHO_MAX_DELAY                        = 0.207;
@@ -36,13 +36,7 @@ Type
     Delay:Cardinal;
   End;
 
-  AudioEchoEffect = Class(AudioFilter)
-  private
-    procedure SetDamping(const Value: Single);
-    procedure SetDelay(const Value: Single);
-    procedure SetFeedback(const Value: Single);
-    procedure SetLRDelay(const Value: Single);
-    procedure SetSpread(const Value: Single);
+  AudioEchoEffect = Class(AudioHighShelfFilter)
     Protected
       _SampleBuffer:Array Of Single;
       _BufferLength:Cardinal;
@@ -65,12 +59,18 @@ Type
 
       _Spread:Single;
 
+      Procedure SetDamping(const Value: Single);
+      Procedure SetDelay(const Value: Single);
+      Procedure SetFeedback(const Value: Single);
+      Procedure SetLRDelay(const Value: Single);
+      Procedure SetSpread(const Value: Single);
+      
     Public
-      Function Initialize(Target:TERRAAudioBuffer):Boolean; Override;
+      Function Initialize(Frequency:Cardinal):Boolean; Override;
       Procedure Release(); Override;
 
-      Procedure Update(Target:TERRAAudioBuffer); Override;
-      Procedure Process(samplesToDo:Integer; samplesIn:PSingleArray; Var samplesOut:AudioEffectBuffer; numChannels:Cardinal); Override;
+      Procedure Update(); Override;
+      Procedure Process(samplesToDo:Integer; samplesIn:PSingleArray; Var samplesOut:AudioEffectBuffer); Override;
 
       Property Delay:Single Read _Delay Write SetDelay;
       Property LRDelay:Single Read _LRDelay Write SetLRDelay;
@@ -84,14 +84,22 @@ Type
 Implementation
 Uses TERRA_Math;
 
-Function AudioEchoEffect.Initialize(Target:TERRAAudioBuffer):Boolean;
+Function AudioEchoEffect.Initialize(Frequency:Cardinal):Boolean;
 Var
   maxlen, i:Integer;
 Begin
+  Inherited Initialize(Frequency);
+
+  Self.Delay    := AL_ECHO_DEFAULT_DELAY;
+  Self.LRDelay  := AL_ECHO_DEFAULT_LRDELAY;
+  Self.Damping  := AL_ECHO_DEFAULT_DAMPING;
+  Self.Feedback := AL_ECHO_DEFAULT_FEEDBACK;
+  Self.Spread   := AL_ECHO_DEFAULT_SPREAD;
+
   // Use the next power of 2 for the buffer length, so the tap offsets can be
   // wrapped using a mask instead of a modulo
-  maxlen := Trunc(AL_ECHO_MAX_DELAY * Target.Frequency) + 1;
-  maxlen := maxlen + Trunc(AL_ECHO_MAX_LRDELAY * Target.Frequency) + 1;
+  maxlen := Trunc(AL_ECHO_MAX_DELAY * _TargetFrequency) + 1;
+  maxlen := maxlen + Trunc(AL_ECHO_MAX_LRDELAY * _TargetFrequency) + 1;
   maxlen  := NextPowerOfTwo(maxlen);
 
   SetLength(_SampleBuffer, maxlen);
@@ -108,37 +116,35 @@ Begin
   SetLength(_SampleBuffer, 0);
 End;
 
-Procedure AudioEchoEffect.update(Target:TERRAAudioBuffer);
+Procedure AudioEchoEffect.update();
 Var
   pandir:Vector3D;
-  frequency:Cardinal;
   lrpan, Gain:Single;
 Begin
   pandir := VectorZero;
 
-  frequency := Target.Frequency;
   gain := Self.Gain;
 
-  Tap[0].delay := Trunc(Self.Delay * frequency) + 1;
-  Tap[1].delay := Trunc(Self.LRDelay * frequency);
+  Tap[0].delay := Trunc(Self.Delay * _TargetFrequency) + 1;
+  Tap[1].delay := Trunc(Self.LRDelay * _TargetFrequency);
   Tap[1].delay := Tap[1].delay + Tap[0].delay;
 
   lrpan := Self.Spread;
 
   Self._FeedGain := Self.Feedback;
 
-  Self.setParams(ALfilterType_HighShelf, 1.0 - Self.Damping, LOWPASSFREQREF/frequency, 0.0);
+  Self.setParams(1.0 - Self.Damping, LOWPASSFREQREF/_TargetFrequency, 0.0);
 
   // First tap panning
   pandir.X := -lrpan;
-  ComputeDirectionalGains(Target, pandir, gain, _PanningGain[0]);
+  ComputeDirectionalGains(pandir, gain, _PanningGain[0]);
 
   // Second tap panning
   pandir.X := +lrpan;
-  ComputeDirectionalGains(Target, pandir, gain, _PanningGain[1]);
+  ComputeDirectionalGains(pandir, gain, _PanningGain[1]);
 End;
 
-Procedure AudioEchoEffect.Process(samplesToDo:Integer; samplesIn:PSingleArray; Var samplesOut:AudioEffectBuffer; numChannels:Cardinal);
+Procedure AudioEchoEffect.Process(samplesToDo:Integer; samplesIn:PSingleArray; Var samplesOut:AudioEffectBuffer);
 Var
   mask:Cardinal;
   tap1:Cardinal;
@@ -173,7 +179,7 @@ Begin
       Inc(offset);
     End;
 
-    For K:=0 To Pred(NumChannels) Do
+    For K:=0 To Pred(MAX_OUTPUT_CHANNELS) Do
     Begin
       gain := _PanningGain[0][k];
 

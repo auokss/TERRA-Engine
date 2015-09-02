@@ -177,460 +177,460 @@ Const
   AL_FILTER_HIGHPASS                       = $0002;
   AL_FILTER_BANDPASS                       = $0003;
 
-{/* Filter ranges and defaults. */
-
-/* Lowpass filter */
-#define AL_LOWPASS_MIN_GAIN                      (0.0f)
-#define AL_LOWPASS_MAX_GAIN                      (1.0f)
-#define AL_LOWPASS_DEFAULT_GAIN                  (1.0f)
+// Filter ranges and defaults.
+
+// Lowpass filter
+  AL_LOWPASS_MIN_GAIN                    =  0.0;
+  AL_LOWPASS_MAX_GAIN                    =  1.0;
+  AL_LOWPASS_DEFAULT_GAIN                =  1.0;
 
-#define AL_LOWPASS_MIN_GAINHF                    (0.0f)
-#define AL_LOWPASS_MAX_GAINHF                    (1.0f)
-#define AL_LOWPASS_DEFAULT_GAINHF                (1.0f)
+  AL_LOWPASS_MIN_GAINHF                    = 0.0;
+  AL_LOWPASS_MAX_GAINHF                    = 1.0;
+  AL_LOWPASS_DEFAULT_GAINHF                = 1.0;
 
-/* Highpass filter */
-#define AL_HIGHPASS_MIN_GAIN                     (0.0f)
-#define AL_HIGHPASS_MAX_GAIN                     (1.0f)
-#define AL_HIGHPASS_DEFAULT_GAIN                 (1.0f)
+// Highpass filter */
+AL_HIGHPASS_MIN_GAIN                     = 0.0;
+AL_HIGHPASS_MAX_GAIN                     = 1.0;
+AL_HIGHPASS_DEFAULT_GAIN                 = 1.0;
 
-#define AL_HIGHPASS_MIN_GAINLF                   (0.0f)
-#define AL_HIGHPASS_MAX_GAINLF                   (1.0f)
-#define AL_HIGHPASS_DEFAULT_GAINLF               (1.0f)
+AL_HIGHPASS_MIN_GAINLF                   = 0.0;
+AL_HIGHPASS_MAX_GAINLF                   = 1.0;
+AL_HIGHPASS_DEFAULT_GAINLF               = 1.0;
 
-/* Bandpass filter */
-#define AL_BANDPASS_MIN_GAIN                     (0.0f)
-#define AL_BANDPASS_MAX_GAIN                     (1.0f)
-#define AL_BANDPASS_DEFAULT_GAIN                 (1.0f)
+// Bandpass filter */
+AL_BANDPASS_MIN_GAIN                     = 0.0;
+AL_BANDPASS_MAX_GAIN                     = 1.0;
+AL_BANDPASS_DEFAULT_GAIN                 = 1.0;
 
-#define AL_BANDPASS_MIN_GAINHF                   (0.0f)
-#define AL_BANDPASS_MAX_GAINHF                   (1.0f)
-#define AL_BANDPASS_DEFAULT_GAINHF               (1.0f)
+AL_BANDPASS_MIN_GAINHF                   = 0.0;
+AL_BANDPASS_MAX_GAINHF                   = 1.0;
+AL_BANDPASS_DEFAULT_GAINHF               = 1.0;
 
-#define AL_BANDPASS_MIN_GAINLF                   (0.0f)
-#define AL_BANDPASS_MAX_GAINLF                   (1.0f)
-#define AL_BANDPASS_DEFAULT_GAINLF               (1.0f)
+AL_BANDPASS_MIN_GAINLF                   = 0.0;
+AL_BANDPASS_MAX_GAINLF                   = 1.0;
+AL_BANDPASS_DEFAULT_GAINLF               = 1.0;
 
 
-/* Effect parameter ranges and defaults. */
+// Effect parameter ranges and defaults. */
 
-/* Standard reverb effect */
-#define AL_REVERB_MIN_DENSITY                    (0.0f)
-#define AL_REVERB_MAX_DENSITY                    (1.0f)
-#define AL_REVERB_DEFAULT_DENSITY                (1.0f)
+// Standard reverb effect */
+AL_REVERB_MIN_DENSITY                    = 0.0;
+AL_REVERB_MAX_DENSITY                    = 1.0;
+AL_REVERB_DEFAULT_DENSITY                = 1.0;
 
-#define AL_REVERB_MIN_DIFFUSION                  (0.0f)
-#define AL_REVERB_MAX_DIFFUSION                  (1.0f)
-#define AL_REVERB_DEFAULT_DIFFUSION              (1.0f)
+AL_REVERB_MIN_DIFFUSION                  = 0.0;
+AL_REVERB_MAX_DIFFUSION                  = 1.0;
+AL_REVERB_DEFAULT_DIFFUSION              = 1.0;
 
-#define AL_REVERB_MIN_GAIN                       (0.0f)
-#define AL_REVERB_MAX_GAIN                       (1.0f)
-#define AL_REVERB_DEFAULT_GAIN                   (0.32f)
+AL_REVERB_MIN_GAIN                       = 0.0;
+AL_REVERB_MAX_GAIN                       = 1.0;
+AL_REVERB_DEFAULT_GAIN                   = 0.32;
 
-#define AL_REVERB_MIN_GAINHF                     (0.0f)
-#define AL_REVERB_MAX_GAINHF                     (1.0f)
-#define AL_REVERB_DEFAULT_GAINHF                 (0.89f)
+AL_REVERB_MIN_GAINHF                     = 0.0;
+AL_REVERB_MAX_GAINHF                     = 1.0;
+AL_REVERB_DEFAULT_GAINHF                 = 0.89;
 
-#define AL_REVERB_MIN_DECAY_TIME                 (0.1f)
-#define AL_REVERB_MAX_DECAY_TIME                 (20.0f)
-#define AL_REVERB_DEFAULT_DECAY_TIME             (1.49f)
+AL_REVERB_MIN_DECAY_TIME                 = 0.1;
+AL_REVERB_MAX_DECAY_TIME                 = 20.0;
+AL_REVERB_DEFAULT_DECAY_TIME             = 1.49;
 
-#define AL_REVERB_MIN_DECAY_HFRATIO              (0.1f)
-#define AL_REVERB_MAX_DECAY_HFRATIO              (2.0f)
-#define AL_REVERB_DEFAULT_DECAY_HFRATIO          (0.83f)
+AL_REVERB_MIN_DECAY_HFRATIO              = 0.1;
+AL_REVERB_MAX_DECAY_HFRATIO              = 2.0;
+AL_REVERB_DEFAULT_DECAY_HFRATIO          = 0.83;
 
-#define AL_REVERB_MIN_REFLECTIONS_GAIN           (0.0f)
-#define AL_REVERB_MAX_REFLECTIONS_GAIN           (3.16f)
-#define AL_REVERB_DEFAULT_REFLECTIONS_GAIN       (0.05f)
+AL_REVERB_MIN_REFLECTIONS_GAIN           = 0.0;
+AL_REVERB_MAX_REFLECTIONS_GAIN           = 3.16;
+AL_REVERB_DEFAULT_REFLECTIONS_GAIN       = 0.05;
 
-#define AL_REVERB_MIN_REFLECTIONS_DELAY          (0.0f)
-#define AL_REVERB_MAX_REFLECTIONS_DELAY          (0.3f)
-#define AL_REVERB_DEFAULT_REFLECTIONS_DELAY      (0.007f)
+AL_REVERB_MIN_REFLECTIONS_DELAY          = 0.0;
+AL_REVERB_MAX_REFLECTIONS_DELAY          = 0.3;
+AL_REVERB_DEFAULT_REFLECTIONS_DELAY      = 0.007;
 
-#define AL_REVERB_MIN_LATE_REVERB_GAIN           (0.0f)
-#define AL_REVERB_MAX_LATE_REVERB_GAIN           (10.0f)
-#define AL_REVERB_DEFAULT_LATE_REVERB_GAIN       (1.26f)
+AL_REVERB_MIN_LATE_REVERB_GAIN           = 0.0;
+AL_REVERB_MAX_LATE_REVERB_GAIN           = 10.0;
+AL_REVERB_DEFAULT_LATE_REVERB_GAIN       = 1.26;
 
-#define AL_REVERB_MIN_LATE_REVERB_DELAY          (0.0f)
-#define AL_REVERB_MAX_LATE_REVERB_DELAY          (0.1f)
-#define AL_REVERB_DEFAULT_LATE_REVERB_DELAY      (0.011f)
+AL_REVERB_MIN_LATE_REVERB_DELAY          = 0.0;
+AL_REVERB_MAX_LATE_REVERB_DELAY          = 0.1;
+AL_REVERB_DEFAULT_LATE_REVERB_DELAY      = 0.011;
 
-#define AL_REVERB_MIN_AIR_ABSORPTION_GAINHF      (0.892f)
-#define AL_REVERB_MAX_AIR_ABSORPTION_GAINHF      (1.0f)
-#define AL_REVERB_DEFAULT_AIR_ABSORPTION_GAINHF  (0.994f)
+AL_REVERB_MIN_AIR_ABSORPTION_GAINHF      = 0.892;
+AL_REVERB_MAX_AIR_ABSORPTION_GAINHF      = 1.0;
+AL_REVERB_DEFAULT_AIR_ABSORPTION_GAINHF  = 0.994;
 
-#define AL_REVERB_MIN_ROOM_ROLLOFF_FACTOR        (0.0f)
-#define AL_REVERB_MAX_ROOM_ROLLOFF_FACTOR        (10.0f)
-#define AL_REVERB_DEFAULT_ROOM_ROLLOFF_FACTOR    (0.0f)
+AL_REVERB_MIN_ROOM_ROLLOFF_FACTOR        = 0.0;
+AL_REVERB_MAX_ROOM_ROLLOFF_FACTOR        = 10.0;
+AL_REVERB_DEFAULT_ROOM_ROLLOFF_FACTOR    = 0.0;
 
-#define AL_REVERB_MIN_DECAY_HFLIMIT              AL_FALSE
-#define AL_REVERB_MAX_DECAY_HFLIMIT              AL_TRUE
-#define AL_REVERB_DEFAULT_DECAY_HFLIMIT          AL_TRUE
+AL_REVERB_MIN_DECAY_HFLIMIT              = False;
+AL_REVERB_MAX_DECAY_HFLIMIT              = True;
+AL_REVERB_DEFAULT_DECAY_HFLIMIT          = True;
 
-/* EAX reverb effect */
-#define AL_EAXREVERB_MIN_DENSITY                 (0.0f)
-#define AL_EAXREVERB_MAX_DENSITY                 (1.0f)
-#define AL_EAXREVERB_DEFAULT_DENSITY             (1.0f)
+// EAX reverb effect */
+AL_EAXREVERB_MIN_DENSITY                 = 0.0;
+AL_EAXREVERB_MAX_DENSITY                 = 1.0;
+AL_EAXREVERB_DEFAULT_DENSITY             = 1.0;
 
-#define AL_EAXREVERB_MIN_DIFFUSION               (0.0f)
-#define AL_EAXREVERB_MAX_DIFFUSION               (1.0f)
-#define AL_EAXREVERB_DEFAULT_DIFFUSION           (1.0f)
+AL_EAXREVERB_MIN_DIFFUSION               = 0.0;
+AL_EAXREVERB_MAX_DIFFUSION               = 1.0;
+AL_EAXREVERB_DEFAULT_DIFFUSION           = 1.0;
 
-#define AL_EAXREVERB_MIN_GAIN                    (0.0f)
-#define AL_EAXREVERB_MAX_GAIN                    (1.0f)
-#define AL_EAXREVERB_DEFAULT_GAIN                (0.32f)
+AL_EAXREVERB_MIN_GAIN                    = 0.0;
+AL_EAXREVERB_MAX_GAIN                    = 1.0;
+AL_EAXREVERB_DEFAULT_GAIN                = 0.32;
 
-#define AL_EAXREVERB_MIN_GAINHF                  (0.0f)
-#define AL_EAXREVERB_MAX_GAINHF                  (1.0f)
-#define AL_EAXREVERB_DEFAULT_GAINHF              (0.89f)
+AL_EAXREVERB_MIN_GAINHF                  = 0.0;
+AL_EAXREVERB_MAX_GAINHF                  = 1.0;
+AL_EAXREVERB_DEFAULT_GAINHF              = 0.89;
 
-#define AL_EAXREVERB_MIN_GAINLF                  (0.0f)
-#define AL_EAXREVERB_MAX_GAINLF                  (1.0f)
-#define AL_EAXREVERB_DEFAULT_GAINLF              (1.0f)
+AL_EAXREVERB_MIN_GAINLF                  = 0.0;
+AL_EAXREVERB_MAX_GAINLF                  = 1.0;
+AL_EAXREVERB_DEFAULT_GAINLF              = 1.0;
 
-#define AL_EAXREVERB_MIN_DECAY_TIME              (0.1f)
-#define AL_EAXREVERB_MAX_DECAY_TIME              (20.0f)
-#define AL_EAXREVERB_DEFAULT_DECAY_TIME          (1.49f)
+AL_EAXREVERB_MIN_DECAY_TIME              = 0.1;
+AL_EAXREVERB_MAX_DECAY_TIME              = 20.0;
+AL_EAXREVERB_DEFAULT_DECAY_TIME          = 1.49;
 
-#define AL_EAXREVERB_MIN_DECAY_HFRATIO           (0.1f)
-#define AL_EAXREVERB_MAX_DECAY_HFRATIO           (2.0f)
-#define AL_EAXREVERB_DEFAULT_DECAY_HFRATIO       (0.83f)
+AL_EAXREVERB_MIN_DECAY_HFRATIO           = 0.1;
+AL_EAXREVERB_MAX_DECAY_HFRATIO           = 2.0;
+AL_EAXREVERB_DEFAULT_DECAY_HFRATIO       = 0.83;
 
-#define AL_EAXREVERB_MIN_DECAY_LFRATIO           (0.1f)
-#define AL_EAXREVERB_MAX_DECAY_LFRATIO           (2.0f)
-#define AL_EAXREVERB_DEFAULT_DECAY_LFRATIO       (1.0f)
+AL_EAXREVERB_MIN_DECAY_LFRATIO           = 0.1;
+AL_EAXREVERB_MAX_DECAY_LFRATIO           = 2.0;
+AL_EAXREVERB_DEFAULT_DECAY_LFRATIO       = 1.0;
 
-#define AL_EAXREVERB_MIN_REFLECTIONS_GAIN        (0.0f)
-#define AL_EAXREVERB_MAX_REFLECTIONS_GAIN        (3.16f)
-#define AL_EAXREVERB_DEFAULT_REFLECTIONS_GAIN    (0.05f)
+AL_EAXREVERB_MIN_REFLECTIONS_GAIN        = 0.0;
+AL_EAXREVERB_MAX_REFLECTIONS_GAIN        = 3.16;
+AL_EAXREVERB_DEFAULT_REFLECTIONS_GAIN    = 0.05;
 
-#define AL_EAXREVERB_MIN_REFLECTIONS_DELAY       (0.0f)
-#define AL_EAXREVERB_MAX_REFLECTIONS_DELAY       (0.3f)
-#define AL_EAXREVERB_DEFAULT_REFLECTIONS_DELAY   (0.007f)
+AL_EAXREVERB_MIN_REFLECTIONS_DELAY       = 0.0;
+AL_EAXREVERB_MAX_REFLECTIONS_DELAY       = 0.3;
+AL_EAXREVERB_DEFAULT_REFLECTIONS_DELAY   = 0.007;
 
-#define AL_EAXREVERB_DEFAULT_REFLECTIONS_PAN_XYZ (0.0f)
+AL_EAXREVERB_DEFAULT_REFLECTIONS_PAN_XYZ = 0.0;
 
-#define AL_EAXREVERB_MIN_LATE_REVERB_GAIN        (0.0f)
-#define AL_EAXREVERB_MAX_LATE_REVERB_GAIN        (10.0f)
-#define AL_EAXREVERB_DEFAULT_LATE_REVERB_GAIN    (1.26f)
+AL_EAXREVERB_MIN_LATE_REVERB_GAIN        = 0.0;
+AL_EAXREVERB_MAX_LATE_REVERB_GAIN        = 10.0;
+AL_EAXREVERB_DEFAULT_LATE_REVERB_GAIN    = 1.26;
 
-#define AL_EAXREVERB_MIN_LATE_REVERB_DELAY       (0.0f)
-#define AL_EAXREVERB_MAX_LATE_REVERB_DELAY       (0.1f)
-#define AL_EAXREVERB_DEFAULT_LATE_REVERB_DELAY   (0.011f)
+AL_EAXREVERB_MIN_LATE_REVERB_DELAY       = 0.0;
+AL_EAXREVERB_MAX_LATE_REVERB_DELAY       = 0.1;
+AL_EAXREVERB_DEFAULT_LATE_REVERB_DELAY   = 0.011;
 
-#define AL_EAXREVERB_DEFAULT_LATE_REVERB_PAN_XYZ (0.0f)
+AL_EAXREVERB_DEFAULT_LATE_REVERB_PAN_XYZ = 0.0;
 
-#define AL_EAXREVERB_MIN_ECHO_TIME               (0.075f)
-#define AL_EAXREVERB_MAX_ECHO_TIME               (0.25f)
-#define AL_EAXREVERB_DEFAULT_ECHO_TIME           (0.25f)
+AL_EAXREVERB_MIN_ECHO_TIME               = 0.075;
+AL_EAXREVERB_MAX_ECHO_TIME               = 0.25;
+AL_EAXREVERB_DEFAULT_ECHO_TIME           = 0.25;
 
-#define AL_EAXREVERB_MIN_ECHO_DEPTH              (0.0f)
-#define AL_EAXREVERB_MAX_ECHO_DEPTH              (1.0f)
-#define AL_EAXREVERB_DEFAULT_ECHO_DEPTH          (0.0f)
+AL_EAXREVERB_MIN_ECHO_DEPTH              = 0.0;
+AL_EAXREVERB_MAX_ECHO_DEPTH              = 1.0;
+AL_EAXREVERB_DEFAULT_ECHO_DEPTH          = 0.0;
 
-#define AL_EAXREVERB_MIN_MODULATION_TIME         (0.04f)
-#define AL_EAXREVERB_MAX_MODULATION_TIME         (4.0f)
-#define AL_EAXREVERB_DEFAULT_MODULATION_TIME     (0.25f)
+AL_EAXREVERB_MIN_MODULATION_TIME         = 0.04;
+AL_EAXREVERB_MAX_MODULATION_TIME         = 4.0;
+AL_EAXREVERB_DEFAULT_MODULATION_TIME     = 0.25;
 
-#define AL_EAXREVERB_MIN_MODULATION_DEPTH        (0.0f)
-#define AL_EAXREVERB_MAX_MODULATION_DEPTH        (1.0f)
-#define AL_EAXREVERB_DEFAULT_MODULATION_DEPTH    (0.0f)
+AL_EAXREVERB_MIN_MODULATION_DEPTH        = 0.0;
+AL_EAXREVERB_MAX_MODULATION_DEPTH        = 1.0;
+AL_EAXREVERB_DEFAULT_MODULATION_DEPTH    = 0.0;
 
-#define AL_EAXREVERB_MIN_AIR_ABSORPTION_GAINHF   (0.892f)
-#define AL_EAXREVERB_MAX_AIR_ABSORPTION_GAINHF   (1.0f)
-#define AL_EAXREVERB_DEFAULT_AIR_ABSORPTION_GAINHF (0.994f)
+AL_EAXREVERB_MIN_AIR_ABSORPTION_GAINHF   = 0.892;
+AL_EAXREVERB_MAX_AIR_ABSORPTION_GAINHF   = 1.0;
+AL_EAXREVERB_DEFAULT_AIR_ABSORPTION_GAINHF = 0.994;
 
-#define AL_EAXREVERB_MIN_HFREFERENCE             (1000.0f)
-#define AL_EAXREVERB_MAX_HFREFERENCE             (20000.0f)
-#define AL_EAXREVERB_DEFAULT_HFREFERENCE         (5000.0f)
+AL_EAXREVERB_MIN_HFREFERENCE             = 1000.0;
+AL_EAXREVERB_MAX_HFREFERENCE             = 20000.0;
+AL_EAXREVERB_DEFAULT_HFREFERENCE         = 5000.0;
 
-#define AL_EAXREVERB_MIN_LFREFERENCE             (20.0f)
-#define AL_EAXREVERB_MAX_LFREFERENCE             (1000.0f)
-#define AL_EAXREVERB_DEFAULT_LFREFERENCE         (250.0f)
+AL_EAXREVERB_MIN_LFREFERENCE             = 20.0;
+AL_EAXREVERB_MAX_LFREFERENCE             = 1000.0;
+AL_EAXREVERB_DEFAULT_LFREFERENCE         = 250.0;
 
-#define AL_EAXREVERB_MIN_ROOM_ROLLOFF_FACTOR     (0.0f)
-#define AL_EAXREVERB_MAX_ROOM_ROLLOFF_FACTOR     (10.0f)
-#define AL_EAXREVERB_DEFAULT_ROOM_ROLLOFF_FACTOR (0.0f)
+AL_EAXREVERB_MIN_ROOM_ROLLOFF_FACTOR     = 0.0;
+AL_EAXREVERB_MAX_ROOM_ROLLOFF_FACTOR     = 10.0;
+AL_EAXREVERB_DEFAULT_ROOM_ROLLOFF_FACTOR = 0.0;
 
-#define AL_EAXREVERB_MIN_DECAY_HFLIMIT           AL_FALSE
-#define AL_EAXREVERB_MAX_DECAY_HFLIMIT           AL_TRUE
-#define AL_EAXREVERB_DEFAULT_DECAY_HFLIMIT       AL_TRUE
+AL_EAXREVERB_MIN_DECAY_HFLIMIT           = False;
+AL_EAXREVERB_MAX_DECAY_HFLIMIT           = True;
+AL_EAXREVERB_DEFAULT_DECAY_HFLIMIT       = True;
 
-/* Chorus effect */
-#define AL_CHORUS_WAVEFORM_SINUSOID              (0)
-#define AL_CHORUS_WAVEFORM_TRIANGLE              (1)
+// Chorus effect */
+AL_CHORUS_WAVEFORM_SINUSOID              = 0;
+AL_CHORUS_WAVEFORM_TRIANGLE              = 1;
 
-#define AL_CHORUS_MIN_WAVEFORM                   (0)
-#define AL_CHORUS_MAX_WAVEFORM                   (1)
-#define AL_CHORUS_DEFAULT_WAVEFORM               (1)
+AL_CHORUS_MIN_WAVEFORM                   = 0;
+AL_CHORUS_MAX_WAVEFORM                   = 1;
+AL_CHORUS_DEFAULT_WAVEFORM               = 1;
 
-#define AL_CHORUS_MIN_PHASE                      (-180)
-#define AL_CHORUS_MAX_PHASE                      (180)
-#define AL_CHORUS_DEFAULT_PHASE                  (90)
+AL_CHORUS_MIN_PHASE                      = -180;
+AL_CHORUS_MAX_PHASE                      = 180;
+AL_CHORUS_DEFAULT_PHASE                  = 90;
 
-#define AL_CHORUS_MIN_RATE                       (0.0f)
-#define AL_CHORUS_MAX_RATE                       (10.0f)
-#define AL_CHORUS_DEFAULT_RATE                   (1.1f)
+AL_CHORUS_MIN_RATE                       = 0.0;
+AL_CHORUS_MAX_RATE                       = 10.0;
+AL_CHORUS_DEFAULT_RATE                   = 1.1;
 
-#define AL_CHORUS_MIN_DEPTH                      (0.0f)
-#define AL_CHORUS_MAX_DEPTH                      (1.0f)
-#define AL_CHORUS_DEFAULT_DEPTH                  (0.1f)
-
-#define AL_CHORUS_MIN_FEEDBACK                   (-1.0f)
-#define AL_CHORUS_MAX_FEEDBACK                   (1.0f)
-#define AL_CHORUS_DEFAULT_FEEDBACK               (0.25f)
-
-#define AL_CHORUS_MIN_DELAY                      (0.0f)
-#define AL_CHORUS_MAX_DELAY                      (0.016f)
-#define AL_CHORUS_DEFAULT_DELAY                  (0.016f)
-
-/* Distortion effect */
-#define AL_DISTORTION_MIN_EDGE                   (0.0f)
-#define AL_DISTORTION_MAX_EDGE                   (1.0f)
-#define AL_DISTORTION_DEFAULT_EDGE               (0.2f)
-
-#define AL_DISTORTION_MIN_GAIN                   (0.01f)
-#define AL_DISTORTION_MAX_GAIN                   (1.0f)
-#define AL_DISTORTION_DEFAULT_GAIN               (0.05f)
-
-#define AL_DISTORTION_MIN_LOWPASS_CUTOFF         (80.0f)
-#define AL_DISTORTION_MAX_LOWPASS_CUTOFF         (24000.0f)
-#define AL_DISTORTION_DEFAULT_LOWPASS_CUTOFF     (8000.0f)
-
-#define AL_DISTORTION_MIN_EQCENTER               (80.0f)
-#define AL_DISTORTION_MAX_EQCENTER               (24000.0f)
-#define AL_DISTORTION_DEFAULT_EQCENTER           (3600.0f)
-
-#define AL_DISTORTION_MIN_EQBANDWIDTH            (80.0f)
-#define AL_DISTORTION_MAX_EQBANDWIDTH            (24000.0f)
-#define AL_DISTORTION_DEFAULT_EQBANDWIDTH        (3600.0f)
-
-
-/* Flanger effect */
-#define AL_FLANGER_WAVEFORM_SINUSOID             (0)
-#define AL_FLANGER_WAVEFORM_TRIANGLE             (1)
-
-#define AL_FLANGER_MIN_WAVEFORM                  (0)
-#define AL_FLANGER_MAX_WAVEFORM                  (1)
-#define AL_FLANGER_DEFAULT_WAVEFORM              (1)
-
-#define AL_FLANGER_MIN_PHASE                     (-180)
-#define AL_FLANGER_MAX_PHASE                     (180)
-#define AL_FLANGER_DEFAULT_PHASE                 (0)
-
-#define AL_FLANGER_MIN_RATE                      (0.0f)
-#define AL_FLANGER_MAX_RATE                      (10.0f)
-#define AL_FLANGER_DEFAULT_RATE                  (0.27f)
-
-#define AL_FLANGER_MIN_DEPTH                     (0.0f)
-#define AL_FLANGER_MAX_DEPTH                     (1.0f)
-#define AL_FLANGER_DEFAULT_DEPTH                 (1.0f)
-
-#define AL_FLANGER_MIN_FEEDBACK                  (-1.0f)
-#define AL_FLANGER_MAX_FEEDBACK                  (1.0f)
-#define AL_FLANGER_DEFAULT_FEEDBACK              (-0.5f)
-
-#define AL_FLANGER_MIN_DELAY                     (0.0f)
-#define AL_FLANGER_MAX_DELAY                     (0.004f)
-#define AL_FLANGER_DEFAULT_DELAY                 (0.002f)
-
-/* Frequency shifter effect */
-#define AL_FREQUENCY_SHIFTER_MIN_FREQUENCY       (0.0f)
-#define AL_FREQUENCY_SHIFTER_MAX_FREQUENCY       (24000.0f)
-#define AL_FREQUENCY_SHIFTER_DEFAULT_FREQUENCY   (0.0f)
-
-#define AL_FREQUENCY_SHIFTER_MIN_LEFT_DIRECTION  (0)
-#define AL_FREQUENCY_SHIFTER_MAX_LEFT_DIRECTION  (2)
-#define AL_FREQUENCY_SHIFTER_DEFAULT_LEFT_DIRECTION (0)
-
-#define AL_FREQUENCY_SHIFTER_DIRECTION_DOWN      (0)
-#define AL_FREQUENCY_SHIFTER_DIRECTION_UP        (1)
-#define AL_FREQUENCY_SHIFTER_DIRECTION_OFF       (2)
-
-#define AL_FREQUENCY_SHIFTER_MIN_RIGHT_DIRECTION (0)
-#define AL_FREQUENCY_SHIFTER_MAX_RIGHT_DIRECTION (2)
-#define AL_FREQUENCY_SHIFTER_DEFAULT_RIGHT_DIRECTION (0)
-
-/* Vocal morpher effect */
-#define AL_VOCAL_MORPHER_MIN_PHONEMEA            (0)
-#define AL_VOCAL_MORPHER_MAX_PHONEMEA            (29)
-#define AL_VOCAL_MORPHER_DEFAULT_PHONEMEA        (0)
-
-#define AL_VOCAL_MORPHER_MIN_PHONEMEA_COARSE_TUNING (-24)
-#define AL_VOCAL_MORPHER_MAX_PHONEMEA_COARSE_TUNING (24)
-#define AL_VOCAL_MORPHER_DEFAULT_PHONEMEA_COARSE_TUNING (0)
-
-#define AL_VOCAL_MORPHER_MIN_PHONEMEB            (0)
-#define AL_VOCAL_MORPHER_MAX_PHONEMEB            (29)
-#define AL_VOCAL_MORPHER_DEFAULT_PHONEMEB        (10)
-
-#define AL_VOCAL_MORPHER_MIN_PHONEMEB_COARSE_TUNING (-24)
-#define AL_VOCAL_MORPHER_MAX_PHONEMEB_COARSE_TUNING (24)
-#define AL_VOCAL_MORPHER_DEFAULT_PHONEMEB_COARSE_TUNING (0)
-
-#define AL_VOCAL_MORPHER_PHONEME_A               (0)
-#define AL_VOCAL_MORPHER_PHONEME_E               (1)
-#define AL_VOCAL_MORPHER_PHONEME_I               (2)
-#define AL_VOCAL_MORPHER_PHONEME_O               (3)
-#define AL_VOCAL_MORPHER_PHONEME_U               (4)
-#define AL_VOCAL_MORPHER_PHONEME_AA              (5)
-#define AL_VOCAL_MORPHER_PHONEME_AE              (6)
-#define AL_VOCAL_MORPHER_PHONEME_AH              (7)
-#define AL_VOCAL_MORPHER_PHONEME_AO              (8)
-#define AL_VOCAL_MORPHER_PHONEME_EH              (9)
-#define AL_VOCAL_MORPHER_PHONEME_ER              (10)
-#define AL_VOCAL_MORPHER_PHONEME_IH              (11)
-#define AL_VOCAL_MORPHER_PHONEME_IY              (12)
-#define AL_VOCAL_MORPHER_PHONEME_UH              (13)
-#define AL_VOCAL_MORPHER_PHONEME_UW              (14)
-#define AL_VOCAL_MORPHER_PHONEME_B               (15)
-#define AL_VOCAL_MORPHER_PHONEME_D               (16)
-#define AL_VOCAL_MORPHER_PHONEME_F               (17)
-#define AL_VOCAL_MORPHER_PHONEME_G               (18)
-#define AL_VOCAL_MORPHER_PHONEME_J               (19)
-#define AL_VOCAL_MORPHER_PHONEME_K               (20)
-#define AL_VOCAL_MORPHER_PHONEME_L               (21)
-#define AL_VOCAL_MORPHER_PHONEME_M               (22)
-#define AL_VOCAL_MORPHER_PHONEME_N               (23)
-#define AL_VOCAL_MORPHER_PHONEME_P               (24)
-#define AL_VOCAL_MORPHER_PHONEME_R               (25)
-#define AL_VOCAL_MORPHER_PHONEME_S               (26)
-#define AL_VOCAL_MORPHER_PHONEME_T               (27)
-#define AL_VOCAL_MORPHER_PHONEME_V               (28)
-#define AL_VOCAL_MORPHER_PHONEME_Z               (29)
-
-#define AL_VOCAL_MORPHER_WAVEFORM_SINUSOID       (0)
-#define AL_VOCAL_MORPHER_WAVEFORM_TRIANGLE       (1)
-#define AL_VOCAL_MORPHER_WAVEFORM_SAWTOOTH       (2)
-
-#define AL_VOCAL_MORPHER_MIN_WAVEFORM            (0)
-#define AL_VOCAL_MORPHER_MAX_WAVEFORM            (2)
-#define AL_VOCAL_MORPHER_DEFAULT_WAVEFORM        (0)
-
-#define AL_VOCAL_MORPHER_MIN_RATE                (0.0f)
-#define AL_VOCAL_MORPHER_MAX_RATE                (10.0f)
-#define AL_VOCAL_MORPHER_DEFAULT_RATE            (1.41f)
-
-/* Pitch shifter effect */
-#define AL_PITCH_SHIFTER_MIN_COARSE_TUNE         (-12)
-#define AL_PITCH_SHIFTER_MAX_COARSE_TUNE         (12)
-#define AL_PITCH_SHIFTER_DEFAULT_COARSE_TUNE     (12)
-
-#define AL_PITCH_SHIFTER_MIN_FINE_TUNE           (-50)
-#define AL_PITCH_SHIFTER_MAX_FINE_TUNE           (50)
-#define AL_PITCH_SHIFTER_DEFAULT_FINE_TUNE       (0)
-
-/* Ring modulator effect */
-#define AL_RING_MODULATOR_MIN_FREQUENCY          (0.0f)
-#define AL_RING_MODULATOR_MAX_FREQUENCY          (8000.0f)
-#define AL_RING_MODULATOR_DEFAULT_FREQUENCY      (440.0f)
-
-#define AL_RING_MODULATOR_MIN_HIGHPASS_CUTOFF    (0.0f)
-#define AL_RING_MODULATOR_MAX_HIGHPASS_CUTOFF    (24000.0f)
-#define AL_RING_MODULATOR_DEFAULT_HIGHPASS_CUTOFF (800.0f)
-
-#define AL_RING_MODULATOR_SINUSOID               (0)
-#define AL_RING_MODULATOR_SAWTOOTH               (1)
-#define AL_RING_MODULATOR_SQUARE                 (2)
-
-#define AL_RING_MODULATOR_MIN_WAVEFORM           (0)
-#define AL_RING_MODULATOR_MAX_WAVEFORM           (2)
-#define AL_RING_MODULATOR_DEFAULT_WAVEFORM       (0)
-
-/* Autowah effect */
-#define AL_AUTOWAH_MIN_ATTACK_TIME               (0.0001f)
-#define AL_AUTOWAH_MAX_ATTACK_TIME               (1.0f)
-#define AL_AUTOWAH_DEFAULT_ATTACK_TIME           (0.06f)
-
-#define AL_AUTOWAH_MIN_RELEASE_TIME              (0.0001f)
-#define AL_AUTOWAH_MAX_RELEASE_TIME              (1.0f)
-#define AL_AUTOWAH_DEFAULT_RELEASE_TIME          (0.06f)
-
-#define AL_AUTOWAH_MIN_RESONANCE                 (2.0f)
-#define AL_AUTOWAH_MAX_RESONANCE                 (1000.0f)
-#define AL_AUTOWAH_DEFAULT_RESONANCE             (1000.0f)
-
-#define AL_AUTOWAH_MIN_PEAK_GAIN                 (0.00003f)
-#define AL_AUTOWAH_MAX_PEAK_GAIN                 (31621.0f)
-#define AL_AUTOWAH_DEFAULT_PEAK_GAIN             (11.22f)
-
-/* Compressor effect */
-#define AL_COMPRESSOR_MIN_ONOFF                  (0)
-#define AL_COMPRESSOR_MAX_ONOFF                  (1)
-#define AL_COMPRESSOR_DEFAULT_ONOFF              (1)
-
-/* Equalizer effect */
-#define AL_EQUALIZER_MIN_LOW_GAIN                (0.126f)
-#define AL_EQUALIZER_MAX_LOW_GAIN                (7.943f)
-#define AL_EQUALIZER_DEFAULT_LOW_GAIN            (1.0f)
-
-#define AL_EQUALIZER_MIN_LOW_CUTOFF              (50.0f)
-#define AL_EQUALIZER_MAX_LOW_CUTOFF              (800.0f)
-#define AL_EQUALIZER_DEFAULT_LOW_CUTOFF          (200.0f)
-
-#define AL_EQUALIZER_MIN_MID1_GAIN               (0.126f)
-#define AL_EQUALIZER_MAX_MID1_GAIN               (7.943f)
-#define AL_EQUALIZER_DEFAULT_MID1_GAIN           (1.0f)
-
-#define AL_EQUALIZER_MIN_MID1_CENTER             (200.0f)
-#define AL_EQUALIZER_MAX_MID1_CENTER             (3000.0f)
-#define AL_EQUALIZER_DEFAULT_MID1_CENTER         (500.0f)
-
-#define AL_EQUALIZER_MIN_MID1_WIDTH              (0.01f)
-#define AL_EQUALIZER_MAX_MID1_WIDTH              (1.0f)
-#define AL_EQUALIZER_DEFAULT_MID1_WIDTH          (1.0f)
-
-#define AL_EQUALIZER_MIN_MID2_GAIN               (0.126f)
-#define AL_EQUALIZER_MAX_MID2_GAIN               (7.943f)
-#define AL_EQUALIZER_DEFAULT_MID2_GAIN           (1.0f)
-
-#define AL_EQUALIZER_MIN_MID2_CENTER             (1000.0f)
-#define AL_EQUALIZER_MAX_MID2_CENTER             (8000.0f)
-#define AL_EQUALIZER_DEFAULT_MID2_CENTER         (3000.0f)
-
-#define AL_EQUALIZER_MIN_MID2_WIDTH              (0.01f)
-#define AL_EQUALIZER_MAX_MID2_WIDTH              (1.0f)
-#define AL_EQUALIZER_DEFAULT_MID2_WIDTH          (1.0f)
-
-#define AL_EQUALIZER_MIN_HIGH_GAIN               (0.126f)
-#define AL_EQUALIZER_MAX_HIGH_GAIN               (7.943f)
-#define AL_EQUALIZER_DEFAULT_HIGH_GAIN           (1.0f)
-
-#define AL_EQUALIZER_MIN_HIGH_CUTOFF             (4000.0f)
-#define AL_EQUALIZER_MAX_HIGH_CUTOFF             (16000.0f)
-#define AL_EQUALIZER_DEFAULT_HIGH_CUTOFF         (6000.0f)
-
-
-/* Source parameter value ranges and defaults. */
-#define AL_MIN_AIR_ABSORPTION_FACTOR             (0.0f)
-#define AL_MAX_AIR_ABSORPTION_FACTOR             (10.0f)
-#define AL_DEFAULT_AIR_ABSORPTION_FACTOR         (0.0f)
-
-#define AL_MIN_ROOM_ROLLOFF_FACTOR               (0.0f)
-#define AL_MAX_ROOM_ROLLOFF_FACTOR               (10.0f)
-#define AL_DEFAULT_ROOM_ROLLOFF_FACTOR           (0.0f)
-
-#define AL_MIN_CONE_OUTER_GAINHF                 (0.0f)
-#define AL_MAX_CONE_OUTER_GAINHF                 (1.0f)
-#define AL_DEFAULT_CONE_OUTER_GAINHF             (1.0f)
-
-#define AL_MIN_DIRECT_FILTER_GAINHF_AUTO         AL_FALSE
-#define AL_MAX_DIRECT_FILTER_GAINHF_AUTO         AL_TRUE
-#define AL_DEFAULT_DIRECT_FILTER_GAINHF_AUTO     AL_TRUE
-
-#define AL_MIN_AUXILIARY_SEND_FILTER_GAIN_AUTO   AL_FALSE
-#define AL_MAX_AUXILIARY_SEND_FILTER_GAIN_AUTO   AL_TRUE
-#define AL_DEFAULT_AUXILIARY_SEND_FILTER_GAIN_AUTO AL_TRUE
-
-#define AL_MIN_AUXILIARY_SEND_FILTER_GAINHF_AUTO AL_FALSE
-#define AL_MAX_AUXILIARY_SEND_FILTER_GAINHF_AUTO AL_TRUE
-#define AL_DEFAULT_AUXILIARY_SEND_FILTER_GAINHF_AUTO AL_TRUE
-
-
-/* Listener parameter value ranges and defaults. */
-#define AL_MIN_METERS_PER_UNIT                   FLT_MIN
-#define AL_MAX_METERS_PER_UNIT                   FLT_MAX
-#define AL_DEFAULT_METERS_PER_UNIT               (1.0f)
-}
+AL_CHORUS_MIN_DEPTH                      = 0.0;
+AL_CHORUS_MAX_DEPTH                      = 1.0;
+AL_CHORUS_DEFAULT_DEPTH                  = 0.1;
+
+AL_CHORUS_MIN_FEEDBACK                   = -1.0;
+AL_CHORUS_MAX_FEEDBACK                   = 1.0;
+AL_CHORUS_DEFAULT_FEEDBACK               = 0.25;
+
+AL_CHORUS_MIN_DELAY                      = 0.0;
+AL_CHORUS_MAX_DELAY                      = 0.016;
+AL_CHORUS_DEFAULT_DELAY                  = 0.016;
+
+// Distortion effect */
+AL_DISTORTION_MIN_EDGE                   = 0.0;
+AL_DISTORTION_MAX_EDGE                   = 1.0;
+AL_DISTORTION_DEFAULT_EDGE               = 0.2;
+
+AL_DISTORTION_MIN_GAIN                   = 0.01;
+AL_DISTORTION_MAX_GAIN                   = 1.0;
+AL_DISTORTION_DEFAULT_GAIN               = 0.05;
+
+AL_DISTORTION_MIN_LOWPASS_CUTOFF         = 80.0;
+AL_DISTORTION_MAX_LOWPASS_CUTOFF         = 24000.0;
+AL_DISTORTION_DEFAULT_LOWPASS_CUTOFF     = 8000.0;
+
+AL_DISTORTION_MIN_EQCENTER               = 80.0;
+AL_DISTORTION_MAX_EQCENTER               = 24000.0;
+AL_DISTORTION_DEFAULT_EQCENTER           = 3600.0;
+
+AL_DISTORTION_MIN_EQBANDWIDTH            = 80.0;
+AL_DISTORTION_MAX_EQBANDWIDTH            = 24000.0;
+AL_DISTORTION_DEFAULT_EQBANDWIDTH        = 3600.0;
+
+
+// Flanger effect */
+AL_FLANGER_WAVEFORM_SINUSOID             = 0;
+AL_FLANGER_WAVEFORM_TRIANGLE             = 1;
+
+AL_FLANGER_MIN_WAVEFORM                  = 0;
+AL_FLANGER_MAX_WAVEFORM                  = 1;
+AL_FLANGER_DEFAULT_WAVEFORM              = 1;
+
+AL_FLANGER_MIN_PHASE                     = -180;
+AL_FLANGER_MAX_PHASE                     = 180;
+AL_FLANGER_DEFAULT_PHASE                 = 0;
+
+AL_FLANGER_MIN_RATE                      = 0.0;
+AL_FLANGER_MAX_RATE                      = 10.0;
+AL_FLANGER_DEFAULT_RATE                  = 0.27;
+
+AL_FLANGER_MIN_DEPTH                     = 0.0;
+AL_FLANGER_MAX_DEPTH                     = 1.0;
+AL_FLANGER_DEFAULT_DEPTH                 = 1.0;
+
+AL_FLANGER_MIN_FEEDBACK                  = -1.0;
+AL_FLANGER_MAX_FEEDBACK                  = 1.0;
+AL_FLANGER_DEFAULT_FEEDBACK              = -0.5;
+
+AL_FLANGER_MIN_DELAY                     = 0.0;
+AL_FLANGER_MAX_DELAY                     = 0.004;
+AL_FLANGER_DEFAULT_DELAY                 = 0.002;
+
+// Frequency shifter effect */
+AL_FREQUENCY_SHIFTER_MIN_FREQUENCY       = 0.0;
+AL_FREQUENCY_SHIFTER_MAX_FREQUENCY       = 24000.0;
+AL_FREQUENCY_SHIFTER_DEFAULT_FREQUENCY   = 0.0;
+
+AL_FREQUENCY_SHIFTER_MIN_LEFT_DIRECTION  = 0;
+AL_FREQUENCY_SHIFTER_MAX_LEFT_DIRECTION  = 2;
+AL_FREQUENCY_SHIFTER_DEFAULT_LEFT_DIRECTION = 0;
+
+AL_FREQUENCY_SHIFTER_DIRECTION_DOWN      = 0;
+AL_FREQUENCY_SHIFTER_DIRECTION_UP        = 1;
+AL_FREQUENCY_SHIFTER_DIRECTION_OFF       = 2;
+
+AL_FREQUENCY_SHIFTER_MIN_RIGHT_DIRECTION = 0;
+AL_FREQUENCY_SHIFTER_MAX_RIGHT_DIRECTION = 2;
+AL_FREQUENCY_SHIFTER_DEFAULT_RIGHT_DIRECTION = 0;
+
+// Vocal morpher effect */
+AL_VOCAL_MORPHER_MIN_PHONEMEA            = 0;
+AL_VOCAL_MORPHER_MAX_PHONEMEA            = 29;
+AL_VOCAL_MORPHER_DEFAULT_PHONEMEA        = 0;
+
+AL_VOCAL_MORPHER_MIN_PHONEMEA_COARSE_TUNING = -24;
+AL_VOCAL_MORPHER_MAX_PHONEMEA_COARSE_TUNING = 24;
+AL_VOCAL_MORPHER_DEFAULT_PHONEMEA_COARSE_TUNING = 0;
+
+AL_VOCAL_MORPHER_MIN_PHONEMEB            = 0;
+AL_VOCAL_MORPHER_MAX_PHONEMEB            = 29;
+AL_VOCAL_MORPHER_DEFAULT_PHONEMEB        = 10;
+
+AL_VOCAL_MORPHER_MIN_PHONEMEB_COARSE_TUNING = -24;
+AL_VOCAL_MORPHER_MAX_PHONEMEB_COARSE_TUNING = 24;
+AL_VOCAL_MORPHER_DEFAULT_PHONEMEB_COARSE_TUNING = 0;
+
+AL_VOCAL_MORPHER_PHONEME_A               = 0;
+AL_VOCAL_MORPHER_PHONEME_E               = 1;
+AL_VOCAL_MORPHER_PHONEME_I               = 2;
+AL_VOCAL_MORPHER_PHONEME_O               = 3;
+AL_VOCAL_MORPHER_PHONEME_U               = 4;
+AL_VOCAL_MORPHER_PHONEME_AA              = 5;
+AL_VOCAL_MORPHER_PHONEME_AE              = 6;
+AL_VOCAL_MORPHER_PHONEME_AH              = 7;
+AL_VOCAL_MORPHER_PHONEME_AO              = 8;
+AL_VOCAL_MORPHER_PHONEME_EH              = 9;
+AL_VOCAL_MORPHER_PHONEME_ER              = 10;
+AL_VOCAL_MORPHER_PHONEME_IH              = 11;
+AL_VOCAL_MORPHER_PHONEME_IY              = 12;
+AL_VOCAL_MORPHER_PHONEME_UH              = 13;
+AL_VOCAL_MORPHER_PHONEME_UW              = 14;
+AL_VOCAL_MORPHER_PHONEME_B               = 15;
+AL_VOCAL_MORPHER_PHONEME_D               = 16;
+AL_VOCAL_MORPHER_PHONEME_F               = 17;
+AL_VOCAL_MORPHER_PHONEME_G               = 18;
+AL_VOCAL_MORPHER_PHONEME_J               = 19;
+AL_VOCAL_MORPHER_PHONEME_K               = 20;
+AL_VOCAL_MORPHER_PHONEME_L               = 21;
+AL_VOCAL_MORPHER_PHONEME_M               = 22;
+AL_VOCAL_MORPHER_PHONEME_N               = 23;
+AL_VOCAL_MORPHER_PHONEME_P               = 24;
+AL_VOCAL_MORPHER_PHONEME_R               = 25;
+AL_VOCAL_MORPHER_PHONEME_S               = 26;
+AL_VOCAL_MORPHER_PHONEME_T               = 27;
+AL_VOCAL_MORPHER_PHONEME_V               = 28;
+AL_VOCAL_MORPHER_PHONEME_Z               = 29;
+
+AL_VOCAL_MORPHER_WAVEFORM_SINUSOID       = 0;
+AL_VOCAL_MORPHER_WAVEFORM_TRIANGLE       = 1;
+AL_VOCAL_MORPHER_WAVEFORM_SAWTOOTH       = 2;
+
+AL_VOCAL_MORPHER_MIN_WAVEFORM            = 0;
+AL_VOCAL_MORPHER_MAX_WAVEFORM            = 2;
+AL_VOCAL_MORPHER_DEFAULT_WAVEFORM        = 0;
+
+AL_VOCAL_MORPHER_MIN_RATE                = 0.0;
+AL_VOCAL_MORPHER_MAX_RATE                = 10.0;
+AL_VOCAL_MORPHER_DEFAULT_RATE            = 1.41;
+
+// Pitch shifter effect */
+AL_PITCH_SHIFTER_MIN_COARSE_TUNE         = -12;
+AL_PITCH_SHIFTER_MAX_COARSE_TUNE         = 12;
+AL_PITCH_SHIFTER_DEFAULT_COARSE_TUNE     = 12;
+
+AL_PITCH_SHIFTER_MIN_FINE_TUNE           = -50;
+AL_PITCH_SHIFTER_MAX_FINE_TUNE           = 50;
+AL_PITCH_SHIFTER_DEFAULT_FINE_TUNE       = 0;
+
+// Ring modulator effect */
+AL_RING_MODULATOR_MIN_FREQUENCY          = 0.0;
+AL_RING_MODULATOR_MAX_FREQUENCY          = 8000.0;
+AL_RING_MODULATOR_DEFAULT_FREQUENCY      = 440.0;
+
+AL_RING_MODULATOR_MIN_HIGHPASS_CUTOFF    = 0.0;
+AL_RING_MODULATOR_MAX_HIGHPASS_CUTOFF    = 24000.0;
+AL_RING_MODULATOR_DEFAULT_HIGHPASS_CUTOFF = 800.0;
+
+AL_RING_MODULATOR_SINUSOID               = 0;
+AL_RING_MODULATOR_SAWTOOTH               = 1;
+AL_RING_MODULATOR_SQUARE                 = 2;
+
+AL_RING_MODULATOR_MIN_WAVEFORM           = 0;
+AL_RING_MODULATOR_MAX_WAVEFORM           = 2;
+AL_RING_MODULATOR_DEFAULT_WAVEFORM       = 0;
+
+// Autowah effect */
+AL_AUTOWAH_MIN_ATTACK_TIME               = 0.0001;
+AL_AUTOWAH_MAX_ATTACK_TIME               = 1.0;
+AL_AUTOWAH_DEFAULT_ATTACK_TIME           = 0.06;
+
+AL_AUTOWAH_MIN_RELEASE_TIME              = 0.0001;
+AL_AUTOWAH_MAX_RELEASE_TIME              = 1.0;
+AL_AUTOWAH_DEFAULT_RELEASE_TIME          = 0.06;
+
+AL_AUTOWAH_MIN_RESONANCE                 = 2.0;
+AL_AUTOWAH_MAX_RESONANCE                 = 1000.0;
+AL_AUTOWAH_DEFAULT_RESONANCE             = 1000.0;
+
+AL_AUTOWAH_MIN_PEAK_GAIN                 = 0.00003;
+AL_AUTOWAH_MAX_PEAK_GAIN                 = 31621.0;
+AL_AUTOWAH_DEFAULT_PEAK_GAIN             = 11.22;
+
+// Compressor effect */
+AL_COMPRESSOR_MIN_ONOFF                  = 0;
+AL_COMPRESSOR_MAX_ONOFF                  = 1;
+AL_COMPRESSOR_DEFAULT_ONOFF              = 1;
+
+// Equalizer effect */
+AL_EQUALIZER_MIN_LOW_GAIN                = 0.126;
+AL_EQUALIZER_MAX_LOW_GAIN                = 7.943;
+AL_EQUALIZER_DEFAULT_LOW_GAIN            = 1.0;
+
+AL_EQUALIZER_MIN_LOW_CUTOFF              = 50.0;
+AL_EQUALIZER_MAX_LOW_CUTOFF              = 800.0;
+AL_EQUALIZER_DEFAULT_LOW_CUTOFF          = 200.0;
+
+AL_EQUALIZER_MIN_MID1_GAIN               = 0.126;
+AL_EQUALIZER_MAX_MID1_GAIN               = 7.943;
+AL_EQUALIZER_DEFAULT_MID1_GAIN           = 1.0;
+
+AL_EQUALIZER_MIN_MID1_CENTER             = 200.0;
+AL_EQUALIZER_MAX_MID1_CENTER             = 3000.0;
+AL_EQUALIZER_DEFAULT_MID1_CENTER         = 500.0;
+
+AL_EQUALIZER_MIN_MID1_WIDTH              = 0.01;
+AL_EQUALIZER_MAX_MID1_WIDTH              = 1.0;
+AL_EQUALIZER_DEFAULT_MID1_WIDTH          = 1.0;
+
+AL_EQUALIZER_MIN_MID2_GAIN               = 0.126;
+AL_EQUALIZER_MAX_MID2_GAIN               = 7.943;
+AL_EQUALIZER_DEFAULT_MID2_GAIN           = 1.0;
+
+AL_EQUALIZER_MIN_MID2_CENTER             = 1000.0;
+AL_EQUALIZER_MAX_MID2_CENTER             = 8000.0;
+AL_EQUALIZER_DEFAULT_MID2_CENTER         = 3000.0;
+
+AL_EQUALIZER_MIN_MID2_WIDTH              = 0.01;
+AL_EQUALIZER_MAX_MID2_WIDTH              = 1.0;
+AL_EQUALIZER_DEFAULT_MID2_WIDTH          = 1.0;
+
+AL_EQUALIZER_MIN_HIGH_GAIN               = 0.126;
+AL_EQUALIZER_MAX_HIGH_GAIN               = 7.943;
+AL_EQUALIZER_DEFAULT_HIGH_GAIN           = 1.0;
+
+AL_EQUALIZER_MIN_HIGH_CUTOFF             = 4000.0;
+AL_EQUALIZER_MAX_HIGH_CUTOFF             = 16000.0;
+AL_EQUALIZER_DEFAULT_HIGH_CUTOFF         = 6000.0;
+
+
+// Source parameter value ranges and defaults. */
+AL_MIN_AIR_ABSORPTION_FACTOR             = 0.0;
+AL_MAX_AIR_ABSORPTION_FACTOR             = 10.0;
+AL_DEFAULT_AIR_ABSORPTION_FACTOR         = 0.0;
+
+AL_MIN_ROOM_ROLLOFF_FACTOR               = 0.0;
+AL_MAX_ROOM_ROLLOFF_FACTOR               = 10.0;
+AL_DEFAULT_ROOM_ROLLOFF_FACTOR           = 0.0;
+
+AL_MIN_CONE_OUTER_GAINHF                 = 0.0;
+AL_MAX_CONE_OUTER_GAINHF                 = 1.0;
+AL_DEFAULT_CONE_OUTER_GAINHF             = 1.0;
+
+AL_MIN_DIRECT_FILTER_GAINHF_AUTO         = False;
+AL_MAX_DIRECT_FILTER_GAINHF_AUTO         = True;
+AL_DEFAULT_DIRECT_FILTER_GAINHF_AUTO     = True;
+
+AL_MIN_AUXILIARY_SEND_FILTER_GAIN_AUTO   = False;
+AL_MAX_AUXILIARY_SEND_FILTER_GAIN_AUTO   = True;
+AL_DEFAULT_AUXILIARY_SEND_FILTER_GAIN_AUTO = True;
+
+AL_MIN_AUXILIARY_SEND_FILTER_GAINHF_AUTO = False;
+AL_MAX_AUXILIARY_SEND_FILTER_GAINHF_AUTO = True;
+AL_DEFAULT_AUXILIARY_SEND_FILTER_GAINHF_AUTO = True;
+
+
+// Listener parameter value ranges and defaults. */
+//AL_MIN_METERS_PER_UNIT                   FLT_MIN
+//AL_MAX_METERS_PER_UNIT                   FLT_MAX
+AL_DEFAULT_METERS_PER_UNIT               = 1.0;
+
 (* Filters implementation is based on the "Cookbook formulae for audio
    EQ biquad filter coefficients" by Robert Bristow-Johnson
     http://www.musicdsp.org/files/Audio-EQ-Cookbook.txt                   *)
@@ -649,24 +649,9 @@ Type
     AudioEffect_DEDICATED
   );
 
-  ALfilterType = (
-    // EFX-style low-pass filter, specifying a gain and reference frequency.
-    ALfilterType_HighShelf,
-    // EFX-style high-pass filter, specifying a gain and reference frequency.
-    ALfilterType_LowShelf,
-    // Peaking filter, specifying a gain, reference frequency, and bandwidth.
-    ALfilterType_Peaking,
-
-    // Low-pass cut-off filter, specifying a cut-off frequency and bandwidth.
-    ALfilterType_LowPass,
-    // High-pass cut-off filter, specifying a cut-off frequency and bandwidth.
-    ALfilterType_HighPass,
-    // Band-pass filter, specifying a center frequency and bandwidth.
-    ALfilterType_BandPass
-  );
-
+  FloatAudioSampleArray = Array Of FloatAudioSample;
   AudioEffectBuffer = Record
-    Samples:Array[0..Pred(MAX_OUTPUT_CHANNELS)] Of PSingleArray;
+    Samples:Array[0..Pred(MAX_OUTPUT_CHANNELS)] Of FloatAudioSampleArray;
   End;
 
 (*
@@ -764,9 +749,28 @@ typedef union ALeffectProps {
 
 *)
 
+(*  ALfilterType = (
+    // EFX-style low-pass filter, specifying a gain and reference frequency.
+    ALfilterType_HighShelf,
+    // EFX-style high-pass filter, specifying a gain and reference frequency.
+    ALfilterType_LowShelf,
+    // Peaking filter, specifying a gain, reference frequency, and bandwidth.
+    ALfilterType_Peaking,
+
+    // Low-pass cut-off filter, specifying a cut-off frequency and bandwidth.
+    ALfilterType_LowPass,
+    // High-pass cut-off filter, specifying a cut-off frequency and bandwidth.
+    ALfilterType_HighPass,
+    // Band-pass filter, specifying a center frequency and bandwidth.
+    ALfilterType_BandPass
+  );*)
+
+
   AudioFilter = Class(TERRAObject)
     Protected
       _id:Cardinal;
+
+      _TargetFrequency:Cardinal;
 
       _EffectType:ALEffectType;
       //EffectProps:ALeffectProps;
@@ -795,15 +799,24 @@ typedef union ALeffectProps {
 
       Function processSingle(Const sample:Single):Single;
 
-      Procedure SetParams(FilterType:ALfilterType; Const gain, freq_mult, bandwidth:Single);
+      Procedure UpdateParams(Const gain, bandwidth, w0:Single); Virtual; Abstract;
+      Procedure SetParams(gain:Single; Const freq_mult, bandwidth:Single);
 
     Public
-      Function Initialize(Target: TERRAAudioBuffer): Boolean; Virtual;
+      Function Initialize(Frequency:Cardinal): Boolean; Virtual;
 
-      Procedure Update(Target:TERRAAudioBuffer); Virtual; Abstract;
-      Procedure Process(samplesToDo:Integer; samplesIn:PSingleArray; Var samplesOut:AudioEffectBuffer; numChannels:Cardinal); Virtual; Abstract;
+      Procedure Update(); Virtual; Abstract;
+      Procedure Process(samplesToDo:Integer; samplesIn:PSingleArray; Var samplesOut:AudioEffectBuffer); Virtual; Abstract;
 
       Property Gain:Single Read _Gain;
+  End;
+
+  AudioHighShelfFilter = Class(AudioFilter)
+    Protected
+      Procedure UpdateParams(Const gain, bandwidth, w0:Single); Override;
+
+    Public
+      Function Initialize(Frequency:Cardinal): Boolean; Override;
   End;
 
 
@@ -822,8 +835,9 @@ inline struct ALfilter *RemoveFilter(ALCdevice *device, ALuint id)
 }
 
 { AudioFilter }
-Function AudioFilter.Initialize(Target: TERRAAudioBuffer): Boolean;
+Function AudioFilter.Initialize(Frequency:Cardinal): Boolean;
 Begin
+  _TargetFrequency := Frequency;
   Result := True;
 End;
 
@@ -837,26 +851,12 @@ Begin
 End;
 
 
-Procedure AudioFilter.SetParams(FilterType:ALfilterType; Const gain, freq_mult, bandwidth:Single);
-Var
-  alpha, w0:Single;
+(*Procedure AudioFilter.SetParams(FilterType:ALfilterType; Const gain, freq_mult, bandwidth:Single);
 Begin
-  // Limit gain to -100dB
-  _Gain := FloatMax(gain, 0.00001);
-
-  w0 := PI * 2 * freq_mult;
-
   // Calculate filter coefficients depending on filter type
   Case FilterType Of
   ALfilterType_HighShelf:
     Begin
-      alpha := Sin(w0)/2.0 * Sqrt((gain + 1.0/gain)*(1.0/0.75 - 1.0) + 2.0);
-      _b[0] :=       gain*((gain+1.0) + (gain-1.0)*Cos(w0) + 2.0*Sqrt(gain)*alpha);
-      _b[1] := -2.0*gain*((gain-1.0) + (gain+1.0)*Cos(w0)                         );
-      _b[2] :=       gain*((gain+1.0) + (gain-1.0)*Cos(w0) - 2.0*Sqrt(gain)*alpha);
-      _a[0] :=             (gain+1.0) - (gain-1.0)*Cos(w0) + 2.0*Sqrt(gain)*alpha;
-      _a[1] :=  2.0*     ((gain-1.0) - (gain+1.0)*Cos(w0)                         );
-      _a[2] :=             (gain+1.0) - (gain-1.0)*Cos(w0) - 2.0*Sqrt(gain)*alpha;
     End;
 
     ALfilterType_LowShelf:
@@ -915,14 +915,53 @@ Begin
         End;
     End;
 
+  Self.NormalizeFilter();
+//  _process := ALfilterState_processC;
+End;*)
+
+Procedure AudioFilter.SetParams(gain:Single; const freq_mult, bandwidth: Single);
+Var
+  w0:Single;
+Begin
+  // Limit gain to -100dB
+  gain := FloatMax(gain, 0.00001);
+  w0 := PI * 2 * freq_mult;
+
+  Self.UpdateParams(gain, bandwidth, w0);
+  
   _b[2] := _b[2] / _a[0];
   _b[1] := _b[1]/ _a[0];
   _b[0] := _b[0] / _a[0];
   _a[2] :=  _a[2] / _a[0];
   _a[1] :=  _a[1] / _a[0];
   _a[0] :=  _a[0] / _a[0];
+End;
 
-//  _process := ALfilterState_processC;
+{ AudioHighShelfFilter }
+Function AudioHighShelfFilter.Initialize(Frequency: Cardinal): Boolean;
+Begin
+  Inherited Initialize(Frequency);
+
+  Self._Gain := AL_HIGHPASS_DEFAULT_GAIN;
+  Self._GainHF := 1.0;
+  Self._HFReference := LOWPASSFREQREF;
+  Self._GainLF := AL_HIGHPASS_DEFAULT_GAINLF;
+
+  Self._LFReference := HIGHPASSFREQREF;
+End;
+
+Procedure AudioHighShelfFilter.UpdateParams(Const gain, bandwidth, w0:Single);
+Var
+  Alpha:Single;
+Begin
+  alpha := Sin(w0)/2.0 * Sqrt((gain + 1.0/gain)*(1.0/0.75 - 1.0) + 2.0);
+
+  _b[0] :=       gain*((gain+1.0) + (gain-1.0)*Cos(w0) + 2.0*Sqrt(gain)*alpha);
+  _b[1] := -2.0*gain*((gain-1.0) + (gain+1.0)*Cos(w0)                         );
+  _b[2] :=       gain*((gain+1.0) + (gain-1.0)*Cos(w0) - 2.0*Sqrt(gain)*alpha);
+  _a[0] :=             (gain+1.0) - (gain-1.0)*Cos(w0) + 2.0*Sqrt(gain)*alpha;
+  _a[1] :=  2.0*     ((gain-1.0) - (gain+1.0)*Cos(w0)                         );
+  _a[2] :=             (gain+1.0) - (gain-1.0)*Cos(w0) - 2.0*Sqrt(gain)*alpha;
 End;
 
 End.

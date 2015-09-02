@@ -39,6 +39,9 @@ Type
        _BufferB:TERRAAudioMixingBuffer;
        _CurrentBuffer:TERRAAudioMixingBuffer;
 
+       _CurrentFilter:AudioFilter;
+       _FilterBuf:AudioEffectBuffer;
+
        _Thread:TERRAThread;
        _Mutex:CriticalSection;
        _ThreadTerminated:Boolean;
@@ -120,6 +123,12 @@ Begin
   _Driver := SLAudioDriver.Create();
   {$ENDIF}
 
+  _CurrentFilter := AudioEchoEffect.Create();
+  _CurrentFilter.Initialize(_CurrentBuffer.Frequency);
+
+  For I:=0 To 1 Do
+    SetLength(_FilterBuf.Samples[I], DefaultAudioSampleCount);
+  
   _Ready := (Assigned(_Driver)) And (_Driver.Reset(Self));
 
   If Not _Ready Then
@@ -149,6 +158,8 @@ Begin
   End;
 
   Self.ClearSources();
+
+  ReleaseObject(_CurrentFilter);
 
   ReleaseObject(_Driver);
 
@@ -255,16 +266,18 @@ Begin
   Inc(_CurrentSample, SampleCount);
   Result := SampleCount;
 
-  SampleCount := SampleCount Shl 1;
-  For I:=1 To SampleCount Do
-  Begin
-    Val := SrcData^;
-    Inc(SrcData);
+  _CurrentFilter.Update();
+  _CurrentFilter.Process(SampleCount, PSingleArray(SrcData), _FilterBuf);
 
+  For I:=0 To Pred(SampleCount) Do
+  Begin
+    Val := _FilterBuf.Samples[0][I];
     Dest^ := Trunc(Val * 32767);
     Inc(Dest);
 
-    Dec(SampleCount);
+    Val := _FilterBuf.Samples[1][I];
+    Dest^ := Trunc(Val * 32767);
+    Inc(Dest);
   End;
 
   //Move(SrcData^, Dest^, SampleCount * SizeOf(AudioSample) * 2);
