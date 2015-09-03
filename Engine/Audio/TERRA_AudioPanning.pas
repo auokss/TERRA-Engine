@@ -3,7 +3,9 @@ Unit TERRA_AudioPanning;
 Interface
 Uses TERRA_AudioBuffer, TERRA_Vector3D;
 
-Procedure ComputeDirectionalGains(dir:Vector3D; ingain:Single; Out outputGain:MixingAudioSample);
+Procedure ComputeAmbientGains(Const ingain:Single; Out gains:MixingAudioSample);
+Procedure ComputeDirectionalGains(dir:Vector3D; ingain:Single; Out gains:MixingAudioSample);
+
 
 Implementation
 
@@ -14,7 +16,15 @@ Const
   Stereo_Left:Array[0..Pred(MAX_AMBI_COEFFS)] Of Single = (0.7071,  0.5, 0.0, 0.0);
   Stereo_Right:Array[0..Pred(MAX_AMBI_COEFFS)] Of Single = (0.7071,  -0.5, 0.0, 0.0);
 
-Procedure ComputeDirectionalGains(dir:Vector3D; ingain:Single; Out outputGain:MixingAudioSample);
+Procedure ComputeAmbientGains(Const ingain:Single; Out gains:MixingAudioSample);
+Begin
+  // The W coefficients are based on a mathematical average of the output, scaled by sqrt(2) to compensate for FuMa-style Ambisonics scaling the W channel input by sqrt(0.5).
+  // The square root of the base average provides for a more perceptual average volume, better suited to non-directional gains.
+  gains.Left := Sqrt(0.7071/1.4142) * ingain;
+  gains.Right := gains.Left;
+End;
+
+Procedure ComputeDirectionalGains(dir:Vector3D; ingain:Single; Out gains:MixingAudioSample);
 Var
   i, j:Integer;
   coeffs:Array[0..Pred(MAX_AMBI_COEFFS)] Of Single;
@@ -50,17 +60,17 @@ Begin
   coeffs[14] := 2.5981 * z * (x*x - y*y);       // N = sqrt(27.0 / 4.0) * Z * (X*X - Y*Y)
   coeffs[15] := x * (x*x - 3.0*y*y);            // P = X * (X*X - 3*Y*Y)*)
 
-  outputGain.Left := 0.0;
+  gains.Left := 0.0;
     For J:=0 To Pred(MAX_AMBI_COEFFS) Do
-      outputGain.Left := outputGain.Left + Stereo_Left[j] *coeffs[j];
+      gains.Left := gains.Left + Stereo_Left[j] *coeffs[j];
 
-  outputGain.Left := outputGain.Left * ingain;
+  gains.Left := gains.Left * ingain;
 
-  outputGain.Right := 0.0;
+  gains.Right := 0.0;
     For J:=0 To Pred(MAX_AMBI_COEFFS) Do
-      outputGain.Right := outputGain.Right + Stereo_Right[j] *coeffs[j];
+      gains.Right := gains.Right + Stereo_Right[j] *coeffs[j];
 
-  outputGain.Right := outputGain.Right * ingain;
+  gains.Right := gains.Right * ingain;
 End;
 
 End.

@@ -69,8 +69,8 @@ Function SinH(X:Float):Float;
 
 Function SmoothStep(A,B,X:Float):Float;
 
-Function PreviousPowerOfTwo(P:Cardinal):Cardinal;
-Function NextPowerOfTwo(P:Cardinal):Cardinal;
+Function PreviousPowerOfTwo(Value:Cardinal):Cardinal;
+Function NextPowerOfTwo(Value:Cardinal):Cardinal;
 
 Function LinearInterpolate(a,b, mu:Float):Float; {$IFDEF FPC} Inline;{$ENDIF}
 Function CubicInterpolate(y0, y1, y2, y3, mu:Float):Float; {$IFDEF FPC} Inline;{$ENDIF}
@@ -400,7 +400,7 @@ Begin
     Result := Exp(Y * Ln(X));
 End;}
 
-Function PreviousPowerOfTwo(P:Cardinal):Cardinal;
+Function PreviousPowerOfTwo(Value:Cardinal):Cardinal;
 Var
   I,N:Cardinal;
 Begin
@@ -408,27 +408,26 @@ Begin
   For I:=14 DownTo 2 Do
   Begin
     N := (1 Shl I);
-    If N<P Then
+    If N<Value Then
       Break
     Else
       Result:=N;
   End;
 End;
 
-Function NextPowerOfTwo(P:Cardinal):Cardinal;
-Var
-  I,N:Cardinal;
+Function NextPowerOfTwo(Value:Cardinal):Cardinal;
 Begin
-  Result := 0;
-  For I:=0 To 31 Do
+  If (value > 0) Then
   Begin
-    N := (1 Shl I);
-    If N>P Then
-    Begin
-      Result := N;
-      Exit;
-    End;
+    Dec(Value);
+    Value := Value Or (Value Shr 1);
+    Value := Value Or (Value Shr 2);
+    Value := Value Or (Value Shr 4);
+    Value := Value Or (Value Shr 8);
+    Value := Value Or (Value Shr 16);
   End;
+
+  Result := Value + 1;
 End;
 
 Function SmoothCurveWithOffset(Delta,Offset:Float):Float;
