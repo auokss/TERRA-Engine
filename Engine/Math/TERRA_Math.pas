@@ -92,7 +92,7 @@ Function SmoothCurveWithOffset(Delta, Offset:Float):Float;
 
 Function Ln(Const X:Float):Float;
 Function Log2(Const X:Float):Float;
-//Function Log2(X:Integer):Float; Overload;
+Function Log10(Const X:Float):Float;
 Function LNXP1(Const x:Float):Float;
 
 Function float32_Unpack(Const x:Cardinal):Single;
@@ -163,6 +163,11 @@ End;
 Function Log2(Const X:Float):Float;
 Begin
   Result := Ln(x) * 1.4426950408889634079;    // 1/ln(2)
+End;
+
+Function Log10(Const X:Float):Float;
+Begin
+  Result := Ln(x) * 0.4342944819;    // 1/ln(10)
 End;
 
 {Function Log2(X:Integer):Float;

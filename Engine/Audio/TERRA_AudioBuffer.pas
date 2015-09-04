@@ -19,9 +19,8 @@ Type
   End;
   PMixingAudioSample = ^MixingAudioSample;
 
-  FloatAudioSampleArray = Record
-    Samples:Array Of MixingAudioSample;
-  End;
+  FloatAudioSampleArray = Array [0..64444] Of MixingAudioSample;
+  PFloatAudioSampleArray = ^FloatAudioSampleArray;
 
 Const
   MinSampleValue = -1.0;

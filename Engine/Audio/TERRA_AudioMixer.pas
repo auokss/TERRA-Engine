@@ -39,8 +39,6 @@ Type
        _BufferB:TERRAAudioMixingBuffer;
        _CurrentBuffer:TERRAAudioMixingBuffer;
 
-       _CurrentFilter:AudioFilter;
-
        _Thread:TERRAThread;
        _Mutex:CriticalSection;
        _ThreadTerminated:Boolean;
@@ -123,8 +121,8 @@ Begin
   {$ENDIF}
 
   //_CurrentFilter := AudioNullFilter.Create(DefaultAudioSampleCount, _CurrentBuffer.Frequency);
-  _CurrentFilter := AudioEchoEffect.Create(_CurrentBuffer.Frequency);
-  _CurrentFilter.Update();
+  //_CurrentFilter := AudioEchoEffect.Create(_CurrentBuffer.Frequency);
+  //_CurrentFilter.Update();
 
   _Ready := (Assigned(_Driver)) And (_Driver.Reset(Self));
 
@@ -156,7 +154,7 @@ Begin
 
   Self.ClearSources();
 
-  ReleaseObject(_CurrentFilter);
+//  ReleaseObject(_CurrentFilter);
 
   ReleaseObject(_Driver);
 
@@ -260,11 +258,8 @@ Begin
   End Else
     Leftovers := 0;
 
-  {$IFDEF DRY}
   SrcData := Self._CurrentBuffer.GetSampleAt(_CurrentSample);
-  {$ELSE}
-  SrcData := _CurrentFilter.Process(Self._CurrentBuffer, _CurrentSample, SampleCount);
-  {$ENDIF}
+//  SrcData := _CurrentFilter.Process(Self._CurrentBuffer, _CurrentSample, SampleCount);
 
   For I:=0 To Pred(SampleCount) Do
   Begin
