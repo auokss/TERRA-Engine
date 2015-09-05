@@ -5,7 +5,7 @@ Unit TERRA_AudioReverb;
 Interface
 {$I terra.inc}
 
-Uses TERRA_Utils, TERRA_Vector3D, TERRA_AudioBuffer, TERRA_AudioPanning;
+Uses TERRA_Utils, TERRA_Vector3D, TERRA_AudioBuffer, TERRA_AudioPanning, TERRA_SoundAmbience;
 
 Const
   OUTPUT_CHANNELS  = 2;
@@ -28,33 +28,6 @@ Type
     Function Process(Const sample:Single):Single;
     Procedure SetParams(FilterType:ALfilterType; gain, freq_mult, bandwidth:Single);
     Procedure Clear();
-  End;
-
-  ReverbSettings = Record
-    Density:Single;
-    Diffusion:Single;
-    Gain:Single;
-    GainHF:Single;
-    DecayTime:Single;
-    DecayHFRatio:Single;
-    ReflectionsGain:Single;
-    ReflectionsDelay:Single;
-    LateReverbGain:Single;
-    LateReverbDelay:Single;
-    AirAbsorptionGainHF:Single;
-    RoomRolloffFactor:Single;
-    DecayHFLimit:Boolean;
-
-    GainLF:Single;
-    DecayLFRatio:Single;
-    ReflectionsPan:Vector3D;
-    LateReverbPan:Vector3D;
-    EchoTime:Single;
-    EchoDepth:Single;
-    ModulationTime:Single;
-    ModulationDepth:Single;
-    HFReference:Single;
-    LFReference:Single;
   End;
 
   DelayLine = Record
@@ -154,8 +127,6 @@ Type
 
   AudioReverbEffect = Class(TERRAObject)
     Protected
-      _settings:ReverbSettings;
-
       // All delay lines are allocated as a single buffer to reduce memory
       // fragmentation and management code.
       _SampleBuffer:Array Of Single;

@@ -4,7 +4,7 @@
 Uses TERRA_Application, TERRA_Scene, TERRA_GraphicsManager, TERRA_Viewport,
   TERRA_ResourceManager, TERRA_Color, TERRA_Texture, TERRA_OS, TERRA_PNG,
   TERRA_SpriteManager, TERRA_FileManager, TERRA_Math, TERRA_Vector3D, TERRA_Vector2D,
-  TERRA_Renderer, TERRA_InputManager,
+  TERRA_Renderer, TERRA_InputManager, 
   TERRA_SoundManager, TERRA_Sound, TERRA_SoundSource, TERRA_WAVE, TERRA_OGG;
 
 
